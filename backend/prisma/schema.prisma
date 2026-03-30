@@ -1,0 +1,2189 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+// Không dùng prisma-erd-generator ở đây: `prisma generate` trong Docker không có Chromium / frontend/public đúng layout.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Tổ chức (đa tổ chức). Mỗi tổ chức có một nút gốc COMPANY và cây Department/Division bên dưới.
+model Organization {
+  id           String       @id @default(uuid())
+  code         String       @unique
+  name         String
+  sortOrder    Int          @default(0) @map("sort_order")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at")
+  departments                 Department[]
+  divisionFlowRoutingCounters DivisionFlowRoutingCounter[]
+
+  @@map("organizations")
+}
+
+/// Bộ phận — danh mục trong module Nhân sự (lọc, hiển thị); không dùng cho luồng vận hành / cây đơn vị.
+model HrDepartmentUnit {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  /// Quản lý bộ phận HR — được duyệt/từ chối đơn nghỉ phép của nhân viên cùng bộ phận (bảng employees.hr_department_unit_id).
+  managerId String?  @map("manager_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  manager   Employee? @relation("HrDepartmentUnitManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees Employee[]
+
+  @@index([managerId])
+  @@map("hr_department_units")
+}
+
+model Subsidiary {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at")
+  employees Employee[] @relation("EmployeeToSubsidiary")
+
+  @@map("subsidiaries")
+}
+
+model Position {
+  id           String     @id @default(uuid())
+  code         String     @unique
+  name         String
+  departmentId String     @map("department_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  employees    Employee[]
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  @@index([departmentId])
+  @@map("positions")
+}
+
+model Department {
+  id   String @id @default(uuid())
+  code String
+  name String
+
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  type     OrgType  @default(DEPARTMENT)
+  function OrgFunc?
+
+  autoDistributeCustomer   Boolean @default(true) @map("auto_distribute_customer")
+  autoDistributeLead       Boolean @default(true) @map("auto_distribute_lead")
+  customerDistributeMethod String  @default("ROUND_ROBIN") @map("customer_distribute_method")
+  leadDistributeMethod     String  @default("ROUND_ROBIN") @map("lead_distribute_method")
+
+  targetSalesUnitId    String?      @map("target_sales_unit_id")
+  targetCsUnitId       String?      @map("target_cs_unit_id")
+  targetSalesUnit      Department?  @relation("DepartmentToSales", fields: [targetSalesUnitId], references: [id])
+  targetCsUnit         Department?  @relation("DepartmentToCS", fields: [targetCsUnitId], references: [id])
+  sourceMarketingUnits Department[] @relation("DepartmentToSales")
+  sourceSalesUnits     Department[] @relation("DepartmentToCS")
+
+  parentId     String?  @map("parent_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  managerId    String?  @map("manager_id")
+  displayOrder Int      @default(0) @map("display_order")
+
+  manager             Employee?               @relation("DepartmentManager", fields: [managerId], references: [id])
+  parent              Department?             @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children            Department[]            @relation("DepartmentHierarchy")
+  /// Luồng phân data trong khối (JSON): marketingToSalesPct, marketingToSalesChildDivisionPct, salesToCsPct, salesToCsChildDivisionPct, csOnlyPct; externalMarketingToSalesPct lưu trên khối nhận (Sales) — chỉ dùng khi type = DIVISION
+  dataFlowShares           Json?       @map("data_flow_shares")
+  externalCsDivisionId     String?     @map("external_cs_division_id")
+  externalCsDivision       Department? @relation("DivisionExternalCsFlow", fields: [externalCsDivisionId], references: [id], onDelete: SetNull)
+  divisionsUsingExternalCs Department[] @relation("DivisionExternalCsFlow")
+  /// Khối đồng cấp có đơn vị Sales khi khối này không có Sales (tương tự external CS).
+  externalSalesDivisionId     String?     @map("external_sales_division_id")
+  externalSalesDivision       Department? @relation("DivisionExternalSalesFlow", fields: [externalSalesDivisionId], references: [id], onDelete: SetNull)
+  divisionsUsingExternalSales Department[] @relation("DivisionExternalSalesFlow")
+  documentPermissions DocumentPermission[]
+  employees           Employee[]
+  leadAssignmentsFrom LeadAssignment[]        @relation("LeadAssignmentFromDepartment")
+  leadAssignmentsTo   LeadAssignment[]        @relation("LeadAssignmentToDepartment")
+  positions           Position[]
+  distributionRatios  TeamDistributionRatio[]
+  salesTargets        SalesTarget[]
+  /// Bộ đếm phân nhánh luồng data — scope = khối cho (nơi cấu hình tỉ lệ), không phải khối nhận.
+  divisionFlowRoutingCounters DivisionFlowRoutingCounter[] @relation("DivisionFlowRoutingScope")
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("departments")
+}
+
+/// Đếm số lần đã phân vào từng nhánh (target) theo khối cấu hình `scopeDivisionId` (khối cho).
+/// Dùng để cân bằng tỉ lệ theo thời gian khi mỗi lead được gán ngay lập tức.
+model DivisionFlowRoutingCounter {
+  id              String       @id @default(uuid())
+  organizationId  String       @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Khối nơi lưu `data_flow_shares` quyết định tỉ lệ phân nhánh đi ra (khối cho).
+  scopeDivisionId String       @map("scope_division_id")
+  scopeDivision   Department   @relation("DivisionFlowRoutingScope", fields: [scopeDivisionId], references: [id], onDelete: Cascade)
+  /// Ví dụ: MKT_SALES_CHILD_DIV, MKT_SALES_LEAF, EXT_MKT_SALES_LEAF, …
+  kind            String
+  /// Id khối con hoặc đơn vị lá đích tương ứng map trong JSON.
+  targetId        String       @map("target_id")
+  assignedCount   Int          @default(0) @map("assigned_count")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@unique([scopeDivisionId, kind, targetId])
+  @@index([organizationId])
+  @@index([scopeDivisionId, kind])
+  @@map("division_flow_routing_counters")
+}
+
+model RoleGroup {
+  id                  String               @id @default(uuid())
+  name                String
+  code                String               @unique
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  sortOrder           Int                  @default(0) @map("sort_order")
+  documentPermissions DocumentPermission[]
+  employees           Employee[]
+  menus               Menu[]               @relation("RoleMenu")
+  permissions         Permission[]         @relation("RolePermission")
+  viewScopes          RoleGroupViewScope[]
+
+  @@map("role_groups")
+}
+
+/// Phạm vi xem: áp dụng cho module Nhân sự (HR) và module liên quan khách hàng (Customer, Sales, Marketing, v.v.)
+/// SELF_RECURSIVE: Chỉ bản thân / khách của mình. Cấp trên trực tiếp/gián tiếp xem được cấp dưới.
+/// DEPARTMENT: Xem toàn bộ trong cùng phòng ban.
+/// DIVISION: Xem toàn bộ trong cùng khối.
+/// COMPANY: Toàn công ty.
+model RoleGroupViewScope {
+  id          String    @id @default(uuid())
+  roleGroupId String    @map("role_group_id")
+  context     String // HR | CUSTOMER
+  scope       String // SELF_RECURSIVE | DEPARTMENT | DIVISION | COMPANY
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  roleGroup   RoleGroup @relation(fields: [roleGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([roleGroupId, context])
+  @@index([roleGroupId])
+  @@map("role_group_view_scopes")
+}
+
+model Menu {
+  id         String      @id @default(uuid())
+  label      String
+  path       String
+  icon       String?
+  parentId   String?     @map("parent_id")
+  order      Int         @default(0)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  parent     Menu?       @relation("MenuHierarchy", fields: [parentId], references: [id])
+  children   Menu[]      @relation("MenuHierarchy")
+  roleGroups RoleGroup[] @relation("RoleMenu")
+
+  @@map("menus")
+}
+
+model Permission {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  roleGroups  RoleGroup[] @relation("RolePermission")
+
+  @@map("permissions")
+}
+
+model SystemLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  userName  String   @map("user_name")
+  userPhone String?  @map("user_phone")
+  action    String
+  object    String
+  objectId  String?  @map("object_id")
+  result    String
+  details   String?
+  oldValues Json?    @map("old_values")
+  newValues Json?    @map("new_values")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  timestamp DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([object])
+  @@index([timestamp])
+  @@index([action, timestamp])
+  @@index([userId, timestamp])
+  @@index([object, timestamp])
+  // Bổ sung: lọc nhật ký theo user/đối tượng/kết quả + tra theo bản ghi nghiệp vụ
+  @@index([objectId])
+  @@index([userName])
+  @@index([result])
+  @@index([object, objectId])
+  @@map("system_logs")
+}
+
+model Bank {
+  id        String                @id @default(uuid())
+  code      String                @unique
+  name      String
+  shortName String?               @map("short_name")
+  createdAt DateTime              @default(now()) @map("created_at")
+  updatedAt DateTime              @updatedAt @map("updated_at")
+  accounts  EmployeeBankAccount[]
+
+  @@map("banks")
+}
+
+model EmploymentType {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  employees   Employee[]
+
+  @@map("employment_types")
+}
+
+model EmployeeStatus {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  employees   Employee[]
+
+  @@map("employee_statuses")
+}
+
+/// Loại nhân viên (phân theo chức năng: Marketing, Sales, CSKH, Kế toán, HR, IT, ...). Dùng cho báo cáo, lọc, hạch toán.
+model EmployeeType {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  employees   Employee[]
+
+  @@map("employee_types")
+}
+
+model EmployeeBankAccount {
+  id            String   @id @default(uuid())
+  employeeId    String   @map("employee_id")
+  bankId        String   @map("bank_id")
+  accountNumber String   @map("account_number")
+  accountHolder String   @map("account_holder")
+  isPrimary     Boolean  @default(false) @map("is_primary")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  bank          Bank     @relation(fields: [bankId], references: [id])
+  employee      Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([bankId])
+  @@map("employee_bank_accounts")
+}
+
+model EmployeeVehicle {
+  id           String   @id @default(uuid())
+  employeeId   String   @map("employee_id")
+  type         String
+  name         String?
+  color        String?
+  licensePlate String   @unique @map("license_plate")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  employee     Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@map("employee_vehicles")
+}
+
+model Employee {
+  id                         String                @id @default(uuid())
+  code                       String                @unique @map("code")
+  fullName                   String                @map("full_name")
+  gender                     String
+  dateOfBirth                DateTime?             @map("date_of_birth")
+  avatarUrl                  String?               @map("avatar_url")
+  phone                      String?
+  phoneHash                  String?               @map("phone_hash")
+  emailCompany               String?               @map("email_company")
+  emailPersonal              String?               @map("email_personal")
+  passwordHash               String?               @map("password_hash")
+  filePath                   String?               @map("file_path")
+  address                    String?               @map("address")
+  employmentTypeId           String                @map("employment_type_id")
+  statusId                   String                @map("status_id")
+  // Đơn vị / chức danh vận hành: nullable — HR tạo hồ sơ, Vận hành gán sau.
+  positionId                 String?               @map("position_id")
+  departmentId               String?               @map("department_id")
+  hrDepartmentUnitId         String                @map("hr_department_unit_id")
+  /// Chức danh nội bộ phục vụ quản trị HR, không tham gia logic vận hành.
+  hrJobTitle                 String?               @map("hr_job_title")
+  roleGroupId                String?               @map("role_group_id")
+  employeeTypeId             String?               @map("employee_type_id")
+  isOnline                   Boolean               @default(false) @map("is_online")
+  lastActiveAt               DateTime?             @map("last_active_at")
+  lastLoginAt                DateTime?             @map("last_login_at")
+  isLocked                   Boolean               @default(false) @map("is_locked")
+  sessionInvalidatedAt       DateTime?             @map("session_invalidated_at")
+  createdAt                  DateTime              @default(now()) @map("created_at")
+  updatedAt                  DateTime              @updatedAt @map("updated_at")
+  id_card_back_image         String?
+  id_card_front_image        String?
+  id_card_issued_date        DateTime?
+  id_card_issued_place       String?
+  id_card_number             String?
+  personalTaxCode            String?               @map("personal_tax_code")
+  salesType                  String?               @map("sales_type")
+  contractReminderDaysBefore Int?                  @map("contract_reminder_days_before")
+  contractReminderRepeatDays Int?                  @map("contract_reminder_repeat_days")
+  /// Ngày hiệu lực hợp đồng lao động (tùy chọn, mọi loại HĐ).
+  contractEffectiveDate      DateTime?             @map("contract_effective_date")
+  /// Ngày hết hạn hợp đồng nếu có (tùy chọn).
+  contractEndDate            DateTime?             @map("contract_end_date")
+  probationStartDate         DateTime?             @map("probation_start_date")
+  probationEndDate           DateTime?             @map("probation_end_date")
+  probationStatus            ProbationStatus?      @default(NONE) @map("probation_status")
+  notifyOnNewContractUpload  Boolean?              @default(true) @map("notify_on_new_contract_upload")
+  chatMemberRequestsSent     ChatMemberRequest[]   @relation("ChatMemberRequestRequester")
+  chatMemberRequestsTarget   ChatMemberRequest[]   @relation("ChatMemberRequestTarget")
+  chatMemberships            ChatMember[]
+  sentMessages               ChatMessage[]
+  readMessages               ChatReadStatus[]
+  contracts                  Contract[]
+  hrReminders                HrReminder[]
+  interactions               CustomerInteraction[]
+  marketingCustomerContributions CustomerMarketingContributor[]
+  customers                  Customer[]
+  marketingCustomers         Customer[]            @relation("MarketingOwnerCustomers")
+  assignedLeads              DataPool[]            @relation("DataPoolAssignee")
+  managedDepartments         Department[]          @relation("DepartmentManager")
+  managedHrDepartmentUnits   HrDepartmentUnit[]    @relation("HrDepartmentUnitManager")
+
+  documentPermissions      DocumentPermission[]
+  ownedDocuments           Document[]                @relation("DocumentOwner")
+  createdDraftInvoices     DraftInvoice[]            @relation("DraftInvoiceCreator")
+  bankAccounts             EmployeeBankAccount[]
+  vehicles                 EmployeeVehicle[]
+  department               Department?               @relation(fields: [departmentId], references: [id])
+  hrDepartmentUnit         HrDepartmentUnit        @relation(fields: [hrDepartmentUnitId], references: [id])
+  employmentType           EmploymentType            @relation(fields: [employmentTypeId], references: [id])
+  position                 Position?                  @relation(fields: [positionId], references: [id])
+  roleGroup                RoleGroup?                @relation(fields: [roleGroupId], references: [id])
+  employeeType             EmployeeType?             @relation(fields: [employeeTypeId], references: [id])
+  status                   EmployeeStatus            @relation(fields: [statusId], references: [id])
+  leadAssignments          LeadAssignment[]          @relation("EmployeeLeadAssignments")
+  leadOpportunities        LeadOpportunity[]         @relation("EmployeeLeadOpportunities")
+  leaveRequestsAsApprover  LeaveRequest[]            @relation("leave_requests_approver_idToemployees")
+  leaveRequestsAsConfirmer LeaveRequest[]            @relation("leave_requests_confirmer_idToemployees")
+  leaveRequests            LeaveRequest[]            @relation("leave_requests_employee_idToemployees")
+  performedMaintenances    MaintenanceLog[]
+  createdMarketingCosts    MarketingCampaignCost[]
+  campaignMemberships      MarketingCampaignMember[] @relation("CampaignMembersEmployee")
+  createdCampaigns         MarketingCampaign[]       @relation("EmployeeCreatedCampaigns")
+  orders                   Order[]
+  approvedPayrolls         Payroll[]                 @relation("PayrollApprover")
+  createdPayrolls          Payroll[]                 @relation("PayrollCreator")
+  payrolls                 Payroll[]
+  userNotifications        UserNotification[]
+  assignedWarranties       WarrantyClaim[]
+  subsidiaries             Subsidiary[]              @relation("EmployeeToSubsidiary")
+  ticketsCreated           SupportTicket[]           @relation("TicketCreator")
+  ticketsAssigned          SupportTicket[]           @relation("TicketAssignee")
+  pushSubscriptions        PushSubscription[]
+
+  @@index([code])
+  @@index([phone])
+  @@index([phoneHash])
+  @@index([fullName])
+  @@index([emailCompany])
+  @@index([departmentId])
+  @@index([hrDepartmentUnitId])
+  @@index([statusId])
+  @@index([roleGroupId])
+  @@index([employeeTypeId])
+  @@map("employees")
+}
+
+model InternalNote {
+  id         String   @id @default(uuid())
+  authorId   String   @map("author_id")
+  authorName String   @map("author_name")
+  content    String
+  date       DateTime @default(now())
+  relatedTo  String   @map("related_to")
+  customerId String?  @map("customer_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([authorId])
+  @@index([customerId])
+  @@index([date])
+  @@map("internal_notes")
+}
+
+model Notification {
+  id          String             @id @default(uuid())
+  code        String?            @unique
+  title       String
+  content     String
+  type        String
+  targetType  String             @map("target_type")
+  targetValue String?            @map("target_value")
+  status      String
+  ctaLabel    String?            @map("cta_label")
+  ctaUrl      String?            @map("cta_url")
+  scheduledAt DateTime?          @map("scheduled_at")
+  sentAt      DateTime?          @map("sent_at")
+  createdBy   String             @map("created_by")
+  sentCount   Int                @default(0) @map("sent_count")
+  readCount   Int                @default(0) @map("read_count")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  reads       NotificationRead[]
+
+  @@map("notifications")
+}
+
+model NotificationRead {
+  id             String       @id @default(uuid())
+  userId         String       @map("user_id")
+  notificationId String       @map("notification_id")
+  readAt         DateTime     @default(now()) @map("read_at")
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationId])
+  @@map("notification_reads")
+}
+
+model UserNotification {
+  id         String    @id @default(uuid())
+  employeeId String    @map("employee_id")
+  title      String
+  content    String
+  type       String
+  link       String?
+  metadata   Json?
+  isRead     Boolean   @default(false) @map("is_read")
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  category   String    @default("GENERAL")
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, isRead])
+  @@index([employeeId, createdAt])
+  @@index([category])
+  @@index([type])
+  @@map("user_notifications")
+}
+
+/// Đăng ký Web Push cho nhân viên (hiển thị thông báo khi màn hình khóa / app nền)
+model PushSubscription {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  endpoint   String   @unique
+  p256dh     String   @map("p256dh")
+  auth       String
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@map("push_subscriptions")
+}
+
+model DocumentPermission {
+  id           String      @id @default(uuid())
+  documentId   String      @map("document_id")
+  employeeId   String?     @map("employee_id")
+  departmentId String?     @map("department_id")
+  roleGroupId  String?     @map("role_group_id")
+  accessLevel  String      @map("access_level")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  document     Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  employee     Employee?   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  roleGroup    RoleGroup?  @relation(fields: [roleGroupId], references: [id], onDelete: Cascade)
+
+  @@map("document_permissions")
+}
+
+model Document {
+  id          String               @id @default(uuid())
+  code        String               @unique
+  name        String
+  content     String?
+  path        String
+  type        String
+  category    String?
+  size        String?
+  uploadDate  DateTime             @map("upload_date")
+  uploadedBy  String               @map("uploaded_by")
+  tags        String?
+  version     String?
+  status      String?
+  ownerId     String?              @map("owner_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  permissions DocumentPermission[]
+  owner       Employee?            @relation("DocumentOwner", fields: [ownerId], references: [id])
+
+  @@map("documents")
+}
+
+model Customer {
+  id                    String                  @id @default(uuid())
+  code                  String                  @unique @default(cuid())
+  name                  String?
+  phone                 String
+  /// SĐT phụ (tối đa 1); gán một lần, không sửa sau khi đã có.
+  phoneSecondary        String?                 @unique @map("phone_secondary")
+  email                 String?
+  address               String?
+  dateOfBirth           DateTime?               @map("date_of_birth")
+  gender                String?
+  provinceId            String?                 @map("province_id")
+  employeeId            String?                 @map("employee_id")
+  marketingOwnerId      String?                 @map("marketing_owner_id")
+  attributionExpiredAt  DateTime?               @map("attribution_expired_at")
+  marketingAttributionExtraDays Int?            @map("marketing_attribution_extra_days")
+  spendingRankCode      String?                 @map("spending_rank_code")
+  regionRankCode        String?                 @map("region_rank_code")
+  leadSourceId          String?                 @map("lead_source_id")
+  campaignId            String?                 @map("campaign_id")
+  leadStatus            String?                 @map("lead_status")
+  isValidLead           Boolean                 @default(true) @map("is_valid_lead")
+  invalidReason         String?                 @map("invalid_reason")
+  duplicateOfCustomerId String?                 @map("duplicate_of_customer_id")
+  status                Status                  @default(ACTIVE)
+  totalOrdersValue      Float                   @default(0) @map("total_orders_value")
+  joinedDate            DateTime                @default(now()) @map("joined_date")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+  bankAccount           String?                 @map("bank_account")
+  bankName              String?                 @map("bank_name")
+  businessType          String?                 @map("business_type")
+  createdById           String?                 @map("created_by_id")
+  createdByRole         String?                 @map("created_by_role")
+  districtId            String?                 @map("district_id")
+  farmArea              Float?                  @map("farm_area")
+  farmAreaUnit          String?                 @map("farm_area_unit")
+  farmName              String?                 @map("farm_name")
+  farmingMethod         String?                 @map("farming_method")
+  farmingYears          Int?                    @map("farming_years")
+  irrigationType        String?                 @map("irrigation_type")
+  lastOrderAt           DateTime?               @map("last_order_at")
+  mainCrops             String[]                @map("main_crops")
+  // Mapping crop -> number of roots for crops that are counted "per root".
+  // Stored as JSONB, e.g. { "Cà phê": 100, "Điều": 50 }
+  mainCropsRootCounts  Json?                   @map("main_crops_root_counts")
+  note                  String?
+  salesChannel          String?                 @map("sales_channel")
+  salesChannelNote      String?                 @map("sales_channel_note")
+  soilType              String?                 @map("soil_type")
+  taxCode               String?                 @map("tax_code")
+  totalOrders           Int                     @default(0) @map("total_orders")
+  wardId                String?                 @map("ward_id")
+  addressRecord         CustomerAddress?
+  aggregate             CustomerAggregate?
+  farms                 CustomerFarm[]
+  interactions          CustomerInteraction[]
+  marketingContributors CustomerMarketingContributor[]
+  tags                  CustomerTagAssignment[]
+  campaign              MarketingCampaign?      @relation(fields: [campaignId], references: [id])
+  district              District?               @relation("CustomerDistrict", fields: [districtId], references: [id])
+  duplicateOfCustomer   Customer?               @relation("CustomerDuplicate", fields: [duplicateOfCustomerId], references: [id])
+  duplicates            Customer[]              @relation("CustomerDuplicate")
+  employee              Employee?               @relation(fields: [employeeId], references: [id])
+  leadSource            MarketingSource?        @relation(fields: [leadSourceId], references: [id])
+  marketingOwner        Employee?               @relation("MarketingOwnerCustomers", fields: [marketingOwnerId], references: [id])
+  province              Province?               @relation(fields: [provinceId], references: [id])
+  regionRank            CustomerRegionRank?     @relation(fields: [regionRankCode], references: [code])
+  spendingRank          CustomerSpendingRank?   @relation(fields: [spendingRankCode], references: [code])
+  statusId              String?                 @map("status_id")
+  customerStatus        CustomerStatus?         @relation(fields: [statusId], references: [id])
+  ward                  Ward?                   @relation("CustomerWard", fields: [wardId], references: [id])
+  dataPool              DataPool?
+  draftInvoices         DraftInvoice[]
+  assignments           LeadAssignment[]
+  opportunities         LeadOpportunity[]
+  orders                Order[]
+  warrantyClaims        WarrantyClaim[]
+
+  @@index([employeeId])
+  @@index([marketingOwnerId])
+  @@index([provinceId])
+  @@index([districtId])
+  @@index([wardId])
+  @@index([spendingRankCode])
+  @@index([statusId])
+  @@index([phone])
+  @@index([phoneSecondary])
+  @@index([leadStatus])
+  @@index([createdByRole])
+  @@index([joinedDate])
+  @@index([status])
+  // Hiệu năng: danh sách sort theo updatedAt; thống kê theo createdAt; phạm vi OR createdById; campaign / lọc cây trồng
+  @@index([updatedAt])
+  @@index([createdAt])
+  @@index([createdById])
+  @@index([campaignId])
+  @@index([status, updatedAt])
+  @@index([mainCrops], type: Gin)
+  @@map("customers")
+}
+
+model CustomerTag {
+  id          String                  @id @default(uuid())
+  code        String                  @unique
+  name        String
+  color       String                  @default("#3B82F6")
+  bgColor     String?                 @map("bg_color")
+  description String?
+  category    String?
+  sortOrder   Int                     @default(0) @map("sort_order")
+  isActive    Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  assignments CustomerTagAssignment[]
+
+  @@map("customer_tags")
+}
+
+model CustomerTagAssignment {
+  id         String      @id @default(uuid())
+  customerId String      @map("customer_id")
+  tagId      String      @map("tag_id")
+  assignedBy String?     @map("assigned_by")
+  assignedAt DateTime    @default(now()) @map("assigned_at")
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag        CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, tagId])
+  @@index([customerId])
+  @@index([tagId])
+  @@map("customer_tag_assignments")
+}
+
+model CustomerFarm {
+  id             String   @id @default(uuid())
+  customerId     String   @map("customer_id")
+  name           String
+  area           Float?
+  areaUnit       String?  @map("area_unit")
+  address        String?
+  wardId         String?  @map("ward_id")
+  districtId     String?  @map("district_id")
+  provinceId     String?  @map("province_id")
+  coordinates    String?
+  crops          String[]
+  soilType       String?  @map("soil_type")
+  irrigationType String?  @map("irrigation_type")
+  farmingMethod  String?  @map("farming_method")
+  hasIoTDevice   Boolean  @default(false) @map("has_iot_device")
+  iotDeviceIds   String[] @map("iot_device_ids")
+  note           String?
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_farms")
+}
+
+model Contract {
+  id                   String         @id @default(uuid())
+  employeeId           String         @map("employee_id")
+  fileName             String?        @map("file_name")
+  filePath             String?        @map("file_path")
+  fileSize             Int?           @map("file_size")
+  fileType             String?        @map("file_type")
+  uploadedBy           String?        @map("uploaded_by")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  code                 String?        @map("code")
+  type                 ContractType   @default(OTHER)
+  status               ContractStatus @default(DRAFT)
+  basicSalary          Decimal?       @map("basic_salary") @db.Decimal(18, 2)
+  allowances           String?        @map("allowances")
+  workingHours         String?        @map("working_hours")
+  notes                String?        @map("notes")
+  lastExpiryReminderAt DateTime?      @map("last_expiry_reminder_at")
+  startDate            DateTime?      @map("start_date")
+  endDate              DateTime?      @map("end_date")
+  employee             Employee       @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([endDate])
+  @@map("contracts")
+}
+
+model ChatGroup {
+  id              String              @id @default(uuid())
+  name            String
+  type            String              @default("GROUP")
+  avatarUrl       String?             @map("avatar_url")
+  backgroundColor String?             @map("background_color")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  memberRequests  ChatMemberRequest[]
+  members         ChatMember[]
+  messages        ChatMessage[]
+
+  @@map("chat_groups")
+}
+
+model ChatMember {
+  id                String    @id @default(uuid())
+  groupId           String    @map("group_id")
+  employeeId        String    @map("employee_id")
+  role              String    @default("MEMBER")
+  nickname          String?   @map("nickname")
+  joinedAt          DateTime  @default(now()) @map("joined_at")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+  lastReadMessageId String?   @map("last_read_message_id")
+  backgroundColor   String?   @map("background_color")
+  isPinned          Boolean   @default(false) @map("is_pinned")
+  pinnedAt          DateTime? @map("pinned_at")
+  employee          Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  group             ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, employeeId])
+  @@map("chat_members")
+}
+
+model ChatMemberRequest {
+  id               String    @id @default(uuid())
+  groupId          String    @map("group_id")
+  requesterId      String    @map("requester_id")
+  targetEmployeeId String    @map("target_employee_id")
+  status           String    @default("PENDING") @map("status")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  group            ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  requester        Employee  @relation("ChatMemberRequestRequester", fields: [requesterId], references: [id])
+  targetEmployee   Employee  @relation("ChatMemberRequestTarget", fields: [targetEmployeeId], references: [id])
+
+  @@index([groupId])
+  @@index([requesterId])
+  @@index([targetEmployeeId])
+  @@map("chat_member_requests")
+}
+
+model ChatMessage {
+  id          String           @id @default(uuid())
+  groupId     String           @map("group_id")
+  senderId    String           @map("sender_id")
+  content     String?
+  type        String           @default("TEXT")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  attachments ChatAttachment[]
+  group       ChatGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sender      Employee         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  readStatus  ChatReadStatus[]
+
+  @@index([groupId, createdAt])
+  @@index([senderId])
+  @@map("chat_messages")
+}
+
+model ChatAttachment {
+  id        String      @id @default(uuid())
+  messageId String      @map("message_id")
+  fileUrl   String      @map("file_url")
+  fileName  String      @map("file_name")
+  fileSize  Int         @map("file_size")
+  fileType  String      @map("file_type")
+  createdAt DateTime    @default(now()) @map("created_at")
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("chat_attachments")
+}
+
+model ChatReadStatus {
+  id        String      @id @default(uuid())
+  messageId String      @map("message_id")
+  userId    String      @map("user_id")
+  readAt    DateTime    @default(now()) @map("read_at")
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      Employee    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("chat_read_statuses")
+}
+
+model CustomerAddress {
+  id         String      @id @default(uuid())
+  code       String      @unique
+  customerId String      @unique @map("customer_id")
+  type       AddressType
+  detail     String
+  wardId     String      @map("ward_id")
+  districtId String?     @map("district_id")
+  provinceId String      @map("province_id")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  district   District?   @relation(fields: [districtId], references: [id])
+  province   Province    @relation(fields: [provinceId], references: [id])
+  ward       Ward        @relation(fields: [wardId], references: [id])
+
+  @@index([provinceId])
+  @@map("customer_addresses")
+}
+
+model Province {
+  id                String               @id @default(uuid())
+  code              String               @unique
+  name              String
+  customerAddresses CustomerAddress[]
+  regionRanks       CustomerRegionRank[]
+  customers         Customer[]
+  districts         District[]
+  wards             Ward[]
+  warehouses        Warehouse[]
+
+  @@map("provinces")
+}
+
+model District {
+  id                String            @id @default(uuid())
+  code              String            @unique
+  name              String
+  provinceId        String            @map("province_id")
+  customerAddresses CustomerAddress[]
+  customers         Customer[]        @relation("CustomerDistrict")
+  province          Province          @relation(fields: [provinceId], references: [id])
+  wards             Ward[]
+  warehouses        Warehouse[]
+
+  @@index([provinceId])
+  @@map("districts")
+}
+
+model Ward {
+  id                String            @id @default(uuid())
+  code              String            @unique
+  name              String
+  provinceId        String            @map("province_id")
+  districtId        String?           @map("district_id")
+  customerAddresses CustomerAddress[]
+  customers         Customer[]        @relation("CustomerWard")
+  district          District?         @relation(fields: [districtId], references: [id])
+  province          Province          @relation(fields: [provinceId], references: [id])
+  warehouses        Warehouse[]
+
+  @@index([provinceId])
+  @@map("wards")
+}
+
+model Order {
+  id                 String             @default(uuid())
+  code               String
+  customerId         String             @map("customer_id")
+  employeeId         String?            @map("employee_id")
+  orderDate          DateTime           @map("order_date")
+  totalAmount        Decimal            @map("total_amount") @db.Decimal(15, 2)
+  discount           Decimal            @default(0) @db.Decimal(15, 2)
+  finalAmount        Decimal            @map("final_amount") @db.Decimal(15, 2)
+  paymentStatus      String             @map("payment_status")
+  orderStatus        String             @map("order_status")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  confirmedAt        DateTime?          @map("confirmed_at")
+  confirmedById      String?            @map("confirmed_by_id")
+  deliveredAt        DateTime?          @map("delivered_at")
+  note               String?
+  receiverAddress    String?            @map("receiver_address")
+  receiverDistrict   String?            @map("receiver_district")
+  receiverName       String?            @map("receiver_name")
+  receiverPhone      String?            @map("receiver_phone")
+  receiverProvince   String?            @map("receiver_province")
+  receiverWard       String?            @map("receiver_ward")
+  receiverProvinceId Int?               @map("receiver_province_id")
+  receiverDistrictId Int?               @map("receiver_district_id")
+  receiverWardId     Int?               @map("receiver_ward_id")
+  shippedAt          DateTime?          @map("shipped_at")
+  shippingFee        Decimal?           @map("shipping_fee") @db.Decimal(15, 2)
+  shippingProvider   String?            @map("shipping_provider")
+  trackingNumber     String?            @map("tracking_number")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  codAmount          Decimal?           @map("cod_amount") @db.Decimal(15, 2)
+  shippingCode       String?            @map("shipping_code")
+  shippingStatus     String             @default("PENDING") @map("shipping_status")
+  editHistory        Json?              @map("edit_history")
+  isFirstOrder       Boolean            @default(true) @map("is_first_order")
+  last_edited_at     DateTime?
+  lastEditedById     String?            @map("last_edited_by_id")
+  resalesEmployeeId  String?            @map("resales_employee_id")
+  revenueCountedAt   DateTime?          @map("revenue_counted_at")
+  salesEmployeeId    String?            @map("sales_employee_id")
+  items              OrderItem[]
+  orderShippingLogs  OrderShippingLog[]
+  customer           Customer           @relation(fields: [customerId], references: [id])
+  employee           Employee?          @relation(fields: [employeeId], references: [id])
+
+  @@id([id, orderDate])
+  @@unique([code, orderDate])
+  @@index([customerId, orderDate])
+  @@index([orderDate])
+  @@index([shippingStatus])
+  @@index([shippingCode])
+  @@index([shippingStatus, deliveredAt])
+  @@index([employeeId])
+  // Danh sách / thống kê: lọc theo trạng thái + khoảng ngày; nhân viên + ngày; orderStatus
+  @@index([shippingStatus, orderDate])
+  @@index([employeeId, orderDate])
+  @@index([orderStatus])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  code       String   @unique
+  orderId    String   @map("order_id")
+  orderDate  DateTime @map("order_date")
+  productId  String   @map("product_id")
+  quantity   Int
+  unitPrice  Decimal  @map("unit_price") @db.Decimal(15, 2)
+  totalPrice Decimal  @map("total_price") @db.Decimal(15, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+  order      Order    @relation(fields: [orderId, orderDate], references: [id, orderDate], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([orderId, orderDate])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model CustomerInteraction {
+  id           String    @default(uuid())
+  code         String
+  customerId   String    @map("customer_id")
+  employeeId   String    @map("employee_id")
+  type         String
+  content      String
+  /// USER_NOTE | SYSTEM_CHANGE
+  kind         String    @default("USER_NOTE") @map("kind")
+  /// Chi tiết tương tác (form mới); có thể validate min ký tự theo min_note_characters.
+  detail       String?   @map("detail") @db.Text
+  /// Trạng thái xử lý Sales snapshot khi tạo bản ghi thủ công.
+  processingStatusAtTime String? @map("processing_status_at_time")
+  nextActionAt DateTime? @map("next_action_at")
+  result       String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  employee     Employee  @relation(fields: [employeeId], references: [id])
+
+  @@id([id, createdAt])
+  @@unique([code, createdAt])
+  @@index([customerId, createdAt])
+  @@index([employeeId])
+  @@index([nextActionAt])
+  @@index([kind])
+  @@map("customer_interactions")
+}
+
+/// NV Marketing từng ghi nhận / nhập SĐT liên quan tới khách (1-n).
+model CustomerMarketingContributor {
+  id                 String   @id @default(uuid())
+  customerId         String   @map("customer_id")
+  employeeId         String   @map("employee_id")
+  firstContributedAt DateTime @default(now()) @map("first_contributed_at")
+  customer           Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  employee           Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, employeeId])
+  @@index([customerId])
+  @@index([employeeId])
+  @@map("customer_marketing_contributors")
+}
+
+model CustomerAggregate {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  customerId     String    @unique @map("customer_id")
+  totalOrders    Int       @default(0) @map("total_orders")
+  totalSpent     Decimal   @default(0) @map("total_spent") @db.Decimal(15, 2)
+  lastOrderAt    DateTime? @map("last_order_at")
+  periodSpent    Decimal   @default(0) @map("period_spent") @db.Decimal(15, 2)
+  salesRevenue   Float     @default(0) @map("sales_revenue")
+  resalesRevenue Float     @default(0) @map("resales_revenue")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  customer       Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([totalSpent])
+  @@map("customer_aggregates")
+}
+
+model CustomerSpendingRank {
+  id        String     @id @default(uuid())
+  code      String     @unique
+  name      String
+  minAmount Decimal    @map("min_amount") @db.Decimal(15, 2)
+  maxAmount Decimal    @map("max_amount") @db.Decimal(15, 2)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  bgColor   String?    @map("bg_color")
+  color     String     @default("#3B82F6")
+  sortOrder Int        @default(0) @map("sort_order")
+  customers Customer[]
+
+  @@map("customer_spending_ranks")
+}
+
+model CustomerRegionRank {
+  id         String     @id @default(uuid())
+  code       String     @unique
+  name       String
+  provinceId String?    @map("province_id")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+  province   Province?  @relation(fields: [provinceId], references: [id])
+  customers  Customer[]
+
+  @@map("customer_region_ranks")
+}
+
+model CustomerRankSetting {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  rankingPeriod Int      @map("ranking_period")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("customer_rank_settings")
+}
+
+model MarketingSource {
+  id          String                  @id @default(uuid())
+  code        String                  @unique
+  name        String
+  description String?
+  isActive    Boolean                 @default(true) @map("is_active")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  customers   Customer[]
+  costs       MarketingCampaignCost[]
+  campaigns   MarketingCampaign[]
+
+  @@map("marketing_sources")
+}
+
+model MarketingCampaign {
+  id                  String                     @id @default(uuid())
+  code                String                     @unique
+  name                String
+  description         String?
+  status              String                     @map("status")
+  startDate           DateTime                   @map("start_date")
+  endDate             DateTime?                  @map("end_date")
+  totalBudget         Decimal?                   @map("total_budget") @db.Decimal(15, 2)
+  sourceId            String?                    @map("source_id")
+  createdByEmployeeId String                     @map("created_by_employee_id")
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  updatedAt           DateTime                   @updatedAt @map("updated_at")
+  allowedOrigins      String?                    @map("allowed_origins")
+  apiKey              String?                    @unique @map("api_key")
+  leadCount           Int                        @default(0) @map("lead_count")
+  webhookSecret       String?                    @map("webhook_secret")
+  acceptedFields      Json?                      @map("accepted_fields")
+  /// NONE = không nhận mã tỉnh/huyện/xã; OLD/NEW = ID thuộc danh mục trước/sau sáp nhập (khớp `AddressType` trên `customer_addresses`)
+  publicLeadAddressHierarchy String              @default("NONE") @map("public_lead_address_hierarchy")
+  customers           Customer[]
+  opportunities       LeadOpportunity[]
+  costs               MarketingCampaignCost[]
+  members             MarketingCampaignMember[]
+  products            MarketingCampaignProduct[]
+  createdByEmployee   Employee                   @relation("EmployeeCreatedCampaigns", fields: [createdByEmployeeId], references: [id])
+  source              MarketingSource?           @relation(fields: [sourceId], references: [id])
+
+  @@index([sourceId])
+  @@index([createdByEmployeeId])
+  @@index([apiKey])
+  @@map("marketing_campaigns")
+}
+
+model MarketingCampaignProduct {
+  id         String            @id @default(uuid())
+  campaignId String            @map("campaign_id")
+  productId  String            @map("product_id")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id])
+  product    Product           @relation(fields: [productId], references: [id])
+
+  @@unique([campaignId, productId])
+  @@index([campaignId])
+  @@map("marketing_campaign_products")
+}
+
+model MarketingCampaignMember {
+  id         String            @id @default(uuid())
+  campaignId String            @map("campaign_id")
+  employeeId String            @map("employee_id")
+  role       String            @map("role")
+  createdAt  DateTime          @default(now()) @map("created_at")
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id])
+  employee   Employee          @relation("CampaignMembersEmployee", fields: [employeeId], references: [id])
+
+  @@unique([campaignId, employeeId])
+  @@index([employeeId])
+  @@map("marketing_campaign_members")
+}
+
+model MarketingCampaignCost {
+  id                String                    @id @default(uuid())
+  campaignId        String                    @map("campaign_id")
+  sourceId          String?                   @map("source_id")
+  costDate          DateTime                  @map("cost_date")
+  amount            Decimal                   @map("amount") @db.Decimal(15, 2)
+  description       String?                   @map("description")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  adAccountId       String?                   @map("ad_account_id")
+  attachmentUrl     String?                   @map("attachment_url")
+  clicks            Int?                      @map("clicks")
+  costType          String                    @default("AD_SPEND") @map("cost_type")
+  createdById       String?                   @map("created_by_id")
+  impressions       Int?                      @map("impressions")
+  platform          String?                   @map("platform")
+  reach             Int?                      @map("reach")
+  employeeGroupId   String?                   @map("employee_group_id")
+  campaign          MarketingCampaign         @relation(fields: [campaignId], references: [id])
+  createdBy         Employee?                 @relation(fields: [createdById], references: [id])
+  employeeGroup     MarketingEmployeeGroup?   @relation(fields: [employeeGroupId], references: [id])
+  source            MarketingSource?          @relation(fields: [sourceId], references: [id])
+  assignedEmployees MarketingCostAssignment[]
+
+  @@index([campaignId])
+  @@index([sourceId])
+  @@index([costDate])
+  @@index([employeeGroupId])
+  // Truy vấn theo chiến dịch + sort/lọc ngày; lọc aggregate theo loại/nền tảng
+  @@index([campaignId, costDate])
+  @@index([costType])
+  @@index([platform])
+  @@map("marketing_campaign_costs")
+}
+
+model LeadAssignment {
+  id                   String      @id @default(uuid())
+  customerId           String      @map("customer_id")
+  fromDepartmentId     String?     @map("from_department_id")
+  toDepartmentId       String      @map("to_department_id")
+  assignedToEmployeeId String?     @map("assigned_to_employee_id")
+  stage                String      @map("stage")
+  status               String      @map("status")
+  assignedAt           DateTime    @map("assigned_at")
+  deadlineAt           DateTime?   @map("deadline_at")
+  firstActionAt        DateTime?   @map("first_action_at")
+  revokedAt            DateTime?   @map("revoked_at")
+  revokedReason        String?     @map("revoked_reason")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+  assignedToEmployee   Employee?   @relation("EmployeeLeadAssignments", fields: [assignedToEmployeeId], references: [id])
+  customer             Customer    @relation(fields: [customerId], references: [id])
+  fromDepartment       Department? @relation("LeadAssignmentFromDepartment", fields: [fromDepartmentId], references: [id])
+  toDepartment         Department  @relation("LeadAssignmentToDepartment", fields: [toDepartmentId], references: [id])
+
+  @@index([customerId])
+  @@index([toDepartmentId])
+  @@index([assignedToEmployeeId])
+  @@map("lead_assignments")
+}
+
+model LeadOpportunity {
+  id                   String             @id @default(uuid())
+  code                 String             @unique
+  customerId           String             @map("customer_id")
+  campaignId           String?            @map("campaign_id")
+  assignedToEmployeeId String             @map("assigned_to_employee_id")
+  status               String             @map("status")
+  expectedAmount       Decimal?           @map("expected_amount") @db.Decimal(15, 2)
+  actualAmount         Decimal?           @map("actual_amount") @db.Decimal(15, 2)
+  probability          Int                @map("probability")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  closedAt             DateTime?          @map("closed_at")
+  loseReason           String?            @map("lose_reason")
+  assignedToEmployee   Employee           @relation("EmployeeLeadOpportunities", fields: [assignedToEmployeeId], references: [id])
+  campaign             MarketingCampaign? @relation(fields: [campaignId], references: [id])
+  customer             Customer           @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([campaignId])
+  @@index([assignedToEmployeeId])
+  @@map("lead_opportunities")
+}
+
+model ProductCategory {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  products    Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                       String                     @id @default(uuid())
+  code                     String                     @unique
+  name                     String
+  description              String?
+  listPriceNet             Decimal                    @map("list_price_net") @db.Decimal(15, 2)
+  minSellPriceNet          Decimal                    @default(0) @map("min_sell_price_net") @db.Decimal(15, 2)
+  vatRate                  Float                      @default(0) @map("vat_rate")
+  vatName                  String?                    @map("vat_name")
+  weight                   Float                      @default(0) // Khối lượng (g)
+  packagingSpec            String?                    @map("packaging_spec") @db.VarChar(500)
+  unit                     String
+  thumbnail                String?
+  gallery                  String[]
+  status                   Status                     @default(ACTIVE)
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
+  categoryId               String?                    @map("category_id")
+  lowStockThreshold        Int                        @default(50) @map("low_stock_threshold")
+  batches                  Batch[]
+  draftInvoiceItems        DraftInvoiceItem[]
+  MarketingCampaignProduct MarketingCampaignProduct[]
+  OrderItem                OrderItem[]
+  bioDetail                ProductBio?
+  techDetail               ProductTech?
+  comboItems               ProductComboItem[]           @relation("ComboOwner")
+  usedInCombos             ProductComboItem[]           @relation("ComboComponent")
+  category                 ProductCategory?           @relation(fields: [categoryId], references: [id])
+  serials                  Serial[]
+  stocks                   Stock[]
+  transactionItems         TransactionItem[]
+
+  @@map("products")
+}
+
+model ProductComboItem {
+  id                 String  @id @default(uuid())
+  comboProductId     String  @map("combo_product_id")
+  componentProductId String  @map("component_product_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  comboProduct       Product @relation("ComboOwner", fields: [comboProductId], references: [id], onDelete: Cascade)
+  componentProduct   Product @relation("ComboComponent", fields: [componentProductId], references: [id], onDelete: Restrict)
+
+  @@unique([comboProductId, componentProductId])
+  @@index([componentProductId])
+  @@map("product_combo_items")
+}
+
+model ProductBio {
+  productId    String  @id @map("product_id")
+  volume       Float?
+  weight       Float?
+  packType     String? @map("pack_type")
+  ingredients  String?
+  usage        String?
+  expiryPeriod Int?    @map("expiry_period")
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_bios")
+}
+
+model ProductTech {
+  productId         String  @id @map("product_id")
+  specifications    Json?
+  warrantyDuration  Int     @default(12) @map("warranty_duration")
+  maintenancePeriod Int?    @map("maintenance_period")
+  manufacturer      String?
+  modelYear         Int?    @map("model_year")
+  product           Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_techs")
+}
+
+model Warehouse {
+  id                 String                 @id @default(uuid())
+  code               String                 @unique
+  name               String
+  address            String?
+  manager            String?
+  type               WarehouseType          @default(MAIN)
+  status             Status                 @default(ACTIVE)
+  contactName        String?                @map("contact_name")
+  contactPhone       String?                @map("contact_phone")
+  detailAddress      String?                @map("detail_address")
+  provinceId         String?                @map("province_id")
+  districtId         String?                @map("district_id")
+  wardId             String?                @map("ward_id")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+  province           Province?              @relation(fields: [provinceId], references: [id])
+  district           District?              @relation(fields: [districtId], references: [id])
+  ward               Ward?                  @relation(fields: [wardId], references: [id])
+  transactionsDest   InventoryTransaction[] @relation("DestWarehouse")
+  transactionsSource InventoryTransaction[] @relation("SourceWarehouse")
+  serials            Serial[]
+  stocks             Stock[]
+
+  @@map("warehouses")
+}
+
+model Batch {
+  id               String            @id @default(uuid())
+  code             String            @unique
+  productId        String            @map("product_id")
+  mfgDate          DateTime?         @map("mfg_date")
+  expDate          DateTime?         @map("exp_date")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  product          Product           @relation(fields: [productId], references: [id])
+  stocks           Stock[]
+  transactionItems TransactionItem[]
+
+  @@map("batches")
+}
+
+model Stock {
+  id          String    @id @default(uuid())
+  warehouseId String    @map("warehouse_id")
+  productId   String    @map("product_id")
+  batchId     String?   @map("batch_id")
+  quantity    Int       @default(0)
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  batch       Batch?    @relation(fields: [batchId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([warehouseId, productId, batchId])
+  @@map("stocks")
+}
+
+model Serial {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  productId   String           @map("product_id")
+  warehouseId String?          @map("warehouse_id")
+  status      SerialStatus     @default(IN_STOCK)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  logs        MaintenanceLog[]
+  product     Product          @relation(fields: [productId], references: [id])
+  warehouse   Warehouse?       @relation(fields: [warehouseId], references: [id])
+  claims      WarrantyClaim[]
+
+  @@map("serials")
+}
+
+model InventoryTransaction {
+  id                String            @id @default(uuid())
+  code              String            @unique
+  type              TransactionType
+  sourceWarehouseId String?           @map("source_warehouse_id")
+  destWarehouseId   String?           @map("dest_warehouse_id")
+  date              DateTime          @default(now())
+  note              String?
+  status            TransactionStatus @default(COMPLETED)
+  createdBy         String            @map("created_by")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  destWarehouse     Warehouse?        @relation("DestWarehouse", fields: [destWarehouseId], references: [id])
+  sourceWarehouse   Warehouse?        @relation("SourceWarehouse", fields: [sourceWarehouseId], references: [id])
+  items             TransactionItem[]
+
+  @@map("inventory_transactions")
+}
+
+model TransactionItem {
+  id            String               @id @default(uuid())
+  transactionId String               @map("transaction_id")
+  productId     String               @map("product_id")
+  batchId       String?              @map("batch_id")
+  quantity      Int
+  serials       String?
+  batch         Batch?               @relation(fields: [batchId], references: [id])
+  product       Product              @relation(fields: [productId], references: [id])
+  transaction   InventoryTransaction @relation(fields: [transactionId], references: [id])
+
+  @@map("transaction_items")
+}
+
+model WarrantyClaim {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  serialId     String    @map("serial_id")
+  customerId   String?   @map("customer_id")
+  description  String?
+  status       String    @default("PENDING")
+  technicianId String?   @map("technician_id")
+  resolution   String?
+  cost         Decimal?  @db.Decimal(15, 2)
+  receivedAt   DateTime  @default(now()) @map("received_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  serial       Serial    @relation(fields: [serialId], references: [id])
+  technician   Employee? @relation(fields: [technicianId], references: [id])
+
+  @@map("warranty_claims")
+}
+
+model MaintenanceLog {
+  id          String    @id @default(uuid())
+  serialId    String    @map("serial_id")
+  performedBy String?   @map("performed_by")
+  action      String
+  note        String?
+  performedAt DateTime  @default(now()) @map("performed_at")
+  performer   Employee? @relation(fields: [performedBy], references: [id])
+  serial      Serial    @relation(fields: [serialId], references: [id])
+
+  @@map("maintenance_logs")
+}
+
+model DataPool {
+  id                  String         @id @default(uuid())
+  customerId          String         @unique @map("customer_id")
+  source              DataPoolSource @default(MARKETING)
+  enteredAt           DateTime       @default(now()) @map("entered_at")
+  assignedAt          DateTime?      @map("assigned_at")
+  assignedToId        String?        @map("assigned_to_id")
+  status              DataPoolStatus @default(AVAILABLE)
+  priority            Int            @default(0)
+  note                String?
+  poolType            String         @default("SALES") @map("pool_type")
+  // 1: chăm sóc khách hàng lần 1; 2: chăm sóc khách hàng lần 2 (đi vòng đời theo tham số vận hành)
+  cskhStage           Int            @default(1) @map("cskh_stage")
+  roundCount          Int            @default(0) @map("round_count")
+  maxRounds           Int            @default(5) @map("max_rounds")
+  previousAssignees   String[]       @default([]) @map("previous_assignees")
+  deadline            DateTime?
+  holdUntil           DateTime?      @map("hold_until")
+  interactionDeadline DateTime?      @map("interaction_deadline")
+  customDeadline      DateTime?      @map("custom_deadline")
+  /// true: Sales đang xử lý sau khi CSKH thu hồi; hết hạn Sales → ưu tiên phân lại CSKH (không tính vòng Sales).
+  awaitingSalesAfterCskh Boolean   @default(false) @map("awaiting_sales_after_cskh")
+  processingStatus    String?        @map("processing_status")
+  /// SALES_OPEN: kho Sales chưa gán; FLOATING: kho thả nổi (theo pool_push_processing_statuses).
+  poolQueue           String         @default("SALES_OPEN") @map("pool_queue")
+  /// Thời điểm hẹn gọi lại khách (Sales/CSKH).
+  callbackAt                DateTime? @map("callback_at")
+  /// Bật gửi thông báo nhắc gọi lại cho NV được gán.
+  callbackNotifyEnabled     Boolean   @default(false) @map("callback_notify_enabled")
+  /// Nhắc trước bao nhiêu phút so với `callbackAt` (0 = đúng giờ hẹn).
+  callbackNotifyMinutesBefore Int?    @map("callback_notify_minutes_before")
+  /// Đã gửi nhắc lần tương ứng với lượt hẹn hiện tại (reset khi đổi hẹn/cấu hình nhắc).
+  callbackReminderSentAt    DateTime? @map("callback_reminder_sent_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  assignedTo          Employee?      @relation("DataPoolAssignee", fields: [assignedToId], references: [id])
+  customer            Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([enteredAt])
+  @@index([poolType])
+  @@index([poolQueue])
+  @@index([callbackAt, callbackNotifyEnabled])
+  @@map("data_pool")
+}
+
+model LeadDistributionConfig {
+  id             String                 @id @default(uuid())
+  method         LeadDistributionMethod @default(ROUND_ROBIN)
+  isActive       Boolean                @default(true) @map("is_active")
+  maxLeadsPerDay Int                    @default(50) @map("max_leads_per_day")
+  autoRecallDays Int                    @default(3) @map("auto_recall_days")
+  createdAt      DateTime               @default(now()) @map("created_at")
+  updatedAt      DateTime               @updatedAt @map("updated_at")
+
+  @@map("lead_distribution_config")
+}
+
+model LeadDistributionHistory {
+  id           String    @id @default(uuid())
+  customerId   String    @map("customer_id")
+  employeeId   String    @map("employee_id")
+  method       String
+  assignedAt   DateTime  @default(now()) @map("assigned_at")
+  revokedAt    DateTime? @map("revoked_at")
+  revokeReason String?   @map("revoke_reason")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([customerId])
+  @@index([employeeId])
+  @@map("lead_distribution_history")
+}
+
+model ShippingLog {
+  id          String   @id @default(uuid())
+  orderId     String   @map("order_id")
+  orderDate   DateTime @map("order_date")
+  status      String
+  statusCode  String?  @map("status_code")
+  description String?
+  location    String?
+  timestamp   DateTime @default(now())
+  rawData     Json?    @map("raw_data")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([orderId, orderDate])
+  @@map("shipping_logs")
+}
+
+model ShippingProvider {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  apiUrl    String?  @map("api_url")
+  apiKey    String?  @map("api_key")
+  apiSecret String?  @map("api_secret")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("shipping_providers")
+}
+
+model SystemConfig {
+  id          String         @id @default(uuid())
+  key         String         @unique
+  value       String
+  dataType    ConfigDataType @default(INTEGER) @map("data_type")
+  enumOptions String?        @map("enum_options")
+  category    String         @default("general")
+  name        String
+  description String?
+  sortOrder   Int            @default(0) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  updatedBy   String?        @map("updated_by")
+
+  @@index([category])
+  @@map("system_configs")
+}
+
+model SalaryComponent {
+  id           String              @id @default(uuid())
+  code         String              @unique
+  name         String
+  type         SalaryComponentType
+  isActive     Boolean             @default(true) @map("is_active")
+  isTaxable    Boolean             @default(true) @map("is_taxable")
+  description  String?
+  sortOrder    Int                 @default(0) @map("sort_order")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  payrollItems PayrollItem[]
+
+  @@map("salary_components")
+}
+
+model Payroll {
+  id             String        @id @default(uuid())
+  month          Int
+  year           Int
+  employeeId     String        @map("employee_id")
+  grossSalary    Decimal       @default(0) @map("gross_salary") @db.Decimal(15, 2)
+  totalDeduction Decimal       @default(0) @map("total_deduction") @db.Decimal(15, 2)
+  netSalary      Decimal       @default(0) @map("net_salary") @db.Decimal(15, 2)
+  workDays       Int           @default(0) @map("work_days")
+  leaveDays      Int           @default(0) @map("leave_days")
+  overtimeHours  Decimal       @default(0) @map("overtime_hours") @db.Decimal(5, 2)
+  status         PayrollStatus @default(DRAFT)
+  note           String?
+  approvedBy     String?       @map("approved_by")
+  approvedAt     DateTime?     @map("approved_at")
+  createdBy      String        @map("created_by")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  items          PayrollItem[]
+  approver       Employee?     @relation("PayrollApprover", fields: [approvedBy], references: [id])
+  creator        Employee      @relation("PayrollCreator", fields: [createdBy], references: [id])
+  employee       Employee      @relation(fields: [employeeId], references: [id])
+
+  @@unique([month, year, employeeId])
+  @@index([month, year])
+  @@index([employeeId])
+  @@index([status])
+  @@map("payrolls")
+}
+
+model PayrollItem {
+  id          String          @id @default(uuid())
+  payrollId   String          @map("payroll_id")
+  componentId String          @map("component_id")
+  amount      Decimal         @db.Decimal(15, 2)
+  note        String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  component   SalaryComponent @relation(fields: [componentId], references: [id])
+  payroll     Payroll         @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  @@unique([payrollId, componentId])
+  @@map("payroll_items")
+}
+
+model DraftInvoice {
+  id                String             @id @default(uuid())
+  invoiceNumber     String?            @unique @map("invoice_number")
+  customerId        String?            @map("customer_id")
+  customerName      String             @map("customer_name")
+  customerAddress   String?            @map("customer_address")
+  customerTaxCode   String?            @map("customer_tax_code")
+  customerEmail     String?            @map("customer_email")
+  customerPhone     String?            @map("customer_phone")
+  invoiceDate       DateTime           @default(now()) @map("invoice_date")
+  dueDate           DateTime?          @map("due_date")
+  subtotal          Decimal            @default(0) @db.Decimal(15, 2)
+  taxRate           Decimal            @default(10) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount         Decimal            @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  discount          Decimal            @default(0) @db.Decimal(15, 2)
+  total             Decimal            @default(0) @db.Decimal(15, 2)
+  status            DraftInvoiceStatus @default(DRAFT)
+  orderCode         String?            @map("order_code")
+  externalInvoiceId String?            @map("external_invoice_id")
+  exportedAt        DateTime?          @map("exported_at")
+  exportResponse    String?            @map("export_response")
+  note              String?
+  createdBy         String             @map("created_by")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  items             DraftInvoiceItem[]
+  creator           Employee           @relation("DraftInvoiceCreator", fields: [createdBy], references: [id])
+  customer          Customer?          @relation(fields: [customerId], references: [id])
+
+  @@index([status])
+  @@index([customerId])
+  @@index([invoiceDate])
+  @@map("draft_invoices")
+}
+
+model DraftInvoiceItem {
+  id          String       @id @default(uuid())
+  invoiceId   String       @map("invoice_id")
+  productId   String?      @map("product_id")
+  productCode String?      @map("product_code")
+  productName String       @map("product_name")
+  unit        String?
+  quantity    Int          @default(1)
+  unitPrice   Decimal      @map("unit_price") @db.Decimal(15, 2)
+  discount    Decimal      @default(0) @db.Decimal(15, 2)
+  amount      Decimal      @db.Decimal(15, 2)
+  note        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  invoice     DraftInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product     Product?     @relation(fields: [productId], references: [id])
+
+  @@map("draft_invoice_items")
+}
+
+model InvoiceProvider {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  apiUrl    String   @map("api_url")
+  apiKey    String?  @map("api_key")
+  apiSecret String?  @map("api_secret")
+  username  String?
+  password  String?
+  taxCode   String?  @map("tax_code")
+  isActive  Boolean  @default(true) @map("is_active")
+  config    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("invoice_providers")
+}
+
+model FinancialReport {
+  id           String              @id @default(uuid())
+  type         FinancialReportType
+  month        Int?
+  year         Int
+  totalRevenue Decimal             @default(0) @map("total_revenue") @db.Decimal(18, 2)
+  totalOrders  Int                 @default(0) @map("total_orders")
+  totalExpense Decimal             @default(0) @map("total_expense") @db.Decimal(18, 2)
+  totalSalary  Decimal             @default(0) @map("total_salary") @db.Decimal(18, 2)
+  grossProfit  Decimal             @default(0) @map("gross_profit") @db.Decimal(18, 2)
+  netProfit    Decimal             @default(0) @map("net_profit") @db.Decimal(18, 2)
+  details      String?
+  generatedAt  DateTime            @default(now()) @map("generated_at")
+  generatedBy  String?             @map("generated_by")
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@unique([type, month, year])
+  @@index([type, year])
+  @@map("financial_reports")
+}
+
+/// Chỉ số kế toán nhập tay theo vai trò (Ecom, MKT nguyên liệu, v.v.)
+model AccountingRoleMetric {
+  id          String   @id @default(uuid())
+  roleCode    String   @map("role_code")
+  metricKey   String   @map("metric_key")
+  value       Decimal  @db.Decimal(18, 2)
+  periodYear  Int      @map("period_year")
+  periodMonth Int      @map("period_month")
+  note        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([roleCode, metricKey, periodYear, periodMonth])
+  @@index([periodYear, periodMonth])
+  @@map("accounting_role_metrics")
+}
+
+model DocumentType {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("document_types")
+}
+
+model SalesTarget {
+  id                     String      @id @default(uuid())
+  year                   Int
+  departmentId           String?     @map("department_id")
+  annualTarget           Decimal     @map("annual_target") @db.Decimal(18, 2)
+  q1Target               Decimal?    @map("q1_target") @db.Decimal(18, 2)
+  q2Target               Decimal?    @map("q2_target") @db.Decimal(18, 2)
+  q3Target               Decimal?    @map("q3_target") @db.Decimal(18, 2)
+  q4Target               Decimal?    @map("q4_target") @db.Decimal(18, 2)
+  note                   String?
+  createdBy              String?     @map("created_by")
+  createdAt              DateTime    @default(now()) @map("created_at")
+  updatedAt              DateTime    @updatedAt @map("updated_at")
+  revenueCalculationNote String?     @map("revenue_calculation_note")
+  department             Department? @relation(fields: [departmentId], references: [id])
+
+  @@unique([year, departmentId], name: "year_departmentId")
+  @@index([year])
+  @@map("sales_targets")
+}
+
+model EmployeePerformance {
+  id                  String   @id @default(uuid())
+  employeeId          String   @map("employee_id")
+  date                DateTime @db.Date
+  leadsCreated        Int      @default(0) @map("leads_created")
+  leadsConverted      Int      @default(0) @map("leads_converted")
+  marketingRevenue    Decimal  @default(0) @map("marketing_revenue") @db.Decimal(18, 2)
+  customersContacted  Int      @default(0) @map("customers_contacted")
+  ordersCreated       Int      @default(0) @map("orders_created")
+  salesRevenue        Decimal  @default(0) @map("sales_revenue") @db.Decimal(18, 2)
+  customersFollowedUp Int      @default(0) @map("customers_followed_up")
+  repeatOrders        Int      @default(0) @map("repeat_orders")
+  resalesRevenue      Decimal  @default(0) @map("resales_revenue") @db.Decimal(18, 2)
+  totalRevenue        Decimal  @default(0) @map("total_revenue") @db.Decimal(18, 2)
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @map("updated_at")
+
+  @@unique([employeeId, date])
+  @@index([date])
+  @@index([employeeId])
+  @@map("employee_performances")
+}
+
+model InventoryLog {
+  id          String   @id @default(uuid())
+  productId   String   @map("product_id")
+  batchId     String?  @map("batch_id")
+  type        String
+  quantity    Int
+  previousQty Int      @map("previous_qty")
+  newQty      Int      @map("new_qty")
+  orderId     String?  @map("order_id")
+  reason      String
+  note        String?
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([productId])
+  @@index([type])
+  @@map("inventory_logs")
+}
+
+model LeaveRequest {
+  id                   String             @id @default(uuid())
+  code                 String             @unique
+  employeeId           String             @map("employee_id")
+  leaveType             LeaveType          @default(ANNUAL) @map("leave_type")
+  leaveTypeOtherLabel   String?          @map("leave_type_other_label") @db.VarChar(200) // OTHER: tên loại do NV nhập
+  startDate            DateTime           @map("start_date")
+  endDate              DateTime           @map("end_date")
+  totalDays            Float              @map("total_days")
+  reason               String?
+  status       LeaveRequestStatus @default(PENDING)
+  approverId   String?            @map("approver_id")
+  approvedAt   DateTime?          @map("approved_at")
+  rejectedAt   DateTime?          @map("rejected_at")
+  approverNote String?            @map("approver_note")
+  confirmerId  String?            @map("confirmer_id")
+  confirmedAt  DateTime?          @map("confirmed_at")
+  hrNote       String?            @map("hr_note")
+  lateMinutes  Int?               @default(0) @map("late_minutes")
+  earlyMinutes Int?               @default(0) @map("early_minutes")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  approver     Employee?          @relation("leave_requests_approver_idToemployees", fields: [approverId], references: [id])
+  confirmer    Employee?          @relation("leave_requests_confirmer_idToemployees", fields: [confirmerId], references: [id])
+  employee     Employee           @relation("leave_requests_employee_idToemployees", fields: [employeeId], references: [id])
+
+  @@index([approverId])
+  @@index([employeeId])
+  @@index([startDate, endDate])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model MarketingCostAssignment {
+  id              String                @id @default(uuid())
+  costId          String                @map("cost_id")
+  employeeId      String                @map("employee_id")
+  allocatedAmount Decimal               @map("allocated_amount") @db.Decimal(15, 2)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  cost            MarketingCampaignCost @relation(fields: [costId], references: [id], onDelete: Cascade)
+
+  @@unique([costId, employeeId])
+  @@index([employeeId])
+  @@map("marketing_cost_assignments")
+}
+
+model MarketingEmployeeGroupMember {
+  id         String                 @id @default(uuid())
+  groupId    String                 @map("group_id")
+  employeeId String                 @map("employee_id")
+  joinedAt   DateTime               @default(now()) @map("joined_at")
+  group      MarketingEmployeeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, employeeId])
+  @@index([employeeId])
+  @@map("marketing_employee_group_members")
+}
+
+model MarketingEmployeeGroup {
+  id          String                         @id @default(uuid())
+  code        String                         @unique
+  name        String
+  description String?
+  isActive    Boolean                        @default(true) @map("is_active")
+  createdAt   DateTime                       @default(now()) @map("created_at")
+  updatedAt   DateTime                       @updatedAt @map("updated_at")
+  costs       MarketingCampaignCost[]
+  members     MarketingEmployeeGroupMember[]
+
+  @@map("marketing_employee_groups")
+}
+
+model OrderShippingLog {
+  id           String   @id @default(uuid())
+  orderId      String   @map("order_id")
+  orderDate    DateTime @map("order_date")
+  statusCode   String   @map("status_code")
+  status       String
+  description  String?
+  note         String?
+  vtpOrderCode String?  @map("vtp_order_code")
+  rawData      String?  @map("raw_data")
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now()) @map("created_at")
+  order        Order    @relation(fields: [orderId, orderDate], references: [id, orderDate])
+
+  @@index([orderId, orderDate])
+  @@index([timestamp])
+  @@map("order_shipping_logs")
+}
+
+model ReturnedOrder {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  orderCode    String    @map("order_code")
+  returnDate   DateTime  @map("return_date")
+  returnReason String    @map("return_reason")
+  status       String    @default("PENDING")
+  processedBy  String?   @map("processed_by")
+  processedAt  DateTime? @map("processed_at")
+  processNote  String?   @map("process_note")
+  restockedQty Int       @default(0) @map("restocked_qty")
+  damagedQty   Int       @default(0) @map("damaged_qty")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([status])
+  @@map("returned_orders")
+}
+
+model HrReminder {
+  id          String   @id @default(uuid())
+  employeeId  String   @map("employee_id")
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  contractId  String?  @map("contract_id")
+  type        String
+  dueDate     DateTime @map("due_date")
+  status      String   @default("PENDING")
+  note        String?
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("hr_reminders")
+}
+
+model TeamDistributionRatio {
+  id                String     @id @default(uuid())
+  departmentId      String     @map("department_id")
+  ratio             Float      @default(0)
+  distributionCount Int        @default(0) @map("distribution_count")
+  isActive          Boolean    @default(true) @map("is_active")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  department        Department @relation(fields: [departmentId], references: [id])
+
+  @@map("team_distribution_ratios")
+}
+
+enum AddressType {
+  NEW
+  OLD
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+}
+
+enum WarehouseType {
+  MAIN
+  BRANCH
+  CONSIGNMENT
+}
+
+enum SerialStatus {
+  IN_STOCK
+  SOLD
+  DEFECTIVE
+  RETURNED
+}
+
+enum TransactionType {
+  IMPORT
+  EXPORT
+  TRANSFER
+  ADJUST
+}
+
+enum TransactionStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum DataPoolSource {
+  MARKETING
+  RECALL
+  IMPORT
+  RETURN
+  MANUAL
+}
+
+enum DataPoolStatus {
+  AVAILABLE
+  ASSIGNED
+  PROCESSING
+  CONVERTED
+  INVALID
+}
+
+enum LeadDistributionMethod {
+  ROUND_ROBIN
+  RANDOM
+  PERFORMANCE
+}
+
+enum ConfigDataType {
+  INTEGER
+  BOOLEAN
+  STRING
+  ENUM
+}
+
+enum SalaryComponentType {
+  EARNING
+  DEDUCTION
+  BENEFIT
+}
+
+enum PayrollStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum DraftInvoiceStatus {
+  DRAFT
+  PENDING
+  EXPORTED
+  CANCELLED
+  ERROR
+}
+
+enum FinancialReportType {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ContractType {
+  PROBATION
+  OFFICIAL
+  PARTTIME
+  SERVICE
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum ProbationStatus {
+  NONE
+  ON_PROBATION
+  PASSED
+  FAILED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CONFIRMED
+  CANCELLED
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  WEDDING
+  FUNERAL
+  UNPAID
+  OTHER
+}
+
+enum SupportTicketStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+}
+
+model SupportTicket {
+  id           String              @id @default(uuid())
+  code         String              @unique
+  title        String
+  description  String
+  status       SupportTicketStatus @default(NEW)
+  createdById  String              @map("created_by_id")
+  assignedToId String?             @map("assigned_to_id")
+  resolvedAt   DateTime?           @map("resolved_at")
+  adminNote    String?             @map("admin_note")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  createdBy   Employee                  @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedTo  Employee?                 @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  attachments SupportTicketAttachment[]
+
+  @@index([createdById])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model SupportTicketAttachment {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  fileName  String   @map("file_name")
+  filePath  String   @map("file_path")
+  fileSize  Int      @map("file_size")
+  fileType  String   @map("file_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
+}
+
+model CustomerStatus {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  color       String     @default("#3B82F6")
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  customers   Customer[]
+
+  @@map("customer_statuses")
+}
+
+enum OrgType {
+  COMPANY
+  DIVISION
+  DEPARTMENT
+  TEAM
+}
+
+enum OrgFunc {
+  MARKETING
+  SALES
+  CSKH
+  /// Ghi nhận doanh thu từ data có trước 01/07/2025
+  REV_DATA_BEFORE_20250701
+  /// Ghi nhận doanh thu từ data trong khoảng 01/07/2025–31/01/2026
+  REV_DATA_RANGE_20250701_20260131
+}

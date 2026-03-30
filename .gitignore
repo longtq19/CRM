@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build / compiled output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Backend & frontend — biến môi trường (không commit secrets)
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# IDE & local
+.cursor/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# DB dumps tạo bởi script restore (không commit)
+backend/backups/
+
+# File upload runtime (avatar, …) — không commit
+backend/uploads/
+
+# Logs & caches
+*.log
+npm-debug.log*
+.pnpm-debug.log*
+.cache/

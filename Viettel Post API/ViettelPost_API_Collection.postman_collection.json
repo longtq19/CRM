@@ -1,0 +1,982 @@
+{
+	"info": {
+		"_postman_id": "viettelpost-api-collection-2025",
+		"name": "ViettelPost API Collection",
+		"description": "Bộ sưu tập API đầy đủ của ViettelPost cho việc tích hợp TMĐT.\n\n**Môi trường:**\n- Production: https://partner.viettelpost.vn\n- Development: https://partnerdev.viettelpost.vn\n\n**Lưu ý:**\n- Các API yêu cầu xác thực cần gửi Token trong header\n- Response lỗi có dạng: {\"error\": true, \"message\": \"Nội dung lỗi\"}",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://partner.viettelpost.vn",
+			"type": "string"
+		},
+		{
+			"key": "base_url_dev",
+			"value": "https://partnerdev.viettelpost.vn",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "password",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Danh mục địa danh",
+			"description": "API lấy danh sách Tỉnh/TP, Quận/Huyện, Phường/Xã",
+			"item": [
+				{
+					"name": "1.1 Danh mục địa danh V2",
+					"item": [
+						{
+							"name": "1.1.1 Lấy danh sách Tỉnh/TP",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/v2/categories/listProvinceById?provinceId=-1",
+									"host": ["{{base_url}}"],
+									"path": ["v2", "categories", "listProvinceById"],
+									"query": [
+										{
+											"key": "provinceId",
+											"value": "-1",
+											"description": "ID tỉnh/TP. Truyền -1 để lấy tất cả"
+										}
+									]
+								},
+								"description": "Lấy danh sách tất cả Tỉnh/Thành phố.\n\n**Tham số:**\n- provinceId: ID của tỉnh/TP muốn tra cứu. Truyền -1 để lấy tất cả.\n\n**Response:**\n- PROVINCE_ID: Mã định danh tỉnh/TP\n- PROVINCE_CODE: Mã tỉnh/TP (VD: HNI)\n- PROVINCE_NAME: Tên đầy đủ tỉnh/TP"
+							},
+							"response": [
+								{
+									"name": "Success Response",
+									"originalRequest": {
+										"method": "GET",
+										"url": {
+											"raw": "{{base_url}}/v2/categories/listProvinceById?provinceId=-1"
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"body": "[\n    {\n        \"PROVINCE_ID\": 1,\n        \"PROVINCE_CODE\": \"HNI\",\n        \"PROVINCE_NAME\": \"Hà Nội\"\n    }\n]"
+								}
+							]
+						},
+						{
+							"name": "1.1.2 Lấy danh sách Quận/Huyện",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/v2/categories/listDistrict?provinceId=-1",
+									"host": ["{{base_url}}"],
+									"path": ["v2", "categories", "listDistrict"],
+									"query": [
+										{
+											"key": "provinceId",
+											"value": "-1",
+											"description": "ID tỉnh/TP. Truyền -1 để lấy tất cả Quận/Huyện"
+										}
+									]
+								},
+								"description": "Lấy danh sách Quận/Huyện theo Tỉnh/TP.\n\n**Tham số:**\n- provinceId: ID của Tỉnh/TP muốn tra cứu. Truyền -1 để lấy tất cả.\n\n**Response:**\n- DISTRICT_ID: Mã định danh Quận/Huyện\n- DISTRICT_VALUE: Giá trị Quận/Huyện\n- DISTRICT_NAME: Tên đầy đủ Quận/Huyện\n- PROVINCE_ID: Mã định danh Tỉnh/TP\n\n**Lưu ý sau sáp nhập:**\nĐối với 34 Tỉnh/TP sau sáp nhập, sẽ có thêm đối tượng:\n- DISTRICT_VALUE: \"NEW\"\n- DISTRICT_NAME: \"Bỏ qua - Sử dụng địa chỉ 2 cấp\""
+							},
+							"response": [
+								{
+									"name": "Success Response",
+									"originalRequest": {
+										"method": "GET",
+										"url": {
+											"raw": "{{base_url}}/v2/categories/listDistrict?provinceId=1"
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"body": "[\n    {\n        \"DISTRICT_ID\": 325,\n        \"DISTRICT_VALUE\": \"3558\",\n        \"DISTRICT_NAME\": \"HUYỆN LẠC THỦY\",\n        \"PROVINCE_ID\": 31\n    }\n]"
+								}
+							]
+						},
+						{
+							"name": "1.1.3 Lấy danh sách Phường/Xã",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/v2/categories/listWards?districtId=-1",
+									"host": ["{{base_url}}"],
+									"path": ["v2", "categories", "listWards"],
+									"query": [
+										{
+											"key": "districtId",
+											"value": "-1",
+											"description": "ID Quận/Huyện. Truyền -1 để lấy tất cả"
+										}
+									]
+								},
+								"description": "Lấy danh sách Phường/Xã theo Quận/Huyện.\n\n**Tham số:**\n- districtId: ID của Quận/Huyện muốn tra cứu. Truyền -1 để lấy tất cả.\n\n**Response:**\n- WARDS_ID: ID phường/xã\n- WARDS_NAME: Tên phường/xã\n- DISTRICT_ID: ID Quận/Huyện"
+							},
+							"response": [
+								{
+									"name": "Success Response",
+									"originalRequest": {
+										"method": "GET",
+										"url": {
+											"raw": "{{base_url}}/v2/categories/listWards?districtId=20"
+										}
+									},
+									"status": "OK",
+									"code": 200,
+									"body": "[\n    {\n        \"WARDS_ID\": 405,\n        \"WARDS_NAME\": \"PHƯỜNG THẠCH BÀN\",\n        \"DISTRICT_ID\": 20\n    }\n]"
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "1.2 Danh mục địa danh V3 (Mới)",
+					"item": [
+						{
+							"name": "1.2.1 Lấy danh sách Tỉnh/TP (V3)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_dev}}/v3/categories/listProvinceNew",
+									"host": ["{{base_url_dev}}"],
+									"path": ["v3", "categories", "listProvinceNew"]
+								},
+								"description": "Lấy danh sách tất cả Tỉnh/TP theo danh mục địa danh mới (sau sáp nhập).\n\n**Response:**\n- PROVINCE_ID: Mã định danh tỉnh/TP\n- PROVINCE_CODE: Mã viết tắt (VD: HNI)\n- PROVINCE_NAME: Tên đầy đủ tỉnh/TP"
+							},
+							"response": [
+								{
+									"name": "Success Response",
+									"status": "OK",
+									"code": 200,
+									"body": "[\n    {\n        \"PROVINCE_ID\": 1,\n        \"PROVINCE_CODE\": \"HNI\",\n        \"PROVINCE_NAME\": \"Hà Nội\"\n    }\n]"
+								}
+							]
+						},
+						{
+							"name": "1.2.2 Lấy danh sách Phường/Xã (V3)",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url_dev}}/v3/categories/listWardsNew?provinceId=1",
+									"host": ["{{base_url_dev}}"],
+									"path": ["v3", "categories", "listWardsNew"],
+									"query": [
+										{
+											"key": "provinceId",
+											"value": "1",
+											"description": "ID tỉnh/TP. Truyền -1 để lấy tất cả"
+										}
+									]
+								},
+								"description": "Lấy danh sách Phường/Xã theo Tỉnh/TP (danh mục địa danh mới).\n\n**Tham số:**\n- provinceId: ID tỉnh/TP. Truyền -1 để lấy tất cả.\n\n**Response:**\n- WARDS_ID: ID phường/xã\n- WARDS_NAME: Tên phường/xã\n- DISTRICT_ID: ID Quận/Huyện"
+							},
+							"response": [
+								{
+									"name": "Success Response",
+									"status": "OK",
+									"code": 200,
+									"body": "[\n    {\n        \"WARDS_ID\": 405,\n        \"WARDS_NAME\": \"PHƯỜNG THẠCH BÀN\",\n        \"DISTRICT_ID\": 20\n    }\n]"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "2. Xác thực Token",
+			"description": "API lấy token để xác thực các request",
+			"item": [
+				{
+					"name": "2.1 Đăng nhập lấy token tạm",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"temp_token\", jsonData.data.token);",
+									"    console.log(\"Token tạm đã được lưu\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"USERNAME\": \"{{username}}\",\n    \"PASSWORD\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/user/Login",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "user", "Login"]
+						},
+						"description": "Bước 1: Đăng nhập để lấy token tạm.\n\n**Body:**\n- USERNAME: Tài khoản đăng ký trên viettelpost.vn\n- PASSWORD: Mật khẩu tài khoản\n\n**Response:**\n- userId: ID người dùng\n- token: Token tạm thời\n- partner: ID đối tác\n- phone: Số điện thoại"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"userId\": 7856551,\n        \"token\": \"eyJhbGciOiJFUzI1NiJ9...\",\n        \"partner\": 7856551,\n        \"phone\": \"0933177454\",\n        \"postcode\": null,\n        \"expired\": 0,\n        \"encrypted\": null,\n        \"source\": 5\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "2.2 Lấy token dài hạn",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+									"    console.log(\"Token dài hạn đã được lưu\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{temp_token}}",
+								"description": "Token tạm từ bước 1"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"USERNAME\": \"{{username}}\",\n    \"PASSWORD\": \"{{password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/user/ownerconnect",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "user", "ownerconnect"]
+						},
+						"description": "Bước 2: Lấy token dài hạn (có thời hạn 1-2 năm).\n\n**Header:**\n- Token: Token tạm từ bước 1\n\n**Body:**\n- USERNAME: Tài khoản\n- PASSWORD: Mật khẩu\n\n**Response:**\n- token: Token dài hạn để sử dụng cho các API khác"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"userId\": 7856551,\n        \"token\": \"eyJhbGciOiJFUzI1NiJ9...\",\n        \"partner\": 7856551,\n        \"phone\": \"0933177454\",\n        \"postcode\": null,\n        \"expired\": 0,\n        \"encrypted\": null,\n        \"source\": 5\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "2.3 Lấy token ủy quyền truy cập",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"delegated_token\", jsonData.data.token);",
+									"    console.log(\"Token ủy quyền đã được lưu\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}",
+								"description": "Token của tài khoản đối tác chính"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"USERNAME\": \"0933177454\",\n    \"PASSWORD\": \"xyz@222\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/user/ownerconnect",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "user", "ownerconnect"]
+						},
+						"description": "Lấy token ủy quyền cho các đơn vị thành viên.\n\n**Header:**\n- Token: Token của tài khoản đối tác chính\n\n**Body:**\n- USERNAME: Tài khoản đơn vị thành viên\n- PASSWORD: Mật khẩu đơn vị thành viên\n\n**Ứng dụng:**\nCho phép đơn vị thành viên tương tác với hệ thống VTP dưới quyền của đối tác chính."
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"userId\": 7856551,\n        \"token\": \"eyJhbGciOiJFUzI1NiJ9...\",\n        \"partner\": 7856551,\n        \"phone\": \"0933177454\",\n        \"postcode\": null,\n        \"expired\": 0,\n        \"encrypted\": null,\n        \"source\": 5\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "2.4 Lấy token từ VTP Secret",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.token) {",
+									"    pm.collectionVariables.set(\"token\", jsonData.data.token);",
+									"    console.log(\"Token VTP đã được lưu\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"58346742179D84F2E9\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/user/LoginVTP",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "user", "LoginVTP"]
+						},
+						"description": "Lấy token từ tham số bí mật ViettelPost.\n\n**Cách lấy token bí mật:**\n1. Đăng nhập vào https://viettelpost.vn\n2. Truy cập https://viettelpost.vn/cau-hinh-tai-khoan\n3. Click \"Thêm mới token\"\n4. Sao chép token và xác thực OTP\n\n**Body:**\n- token: Token bí mật từ website VTP"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"userId\": 8866484,\n        \"token\": \"eyJhbGciOiJFUzI1NiJ9...\",\n        \"partner\": -1,\n        \"phone\": \"0382678080\",\n        \"postcode\": null,\n        \"expired\": 1701461935832,\n        \"encrypted\": null,\n        \"source\": 5,\n        \"infoUpdated\": true\n    }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "3. Lấy danh sách dịch vụ",
+			"description": "API lấy danh sách dịch vụ phù hợp với hành trình",
+			"item": [
+				{
+					"name": "3.1 Lấy dịch vụ theo ID địa danh",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"SENDER_DISTRICT\": 12,\n    \"SENDER_PROVINCE\": 1,\n    \"SENDER_WARD\": 49876,\n    \"RECEIVER_DISTRICT\": 12,\n    \"RECEIVER_PROVINCE\": 1,\n    \"RECEIVER_WARD\": 49876,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"PRODUCT_WEIGHT\": 100,\n    \"PRODUCT_PRICE\": 5000000,\n    \"MONEY_COLLECTION\": 5000000,\n    \"PRODUCT_LENGTH\": 0,\n    \"PRODUCT_WIDTH\": 0,\n    \"PRODUCT_HEIGHT\": 0,\n    \"TYPE\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/getPriceAll",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "getPriceAll"]
+						},
+						"description": "Lấy danh sách dịch vụ chính và dịch vụ cộng thêm theo ID địa danh.\n\n**Body:**\n- SENDER_PROVINCE: ID Tỉnh gửi\n- SENDER_DISTRICT: ID Huyện gửi\n- SENDER_WARD: ID Phường/Xã gửi\n- RECEIVER_PROVINCE: ID Tỉnh nhận\n- RECEIVER_DISTRICT: ID Huyện nhận\n- RECEIVER_WARD: ID Phường/Xã nhận\n- PRODUCT_TYPE: Loại hàng (TH: Thư, HH: Hàng)\n- PRODUCT_WEIGHT: Trọng lượng (gram)\n- PRODUCT_PRICE: Giá trị hàng (VNĐ)\n- MONEY_COLLECTION: Tiền thu hộ (VNĐ)\n- TYPE: 0=Quốc tế, 1=Trong nước\n- PRODUCT_LENGTH/WIDTH/HEIGHT: Kích thước (cm)\n\n**Response:**\n- MA_DV_CHINH: Mã dịch vụ chính\n- TEN_DICHVU: Tên dịch vụ\n- GIA_CUOC: Tổng cước (đã VAT)\n- THOI_GIAN: Thời gian cam kết\n- EXTRA_SERVICE: Danh sách dịch vụ cộng thêm"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "[\n    {\n        \"MA_DV_CHINH\": \"PHS\",\n        \"TEN_DICHVU\": \"Nội tỉnh tiết kiệm\",\n        \"GIA_CUOC\": 26400,\n        \"THOI_GIAN\": \"48 giờ\",\n        \"EXCHANGE_WEIGHT\": 0,\n        \"EXTRA_SERVICE\": [\n            {\n                \"SERVICE_CODE\": \"GBP\",\n                \"SERVICE_NAME\": \"Báo phát\",\n                \"DESCRIPTION\": null\n            },\n            {\n                \"SERVICE_CODE\": \"XMG\",\n                \"SERVICE_NAME\": \"Thu tiền xem hàng\",\n                \"DESCRIPTION\": null\n            }\n        ]\n    }\n]"
+						}
+					]
+				},
+				{
+					"name": "3.2 Lấy dịch vụ theo địa chỉ chi tiết",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"SENDER_ADDRESS\": \"Đại Mỗ, Nam Từ Liêm, Hà Nội\",\n    \"RECEIVER_ADDRESS\": \"Định Công, Hoàng Mai, Hà Nội\",\n    \"RECEIVER_PROVINCE\": 1,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"PRODUCT_WEIGHT\": 100,\n    \"PRODUCT_PRICE\": 5000000,\n    \"MONEY_COLLECTION\": 5000000,\n    \"PRODUCT_LENGTH\": 0,\n    \"PRODUCT_WIDTH\": 0,\n    \"PRODUCT_HEIGHT\": 0,\n    \"TYPE\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/getPriceAllNlp",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "getPriceAllNlp"]
+						},
+						"description": "Lấy danh sách dịch vụ theo địa chỉ chi tiết (NLP - Natural Language Processing).\n\n**Body:**\n- SENDER_ADDRESS: Địa chỉ người gửi (chuỗi)\n- RECEIVER_ADDRESS: Địa chỉ người nhận (chuỗi)\n- RECEIVER_PROVINCE: ID Tỉnh nhận\n- PRODUCT_TYPE: Loại hàng (TH/HH)\n- PRODUCT_WEIGHT: Trọng lượng (gram)\n- PRODUCT_PRICE: Giá trị hàng (VNĐ)\n- MONEY_COLLECTION: Tiền thu hộ (VNĐ)\n- TYPE: 0=Quốc tế, 1=Trong nước\n\n**Response:**\n- SENDER_ADDRESS: Địa chỉ gửi đã parse\n- RECEIVER_ADDRESS: Địa chỉ nhận đã parse\n- RESULT: Danh sách dịch vụ khả dụng"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"SENDER_ADDRESS\": {\n        \"PROVINCE_ID\": 1,\n        \"DISTRICT_ID\": 25,\n        \"WARD_ID\": 498,\n        \"ADDRESS\": \"P.Đại Mỗ - Q.Nam Từ Liêm - TP.Hà Nội\"\n    },\n    \"RECEIVER_ADDRESS\": {\n        \"PROVINCE_ID\": 1,\n        \"DISTRICT_ID\": 4,\n        \"WARD_ID\": 74,\n        \"ADDRESS\": \"P.Định Công - Q.Hoàng Mai - TP.Hà Nội\"\n    },\n    \"RESULT\": [\n        {\n            \"MA_DV_CHINH\": \"PHS\",\n            \"TEN_DICHVU\": \"Nội tỉnh tiết kiệm\",\n            \"GIA_CUOC\": 16500,\n            \"THOI_GIAN\": \"24 giờ\",\n            \"EXCHANGE_WEIGHT\": 0,\n            \"EXTRA_SERVICE\": [\n                {\n                    \"SERVICE_CODE\": \"GGD\",\n                    \"SERVICE_NAME\": \"Giao Bưu phẩm tại điểm giao dịch\",\n                    \"DESCRIPTION\": null\n                }\n            ]\n        }\n    ]\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "4. Tính cước",
+			"description": "API tính cước dịch vụ vận chuyển",
+			"item": [
+				{
+					"name": "4.1 Tính cước theo ID địa danh",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"PRODUCT_WEIGHT\": 100,\n    \"PRODUCT_PRICE\": 96000,\n    \"MONEY_COLLECTION\": 0,\n    \"ORDER_SERVICE_ADD\": \"\",\n    \"ORDER_SERVICE\": \"VCBO\",\n    \"SENDER_DISTRICT\": 12,\n    \"SENDER_PROVINCE\": 1,\n    \"SENDER_WARD\": 49876,\n    \"RECEIVER_DISTRICT\": 12,\n    \"RECEIVER_PROVINCE\": 1,\n    \"RECEIVER_WARD\": 49876,\n    \"PRODUCT_LENGTH\": 0,\n    \"PRODUCT_WIDTH\": 0,\n    \"PRODUCT_HEIGHT\": 0,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"NATIONAL_TYPE\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/getPrice",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "getPrice"]
+						},
+						"description": "Tính cước dịch vụ theo ID địa danh.\n\n**Body:**\n- SENDER_PROVINCE/DISTRICT/WARD: ID địa chỉ gửi\n- RECEIVER_PROVINCE/DISTRICT/WARD: ID địa chỉ nhận\n- PRODUCT_TYPE: Loại hàng (TH/HH)\n- PRODUCT_WEIGHT: Trọng lượng (gram)\n- PRODUCT_PRICE: Giá trị hàng (VNĐ)\n- MONEY_COLLECTION: Tiền thu hộ (VNĐ)\n- ORDER_SERVICE: Mã dịch vụ chính\n- ORDER_SERVICE_ADD: Mã dịch vụ cộng thêm\n- NATIONAL_TYPE: 0=Quốc tế, 1=Trong nước\n\n**Response:**\n- MONEY_TOTAL: Tổng cước\n- MONEY_TOTAL_FEE: Cước dịch vụ chính\n- MONEY_FEE: Phụ phí xăng dầu\n- MONEY_COLLECTION_FEE: Phụ phí thu hộ\n- MONEY_VAT: Thuế VAT\n- KPI_HT: Thời gian giao hàng cam kết (giờ)"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"MONEY_TOTAL_OLD\": 14700,\n        \"MONEY_TOTAL\": 14700,\n        \"MONEY_TOTAL_FEE\": 13363,\n        \"MONEY_FEE\": 0,\n        \"MONEY_COLLECTION_FEE\": 0,\n        \"MONEY_OTHER_FEE\": 0,\n        \"MONEY_VAS\": 0,\n        \"MONEY_VAT\": 1337,\n        \"KPI_HT\": 48.0\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "4.2 Tính cước theo địa chỉ chi tiết",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"PRODUCT_WEIGHT\": 100,\n    \"PRODUCT_PRICE\": 96000,\n    \"MONEY_COLLECTION\": 0,\n    \"ORDER_SERVICE_ADD\": \"\",\n    \"ORDER_SERVICE\": \"VCBO\",\n    \"SENDER_ADDRESS\": \"Đại Mỗ, Nam Từ Liêm, Hà Nội\",\n    \"RECEIVER_ADDRESS\": \"Định Công, Hoàng Mai, Hà Nội\",\n    \"PRODUCT_LENGTH\": 0,\n    \"PRODUCT_WIDTH\": 0,\n    \"PRODUCT_HEIGHT\": 0,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"NATIONAL_TYPE\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/getPriceNlp",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "getPriceNlp"]
+						},
+						"description": "Tính cước dịch vụ theo địa chỉ chi tiết (NLP).\n\n**Body:**\n- SENDER_ADDRESS: Địa chỉ người gửi (chuỗi 3 cấp)\n- RECEIVER_ADDRESS: Địa chỉ người nhận (chuỗi 3 cấp)\n- PRODUCT_TYPE: Loại hàng (TH/HH)\n- PRODUCT_WEIGHT: Trọng lượng (gram)\n- PRODUCT_PRICE: Giá trị hàng (VNĐ)\n- MONEY_COLLECTION: Tiền thu hộ (VNĐ)\n- ORDER_SERVICE: Mã dịch vụ chính\n- ORDER_SERVICE_ADD: Mã dịch vụ cộng thêm\n- NATIONAL_TYPE: 0=Quốc tế, 1=Trong nước\n\n**Response:**\n- MONEY_TOTAL: Tổng cước\n- MONEY_TOTAL_FEE: Cước dịch vụ chính\n- MONEY_VAT: Thuế VAT\n- KPI_HT: Thời gian giao hàng cam kết\n- EXCHANGE_WEIGHT: Trọng lượng quy đổi"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"MONEY_TOTAL_OLD\": 16500,\n        \"MONEY_TOTAL\": 16500,\n        \"MONEY_TOTAL_FEE\": 15278,\n        \"MONEY_FEE\": 0,\n        \"MONEY_COLLECTION_FEE\": 0,\n        \"MONEY_OTHER_FEE\": 0,\n        \"MONEY_VAS\": 0,\n        \"MONEY_VAT\": 1222,\n        \"KPI_HT\": 24.0,\n        \"EXCHANGE_WEIGHT\": 0\n    }\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "5. Tạo đơn hàng",
+			"description": "API tạo đơn hàng mới",
+			"item": [
+				{
+					"name": "5.1 Tạo đơn - Địa chỉ chi tiết (NLP)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.ORDER_NUMBER) {",
+									"    pm.collectionVariables.set(\"order_number\", jsonData.data.ORDER_NUMBER);",
+									"    console.log(\"Mã vận đơn: \" + jsonData.data.ORDER_NUMBER);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ORDER_NUMBER\": \"BM848893946\",\n    \"SENDER_FULLNAME\": \"Duong An-04\",\n    \"SENDER_ADDRESS\": \"Số 18, Phường Thạnh Xuân, Quận 12, Hồ Chí Minh\",\n    \"SENDER_PHONE\": \"09335656565\",\n    \"RECEIVER_FULLNAME\": \"Nguyễn Văn A\",\n    \"RECEIVER_ADDRESS\": \"Số 18, Phường Thạnh Xuân, Quận 12, Hồ Chí Minh\",\n    \"RECEIVER_PHONE\": \"0987654321\",\n    \"PRODUCT_NAME\": \"Hàng test\",\n    \"PRODUCT_QUANTITY\": 1,\n    \"PRODUCT_PRICE\": 10000000,\n    \"PRODUCT_WEIGHT\": 10000,\n    \"PRODUCT_LENGTH\": 0,\n    \"PRODUCT_WIDTH\": 0,\n    \"PRODUCT_HEIGHT\": 0,\n    \"ORDER_PAYMENT\": 3,\n    \"ORDER_SERVICE\": \"VCN\",\n    \"PRODUCT_TYPE\": \"HH\",\n    \"ORDER_SERVICE_ADD\": null,\n    \"ORDER_NOTE\": \"Cho khách xem hàng khi nhận\",\n    \"MONEY_COLLECTION\": 56827,\n    \"EXTRA_MONEY\": 0,\n    \"CHECK_UNIQUE\": true,\n    \"PRODUCT_DETAIL\": [\n        {\n            \"PRODUCT_NAME\": \"Hàng test\",\n            \"PRODUCT_QUANTITY\": 1,\n            \"PRODUCT_PRICE\": 10000000,\n            \"PRODUCT_WEIGHT\": 10000\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/createOrderNlp",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "createOrderNlp"]
+						},
+						"description": "Tạo đơn hàng sử dụng địa chỉ chi tiết (NLP).\n\n**Body (Bắt buộc):**\n- SENDER_FULLNAME: Tên người gửi\n- SENDER_PHONE: SĐT người gửi\n- SENDER_ADDRESS: Địa chỉ đầy đủ người gửi (max 150 bytes)\n- RECEIVER_FULLNAME: Tên người nhận\n- RECEIVER_PHONE: SĐT người nhận\n- RECEIVER_ADDRESS: Địa chỉ đầy đủ người nhận (max 150 bytes)\n- ORDER_PAYMENT: Loại vận đơn (1: Không thu hộ, 2: Thu hộ tiền hàng+cước, 3: Thu hộ tiền hàng, 4: Thu hộ tiền cước)\n- ORDER_SERVICE: Mã dịch vụ\n\n**Body (Tùy chọn):**\n- ORDER_NUMBER: Mã đơn nội bộ\n- PRODUCT_NAME: Tên hàng hóa\n- PRODUCT_QUANTITY: Số lượng (mặc định: 1)\n- PRODUCT_PRICE: Giá trị hàng\n- PRODUCT_WEIGHT: Trọng lượng (gram, mặc định: 50g)\n- PRODUCT_TYPE: Loại hàng (TH/HH, mặc định: HH)\n- ORDER_SERVICE_ADD: Dịch vụ cộng thêm (cách nhau bởi dấu phẩy)\n- ORDER_NOTE: Ghi chú (max 150 bytes)\n- MONEY_COLLECTION: Tiền thu hộ\n- CHECK_UNIQUE: Kiểm tra trùng mã đơn\n- EXTRA_MONEY: Tiền thu khi xem hàng không lấy\n- PRODUCT_DETAIL: Danh sách chi tiết hàng hóa\n- RETURN_ADDRESS: Địa chỉ hoàn hàng\n- VERIFICATION_CODE: Thông tin xác thực người nhận (dùng với dịch vụ PTTX)"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"ORDER_NUMBER\": \"15878180012\",\n        \"MONEY_COLLECTION\": 562000,\n        \"EXCHANGE_WEIGHT\": 50,\n        \"MONEY_TOTAL\": 16500,\n        \"MONEY_TOTAL_FEE\": 15000,\n        \"MONEY_FEE\": 0,\n        \"MONEY_COLLECTION_FEE\": 0,\n        \"MONEY_OTHER_FEE\": 0,\n        \"MONEY_VAS\": 0,\n        \"MONEY_VAT\": 1500,\n        \"KPI_HT\": 48.0,\n        \"RECEIVER_PROVINCE\": 34,\n        \"RECEIVER_DISTRICT\": 390,\n        \"RECEIVER_WARD\": 7393\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "5.2 Tạo đơn - Địa chỉ ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.data && jsonData.data.ORDER_NUMBER) {",
+									"    pm.collectionVariables.set(\"order_number\", jsonData.data.ORDER_NUMBER);",
+									"    console.log(\"Mã vận đơn: \" + jsonData.data.ORDER_NUMBER);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ORDER_NUMBER\": \"12\",\n    \"GROUPADDRESS_ID\": 0,\n    \"CUS_ID\": 722,\n    \"DELIVERY_DATE\": \"11/10/2024 15:09:52\",\n    \"SENDER_FULLNAME\": \"Yanme Shop\",\n    \"SENDER_ADDRESS\": \"Số 5A ngách 22 ngõ 282 Kim Giang, Đại Kim, Hoàng Mai, Hà Nội\",\n    \"SENDER_PHONE\": \"0967363789\",\n    \"SENDER_EMAIL\": \"sender@gmail.com\",\n    \"SENDER_WARD\": 25,\n    \"SENDER_DISTRICT\": 4,\n    \"SENDER_PROVINCE\": 1,\n    \"SENDER_LATITUDE\": 0,\n    \"SENDER_LONGITUDE\": 0,\n    \"RECEIVER_FULLNAME\": \"Hoàng - Test\",\n    \"RECEIVER_ADDRESS\": \"1 NKKN P.Nguyễn Thái Bình, Quận 1, TP Hồ Chí Minh\",\n    \"RECEIVER_PHONE\": \"0907882792\",\n    \"RECEIVER_EMAIL\": \"receiver@gmail.com\",\n    \"RECEIVER_WARD\": 25,\n    \"RECEIVER_DISTRICT\": 43,\n    \"RECEIVER_PROVINCE\": 2,\n    \"RECEIVER_LATITUDE\": 0,\n    \"RECEIVER_LONGITUDE\": 0,\n    \"PRODUCT_NAME\": \"Máy xay sinh tố Philips HR2118 2.0L\",\n    \"PRODUCT_QUANTITY\": 1,\n    \"PRODUCT_PRICE\": 2292764,\n    \"PRODUCT_WEIGHT\": 40000,\n    \"PRODUCT_LENGTH\": 38,\n    \"PRODUCT_WIDTH\": 24,\n    \"PRODUCT_HEIGHT\": 25,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"ORDER_PAYMENT\": 3,\n    \"ORDER_SERVICE\": \"VCN\",\n    \"ORDER_SERVICE_ADD\": \"\",\n    \"ORDER_VOUCHER\": \"\",\n    \"ORDER_NOTE\": \"cho xem hàng, không cho thử\",\n    \"MONEY_COLLECTION\": 2292764,\n    \"EXTRA_MONEY\": 0,\n    \"CHECK_UNIQUE\": true,\n    \"LIST_ITEM\": [\n        {\n            \"PRODUCT_NAME\": \"Máy xay sinh tố Philips HR2118 2.0L\",\n            \"PRODUCT_PRICE\": 2150000,\n            \"PRODUCT_WEIGHT\": 2500,\n            \"PRODUCT_QUANTITY\": 1\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/createOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "createOrder"]
+						},
+						"description": "Tạo đơn hàng sử dụng ID địa danh.\n\n**Body (Bắt buộc):**\n- SENDER_FULLNAME, SENDER_PHONE, SENDER_ADDRESS\n- SENDER_PROVINCE, SENDER_DISTRICT, SENDER_WARD\n- RECEIVER_FULLNAME, RECEIVER_PHONE, RECEIVER_ADDRESS\n- RECEIVER_PROVINCE, RECEIVER_DISTRICT, RECEIVER_WARD\n- ORDER_PAYMENT: Loại vận đơn (1-4)\n- ORDER_SERVICE: Mã dịch vụ\n\n**Body (Tùy chọn):**\n- ORDER_NUMBER: Mã đơn nội bộ\n- GROUPADDRESS_ID: Để = 0\n- DELIVERY_DATE: Ngày giao hàng\n- PRODUCT_*: Thông tin sản phẩm\n- ORDER_SERVICE_ADD: Dịch vụ cộng thêm\n- ORDER_NOTE: Ghi chú\n- MONEY_COLLECTION: Tiền thu hộ\n- LIST_ITEM: Danh sách chi tiết hàng hóa\n- RETURN_ADDRESS: Địa chỉ hoàn hàng\n- VERIFICATION_CODE: Xác thực người nhận (dùng với PTTX)"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"OK\",\n    \"data\": {\n        \"ORDER_NUMBER\": \"15878180012\",\n        \"MONEY_COLLECTION\": 562000,\n        \"EXCHANGE_WEIGHT\": 50,\n        \"MONEY_TOTAL\": 16500,\n        \"MONEY_TOTAL_FEE\": 15000,\n        \"MONEY_FEE\": 0,\n        \"MONEY_COLLECTION_FEE\": 0,\n        \"MONEY_OTHER_FEE\": 0,\n        \"MONEY_VAS\": 0,\n        \"MONEY_VAT\": 1500,\n        \"KPI_HT\": 48.0,\n        \"RECEIVER_PROVINCE\": 34,\n        \"RECEIVER_DISTRICT\": 390,\n        \"RECEIVER_WARD\": 7393\n    }\n}"
+						}
+					]
+				},
+				{
+					"name": "5.3 Tạo đơn với địa chỉ hoàn",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ORDER_NUMBER\": \"TEST-RETURN-001\",\n    \"SENDER_FULLNAME\": \"Shop ABC\",\n    \"SENDER_ADDRESS\": \"Số 18, Phường Thạnh Xuân, Quận 12, Hồ Chí Minh\",\n    \"SENDER_PHONE\": \"09335656565\",\n    \"RECEIVER_FULLNAME\": \"Nguyễn Văn A\",\n    \"RECEIVER_ADDRESS\": \"Số 20, Phường Bến Nghé, Quận 1, Hồ Chí Minh\",\n    \"RECEIVER_PHONE\": \"0987654321\",\n    \"PRODUCT_NAME\": \"Hàng test\",\n    \"PRODUCT_QUANTITY\": 1,\n    \"PRODUCT_PRICE\": 500000,\n    \"PRODUCT_WEIGHT\": 500,\n    \"ORDER_PAYMENT\": 3,\n    \"ORDER_SERVICE\": \"VCN\",\n    \"PRODUCT_TYPE\": \"HH\",\n    \"MONEY_COLLECTION\": 500000,\n    \"RETURN_ADDRESS\": {\n        \"REQUIRED\": true,\n        \"FULLADDRESS\": \"Số 100, Phường Tân Định, Quận 1, Hồ Chí Minh\",\n        \"PROVINCE_ID\": 2,\n        \"DISTRICT_ID\": 43,\n        \"WARDS_ID\": 25\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/createOrderNlp",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "createOrderNlp"]
+						},
+						"description": "Tạo đơn hàng với địa chỉ hoàn khác địa chỉ gửi.\n\n**RETURN_ADDRESS:**\n- REQUIRED: true/false - Xác nhận hoàn theo địa chỉ này\n- FULLADDRESS: Địa chỉ hoàn đầy đủ\n- PROVINCE_ID: ID Tỉnh hoàn về\n- DISTRICT_ID: ID Quận/Huyện hoàn về\n- WARDS_ID: ID Phường/Xã hoàn về"
+					},
+					"response": []
+				},
+				{
+					"name": "5.4 Tạo đơn với xác thực người nhận",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ORDER_NUMBER\": \"TEST-VERIFY-001\",\n    \"SENDER_FULLNAME\": \"Shop ABC\",\n    \"SENDER_ADDRESS\": \"Số 18, Phường Thạnh Xuân, Quận 12, Hồ Chí Minh\",\n    \"SENDER_PHONE\": \"09335656565\",\n    \"RECEIVER_FULLNAME\": \"Nguyễn Văn A\",\n    \"RECEIVER_ADDRESS\": \"Số 20, Phường Bến Nghé, Quận 1, Hồ Chí Minh\",\n    \"RECEIVER_PHONE\": \"0987654321\",\n    \"PRODUCT_NAME\": \"Hàng giá trị cao\",\n    \"PRODUCT_QUANTITY\": 1,\n    \"PRODUCT_PRICE\": 10000000,\n    \"PRODUCT_WEIGHT\": 500,\n    \"ORDER_PAYMENT\": 3,\n    \"ORDER_SERVICE\": \"VCN\",\n    \"ORDER_SERVICE_ADD\": \"PTTX\",\n    \"PRODUCT_TYPE\": \"HH\",\n    \"MONEY_COLLECTION\": 10000000,\n    \"VERIFICATION_CODE\": {\n        \"TYPE\": \"birth_year\",\n        \"VALUE\": \"1990\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/createOrderNlp",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "createOrderNlp"]
+						},
+						"description": "Tạo đơn hàng với xác thực người nhận (dùng với dịch vụ PTTX).\n\n**VERIFICATION_CODE:**\n- TYPE: Loại xác thực\n  - \"birth_year\": Năm sinh (4 số YYYY)\n  - \"id_card_suffix\": 6 số cuối CCCD\n- VALUE: Giá trị xác thực tương ứng\n\n**Lưu ý:** Chỉ truyền VERIFICATION_CODE khi sử dụng ORDER_SERVICE_ADD: \"PTTX\""
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Cập nhật đơn hàng",
+			"description": "API cập nhật thông tin đơn hàng",
+			"item": [
+				{
+					"name": "6.1 Sửa thông tin đơn hàng",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"GROUPADDRESS_ID\": \"\",\n    \"CUS_ID\": \"\",\n    \"DELIVERY_DATE\": \"26/06/2024 15:09:52\",\n    \"SENDER_FULLNAME\": \"NGUYEN VAN A\",\n    \"SENDER_ADDRESS\": \"SỐ 15 DUY TÂN, DỊCH VỌNG HẬU, CẦU GIẤY, HÀ NỘI\",\n    \"SENDER_PHONE\": \"0338082811\",\n    \"SENDER_EMAIL\": \"nguyenvana@gmail.com\",\n    \"RECEIVER_FULLNAME\": \"Linh Nguyen\",\n    \"RECEIVER_ADDRESS\": \"SỐ 1 Ô CHỢ DỪA, ĐỐNG ĐA, HÀ NỘI\",\n    \"RECEIVER_PHONE\": \"0338082811\",\n    \"RECEIVER_EMAIL\": \"linhlinh@mail.com.vn\",\n    \"PRODUCT_NAME\": \"Máy xay sinh tố Philips HR2118 2.0L\",\n    \"PRODUCT_QUANTITY\": 1,\n    \"PRODUCT_PRICE\": 0,\n    \"PRODUCT_WEIGHT\": 500,\n    \"PRODUCT_LENGTH\": 38,\n    \"PRODUCT_WIDTH\": 24,\n    \"PRODUCT_HEIGHT\": 25,\n    \"PRODUCT_TYPE\": \"HH\",\n    \"ORDER_PAYMENT\": 3,\n    \"ORDER_SERVICE\": \"VCN\",\n    \"ORDER_SERVICE_ADD\": \"\",\n    \"ORDER_VOUCHER\": \"\",\n    \"ORDER_NOTE\": \"Không cho xem hàng\",\n    \"MONEY_COLLECTION\": 21500,\n    \"EXTRA_MONEY\": 0,\n    \"CHECK_UNIQUE\": true,\n    \"LIST_ITEM\": [\n        {\n            \"PRODUCT_NAME\": \"Tên hàng hóa 1\",\n            \"PRODUCT_PRICE\": 210000,\n            \"PRODUCT_WEIGHT\": 250,\n            \"PRODUCT_QUANTITY\": 1\n        }\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/edit",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "edit"]
+						},
+						"description": "Cập nhật thông tin đơn hàng.\n\n**Lưu ý:** Đơn hàng chỉ được sửa khi ORDER_STATUS < 200.\n\n**Body:** Giống với API tạo đơn, bắt buộc có ORDER_NUMBER."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "7. Cập nhật trạng thái đơn hàng",
+			"description": "API cập nhật trạng thái vận đơn",
+			"item": [
+				{
+					"name": "7.1 Duyệt đơn hàng (TYPE=1)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"TYPE\": 1,\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"NOTE\": \"Duyệt đơn hàng\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/UpdateOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "UpdateOrder"]
+						},
+						"description": "Duyệt đơn hàng.\n\n**Body:**\n- TYPE: 1 (Duyệt đơn hàng)\n- ORDER_NUMBER: Mã vận đơn\n- NOTE: Lý do (max 150 ký tự)"
+					},
+					"response": []
+				},
+				{
+					"name": "7.2 Duyệt hoàn (TYPE=2)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"TYPE\": 2,\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"NOTE\": \"Khách hàng yêu cầu hoàn\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/UpdateOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "UpdateOrder"]
+						},
+						"description": "Duyệt hoàn đơn hàng.\n\n**Điều kiện:** Đơn hàng có trạng thái 505 (Thông báo chuyển hoàn).\n\n**Body:**\n- TYPE: 2 (Duyệt hoàn)\n- ORDER_NUMBER: Mã vận đơn\n- NOTE: Lý do hoàn"
+					},
+					"response": []
+				},
+				{
+					"name": "7.3 Phát tiếp (TYPE=3)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"TYPE\": 3,\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"NOTE\": \"Khách hàng yêu cầu phát tiếp\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/UpdateOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "UpdateOrder"]
+						},
+						"description": "Yêu cầu phát tiếp đơn hàng.\n\n**Điều kiện:** Đơn hàng có trạng thái 505 (Thông báo chuyển hoàn).\n\n**Body:**\n- TYPE: 3 (Phát tiếp)\n- ORDER_NUMBER: Mã vận đơn\n- NOTE: Lý do phát tiếp"
+					},
+					"response": []
+				},
+				{
+					"name": "7.4 Hủy đơn hàng (TYPE=4)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"TYPE\": 4,\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"NOTE\": \"Khách hàng hủy đơn\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/UpdateOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "UpdateOrder"]
+						},
+						"description": "Hủy đơn hàng.\n\n**Điều kiện:** Đơn hàng chưa được nhận thành công (trạng thái < 200 và khác 105, 107).\n\n**Body:**\n- TYPE: 4 (Hủy đơn hàng)\n- ORDER_NUMBER: Mã vận đơn\n- NOTE: Lý do hủy"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"Hủy đơn hàng thành công\",\n    \"data\": null\n}"
+						}
+					]
+				},
+				{
+					"name": "7.5 Xóa đơn hàng đã hủy (TYPE=11)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"TYPE\": 11,\n    \"ORDER_NUMBER\": \"{{order_number}}\",\n    \"NOTE\": \"Xóa đơn hàng đã hủy\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/UpdateOrder",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "UpdateOrder"]
+						},
+						"description": "Xóa đơn hàng đã hủy.\n\n**Điều kiện:** Đơn hàng có trạng thái 107 (Hủy đơn hàng).\n\n**Body:**\n- TYPE: 11 (Xóa đơn hàng đã hủy)\n- ORDER_NUMBER: Mã vận đơn\n- NOTE: Lý do xóa"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "8. In vận đơn",
+			"description": "API lấy link in vận đơn",
+			"item": [
+				{
+					"name": "8.1 Lấy mã in vận đơn",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.message) {",
+									"    pm.collectionVariables.set(\"print_code\", jsonData.message);",
+									"    console.log(\"Mã in: \" + jsonData.message);",
+									"    ",
+									"    // Tạo các link in",
+									"    var baseUrl = \"https://digitalize.viettelpost.vn/DigitalizePrint/report.do\";",
+									"    var code = jsonData.message;",
+									"    console.log(\"Link in A5: \" + baseUrl + \"?type=1&bill=\" + code + \"&showPostage=1\");",
+									"    console.log(\"Link in A6: \" + baseUrl + \"?type=2&bill=\" + code + \"&showPostage=1\");",
+									"    console.log(\"Link in A7: \" + baseUrl + \"?type=100&bill=\" + code + \"&showPostage=1\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Token",
+								"value": "{{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"EXPIRY_TIME\": 1735516800000,\n    \"ORDER_ARRAY\": [\n        \"{{order_number}}\"\n    ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/v2/order/printing-code",
+							"host": ["{{base_url}}"],
+							"path": ["v2", "order", "printing-code"]
+						},
+						"description": "Lấy mã code để in vận đơn.\n\n**Body:**\n- EXPIRY_TIME: Thời gian hết hạn link (epoch milliseconds)\n- ORDER_ARRAY: Mảng mã vận đơn (tối đa 100)\n\n**Response:**\n- message: Mã code in vận đơn\n\n**Link in:**\n- A5: https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=1&bill=${code}&showPostage=1\n- A6: https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=2&bill=${code}&showPostage=1\n- A7: https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=100&bill=${code}&showPostage=1\n\n**Tham số showPostage:**\n- 1: Hiển thị cước\n- 0: Không hiển thị cước"
+					},
+					"response": [
+						{
+							"name": "Success Response",
+							"status": "OK",
+							"code": 200,
+							"body": "{\n    \"status\": 200,\n    \"error\": false,\n    \"message\": \"ISJDgZ3NSiYMtPUk7vTzQK8ZWUDexvvDKIclc0NplOU=\",\n    \"data\": null\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "9. Webhook Sample",
+			"description": "Mẫu request webhook từ ViettelPost",
+			"item": [
+				{
+					"name": "Webhook Request Sample",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "{{webhook_secret}}",
+								"description": "Secret key cấu hình trên VTP"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"DATA\": {\n        \"ORDER_NUMBER\": \"TUANPAD3024822076\",\n        \"ORDER_REFERENCE\": \"TUANPAD3024822076\",\n        \"ORDER_STATUSDATE\": \"10/11/2025 11:07:16\",\n        \"ORDER_STATUS\": 104,\n        \"STATUS_NAME\": \"Giao cho Bưu tá đi nhận\",\n        \"LOCALION_CURRENTLY\": \"HNI, GLM, Bưu cục Gia Lâm - HNI - Hà Nội, 0334128111, 131003, THỊ TRẤN TRÂU QUỲ\",\n        \"NOTE\": \"Phân công bưu tá nhận hàng\",\n        \"MONEY_COLLECTION\": 0,\n        \"MONEY_FEECOD\": 1000,\n        \"MONEY_TOTALFEE\": 236115,\n        \"MONEY_TOTAL\": 266884,\n        \"MONEY_TOTALVAT\": 19769,\n        \"EXPECTED_DELIVERY\": \"Dịch vụ chưa quy định chỉ tiêu\",\n        \"PRODUCT_WEIGHT\": 7100,\n        \"ORDER_SERVICE\": \"VHT\",\n        \"ORDER_SERVICE_ADD\": null,\n        \"ORDER_PAYMENT\": 1,\n        \"EXPECTED_DELIVERY_DATE\": null,\n        \"DETAIL\": [],\n        \"VOUCHER_VALUE\": 0,\n        \"MONEY_COLLECTION_ORIGIN\": null,\n        \"EMPLOYEE_NAME\": \"Phạm Minh Đức\",\n        \"EMPLOYEE_PHONE\": \"84967299927\",\n        \"IS_RETURNING\": false,\n        \"POD\": {\n            \"IMAGES\": []\n        },\n        \"REASON_CODE\": null,\n        \"RECEIVER_FULLNAME\": \"Nguyễn Cường\",\n        \"LOCATION_CURRENTLY\": \"HNI, GLM, Bưu cục Gia Lâm - HNI - Hà Nội, 0334128111, 131003, THỊ TRẤN TRÂU QUỲ\",\n        \"ORDER_NOTE\": \"Giao trong giờ hành chính\",\n        \"GROUPADDRESS_ID\": \"5818802\"\n    },\n    \"TOKEN\": \"0333333333\"\n}"
+						},
+						"url": {
+							"raw": "{{webhook_endpoint}}",
+							"host": ["{{webhook_endpoint}}"]
+						},
+						"description": "Mẫu request webhook từ ViettelPost.\n\n**Header:**\n- Authorization: Secret key đã cấu hình\n\n**Body DATA:**\n- ORDER_NUMBER: Mã vận đơn VTP\n- ORDER_REFERENCE: Mã tham chiếu đơn hàng\n- ORDER_STATUSDATE: Thời điểm cập nhật trạng thái\n- ORDER_STATUS: Mã trạng thái\n- STATUS_NAME: Tên trạng thái\n- LOCATION_CURRENTLY: Vị trí hiện tại\n- NOTE: Ghi chú hành động\n- MONEY_COLLECTION: Tiền thu hộ (COD)\n- MONEY_FEECOD: Phí thu hộ\n- MONEY_TOTALFEE: Phí vận chuyển\n- MONEY_TOTAL: Tổng phí\n- MONEY_TOTALVAT: VAT\n- EMPLOYEE_NAME/PHONE: Thông tin bưu tá\n- IS_RETURNING: Đang chuyển hoàn?\n- POD.IMAGES: Ảnh báo phát\n- REASON_CODE: Mã lý do (nếu có)\n\n**Trạng thái cuối (không phát sinh thêm):**\n- 101: VTP từ chối nhận\n- 107: Đối tác yêu cầu hủy\n- 201: Hủy nhập phiếu gửi\n- 501: Phát thành công\n- 503: Hủy theo yêu cầu KH\n- 504: Hoàn thành công\n\n**Lưu ý:**\n- Trả HTTP 200 khi thành công\n- VTP retry 5 lần nếu không thành công"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

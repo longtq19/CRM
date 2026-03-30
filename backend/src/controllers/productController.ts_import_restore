@@ -1,0 +1,86 @@
+
+export const importProducts = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Vui lòng tải lên file Excel' });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Get data as array of arrays
+    const rows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    
+    // Remove header (row 0)
+    const data = rows.slice(1);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const row of data) {
+      // Check if row is empty or code is missing
+      const code = row[0]?.toString().trim();
+      if (!code) continue;
+
+      const vatName = row[1]?.toString().trim() || '';
+      const unit = row[2]?.toString().trim() || 'Cái';
+      const packSpec = row[3]?.toString().trim() || ''; // QUY CÁCH
+      const commonName = row[4]?.toString().trim();
+      
+      const name = commonName || vatName || 'Unknown Product';
+      
+      try {
+        await prisma.product.upsert({
+          where: { code },
+          update: {
+            name,
+            description: vatName,
+            unit,
+            type: ProductType.BIO, // Default to BIO for now based on previous requirement
+            bioDetail: {
+              upsert: {
+                create: {
+                  packType: packSpec
+                },
+                update: {
+                  packType: packSpec
+                }
+              }
+            }
+          },
+          create: {
+            code,
+            name,
+            type: ProductType.BIO,
+            description: vatName,
+            unit,
+            basePrice: 0,
+            status: 'ACTIVE',
+            bioDetail: {
+              create: {
+                packType: packSpec
+              }
+            }
+          }
+        });
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to import ${code}:`, error);
+        failCount++;
+      }
+    }
+
+    res.json({
+      message: 'Import hoàn tất',
+      stats: {
+        success: successCount,
+        failed: failCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Import products error:', error);
+    res.status(500).json({ message: 'Lỗi khi nhập danh sách sản phẩm' });
+  }
+};

@@ -1,0 +1,30 @@
+/**
+ * Đồng bộ với `backend/src/constants/hrEmployeeSpreadsheet.ts` (thứ tự cột import/export/mẫu).
+ */
+export const HR_EMPLOYEE_SHEET_COLUMNS = [
+  { header: 'Mã NV', key: 'code', width: 12 },
+  { header: 'Họ và tên', key: 'fullName', width: 25 },
+  { header: 'Giới tính', key: 'gender', width: 10 },
+  { header: 'Ngày sinh', key: 'dob', width: 14 },
+  { header: 'Số điện thoại', key: 'phone', width: 15 },
+  { header: 'Email công ty', key: 'emailCompany', width: 28 },
+  { header: 'Email cá nhân', key: 'emailPersonal', width: 28 },
+  { header: 'Địa chỉ', key: 'address', width: 32 },
+  { header: 'Loại hợp đồng', key: 'employmentType', width: 18 },
+  { header: 'Loại nhân viên', key: 'employeeType', width: 18 },
+  { header: 'Nhóm quyền', key: 'roleGroup', width: 22 },
+  { header: 'Công ty con', key: 'subsidiary', width: 18 },
+  { header: 'Bộ phận', key: 'departmentUnit', width: 22 },
+  { header: 'Chức danh', key: 'hrJobTitle', width: 24 },
+  { header: 'Trạng thái', key: 'status', width: 16 },
+  { header: 'Ngày hiệu lực HĐ', key: 'contractEffective', width: 16 },
+  { header: 'Ngày hết hạn HĐ', key: 'contractEnd', width: 16 },
+  { header: 'Tên ngân hàng', key: 'bankName', width: 20 },
+  { header: 'Số tài khoản', key: 'bankAccount', width: 18 },
+  { header: 'Chủ tài khoản', key: 'bankHolder', width: 22 },
+  { header: 'Loại xe', key: 'vehicleType', width: 12 },
+  { header: 'Tên xe', key: 'vehicleName', width: 18 },
+  { header: 'Biển số', key: 'vehiclePlate', width: 14 },
+  { header: 'Màu xe', key: 'vehicleColor', width: 12 },
+  { header: 'Đường dẫn tệp', key: 'filePath', width: 30 },
+] as const;

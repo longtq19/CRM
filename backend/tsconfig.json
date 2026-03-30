@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*",
+    "prisma/seed-address-from-json.ts",
+    "scripts/sync-address-from-vtp.ts",
+    "scripts/export-address-json-from-vtp.ts",
+    "scripts/clear-address-catalog.ts"
+  ],
+  "exclude": ["node_modules"]
+}
