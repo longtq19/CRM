@@ -39,6 +39,7 @@ COPY backend/package.json ./
 COPY backend/prisma ./prisma
 # Script CLI (backup…) + pg_dump; đồng bộ VTP dùng dist/scripts từ build
 COPY backend/scripts ./scripts
+RUN chmod +x ./scripts/docker-entrypoint.sh
 
 RUN mkdir -p backups
 
@@ -48,4 +49,6 @@ COPY --from=frontend-builder /app/frontend/dist ../frontend/dist
 RUN mkdir -p uploads/avatars uploads/images uploads/chat uploads/marketing-costs uploads/products uploads/contracts uploads/support-tickets
 
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/src/server.js"]
+# Đợi Postgres (pg_isready) trước migrate — tránh P1001 khi DB khởi động chậm hơn app.
+# Bỏ qua đợi (debug): SKIP_DB_WAIT=1
+CMD ["./scripts/docker-entrypoint.sh"]
