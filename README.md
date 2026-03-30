@@ -648,10 +648,9 @@ Nghiệp vụ:
   - `POST /api/documents/upload` (upload file)
   - `GET/POST/PUT/DELETE /api/documents/documents` (theo permission trong controller)
   - `GET /api/documents/documents/types` (và CRUD types)
-  - `PUT /api/documents/:id/permissions` (quản lý phạm vi xem/sửa)
+  - `PUT /api/documents/:id/permissions` (quản lý phạm vi xem/sửa — **chỉ gán theo nhân sự**, không còn phân theo nhóm quyền hay khối/phòng ban)
   - `GET /api/documents/:id/download` và `GET /api/documents/:id/print-check`
-  - Các route helper cho UI:
-    - `/api/documents-helper/employees`, `/divisions`, `/role-groups`
+  - Helper UI phân quyền: `GET /api/documents-helper/employees` (danh sách nhân sự để chọn)
 - Internal notes:
   - CRUD `/api/internal-notes`
   - quyền: `MANAGE_INTERNAL_NOTES`

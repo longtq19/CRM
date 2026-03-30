@@ -28,9 +28,7 @@ router.put('/documents/:id/permissions', authMiddleware, documentController.upda
 router.get('/documents/:id/download', authMiddleware, documentController.downloadDocument);
 router.get('/documents/:id/print-check', authMiddleware, documentController.checkPrintPermission);
 
-// Helpers cho UI phân quyền
+// Helper cho UI phân quyền (chỉ danh sách nhân sự)
 router.get('/documents-helper/employees', authMiddleware, documentController.getEmployeesForPermission);
-router.get('/documents-helper/divisions', authMiddleware, documentController.getDivisionsAndDepartments);
-router.get('/documents-helper/role-groups', authMiddleware, documentController.getRoleGroupsForPermission);
 
 export default router;

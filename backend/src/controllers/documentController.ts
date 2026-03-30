@@ -3,7 +3,6 @@ import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
 import { getSubordinateIds } from '../utils/viewScopeHelper';
 import { isTechnicalAdminRoleCode } from '../constants/rbac';
-import { getDefaultOrganizationId } from '../utils/organizationHelper';
 import mammoth from 'mammoth';
 import ExcelJS from 'exceljs';
 import fs from 'fs';
@@ -19,6 +18,41 @@ const isAdminUser = async (userId: string): Promise<boolean> => {
   });
   return isTechnicalAdminRoleCode(employee?.roleGroup?.code);
 };
+
+/** Chỉ lưu phân quyền gán theo nhân sự (bỏ nhóm quyền / đơn vị trên payload) */
+const pickEmployeeDocumentPermissions = (
+  permissions: unknown
+): { employeeId: string; accessLevel: string }[] => {
+  if (!Array.isArray(permissions)) return [];
+  const out: { employeeId: string; accessLevel: string }[] = [];
+  for (const p of permissions) {
+    if (!p || typeof p !== 'object') continue;
+    const pid = (p as { employeeId?: string }).employeeId;
+    if (!pid || typeof pid !== 'string') continue;
+    const level = (p as { accessLevel?: string }).accessLevel || 'VIEWER';
+    out.push({ employeeId: pid, accessLevel: level });
+  }
+  return out;
+};
+
+type PermAuditRow = {
+  accessLevel: string;
+  employee: { fullName: string } | null;
+  roleGroup: { name: string } | null;
+  department: { name: string } | null;
+};
+
+function formatDocumentPermissionsForAudit(rows: PermAuditRow[]): string {
+  if (rows.length === 0) return '(Không có người được gán trực tiếp)';
+  return rows
+    .map((r) => {
+      if (r.employee) return `${r.employee.fullName}: ${r.accessLevel}`;
+      if (r.roleGroup) return `Nhóm quyền "${r.roleGroup.name}": ${r.accessLevel} (đã ngưng áp dụng)`;
+      if (r.department) return `Đơn vị "${r.department.name}": ${r.accessLevel} (đã ngưng áp dụng)`;
+      return `(Không xác định): ${r.accessLevel}`;
+    })
+    .join('; ');
+}
 
 /**
  * Kiểm tra quyền truy cập tài liệu
@@ -52,14 +86,9 @@ const checkDocumentAccess = async (
     return { canView: true, canEdit: true, canDownload: false, canPrint: false, isOwner: true, canManagePermissions: true, isAdmin: false };
   }
   
-  // Lấy thông tin user
   const user = await prisma.employee.findUnique({
     where: { id: userId },
-    select: { 
-      id: true, 
-      departmentId: true, 
-      roleGroupId: true
-    }
+    select: { id: true }
   });
   
   if (!user) return result;
@@ -74,24 +103,9 @@ const checkDocumentAccess = async (
     }
   }
   
-  // Kiểm tra permissions được cấu hình
+  // Phân quyền theo nhân sự được gán trực tiếp (không còn theo nhóm quyền / khối–phòng ban)
   for (const perm of document.permissions) {
-    let hasAccess = false;
-    
-    // Kiểm tra theo nhân sự cụ thể
-    if (perm.employeeId && perm.employeeId === userId) {
-      hasAccess = true;
-    }
-    
-    // Kiểm tra theo nhóm quyền
-    if (perm.roleGroupId && perm.roleGroupId === user.roleGroupId) {
-      hasAccess = true;
-    }
-    
-    // Check if department branch matches can be added here
-    if (perm.departmentId && perm.departmentId === user.departmentId) {
-      hasAccess = true;
-    }
+    const hasAccess = Boolean(perm.employeeId && perm.employeeId === userId);
     
     if (hasAccess) {
       result.canView = true;
@@ -166,32 +180,12 @@ export const getDocuments = async (req: Request, res: Response) => {
     
     // Nếu không phải ADM, lọc theo quyền truy cập
     if (!isAdmin) {
-      const userInfo = await prisma.employee.findUnique({
-        where: { id: userId },
-        select: { 
-          departmentId: true, 
-          roleGroupId: true
-        }
-      });
-      
-      // Lấy danh sách cấp dưới
       const subordinates = await getSubordinateIds(userId);
       
       documents = documents.filter(doc => {
-        // Chủ sở hữu
         if (doc.ownerId === userId) return true;
-        
-        // Quản lý cấp trên của chủ sở hữu
         if (doc.ownerId && subordinates.includes(doc.ownerId)) return true;
-        
-        // Kiểm tra permissions
-        for (const perm of doc.permissions) {
-          if (perm.employeeId === userId) return true;
-          if (perm.roleGroupId && perm.roleGroupId === userInfo?.roleGroupId) return true;
-          if (perm.departmentId && perm.departmentId === userInfo?.departmentId) return true;
-        }
-        
-        return false;
+        return doc.permissions.some((perm) => perm.employeeId === userId);
       });
     }
     
@@ -257,13 +251,12 @@ export const getDocumentById = async (req: Request, res: Response) => {
       include: {
         owner: { select: { id: true, fullName: true, avatarUrl: true } },
         permissions: {
+          where: { employeeId: { not: null } },
           include: {
             employee: { select: { id: true, fullName: true, avatarUrl: true } },
-            roleGroup: { select: { id: true, name: true, code: true } },
-            department: { select: { id: true, name: true } }
-          }
-        }
-      }
+          },
+        },
+      },
     });
     
     if (!document) {
@@ -320,19 +313,17 @@ export const createDocument = async (req: Request, res: Response) => {
       }
     });
     
-    // Tạo permissions nếu có
-    if (permissions && Array.isArray(permissions)) {
-      for (const perm of permissions) {
-        await prisma.documentPermission.create({
-          data: {
-            documentId: newDoc.id,
-            employeeId: perm.employeeId || null,
-            roleGroupId: perm.roleGroupId || null,
-            departmentId: perm.departmentId || null,
-            accessLevel: perm.accessLevel || 'VIEWER'
-          }
-        });
-      }
+    const empPerms = pickEmployeeDocumentPermissions(permissions);
+    for (const perm of empPerms) {
+      await prisma.documentPermission.create({
+        data: {
+          documentId: newDoc.id,
+          employeeId: perm.employeeId,
+          roleGroupId: null,
+          departmentId: null,
+          accessLevel: perm.accessLevel,
+        },
+      });
     }
     
     await logAudit({
@@ -383,24 +374,19 @@ export const updateDocument = async (req: Request, res: Response) => {
       }
     });
     
-    // Cập nhật permissions nếu là owner hoặc ADM
     if (access.canManagePermissions && permissions !== undefined) {
-      // Xóa permissions cũ
       await prisma.documentPermission.deleteMany({ where: { documentId: id } });
-      
-      // Tạo permissions mới
-      if (Array.isArray(permissions)) {
-        for (const perm of permissions) {
-          await prisma.documentPermission.create({
-            data: {
-              documentId: id,
-              employeeId: perm.employeeId || null,
-              roleGroupId: perm.roleGroupId || null,
-              departmentId: perm.departmentId || null,
-              accessLevel: perm.accessLevel || 'VIEWER'
-            }
-          });
-        }
+      const empPerms = pickEmployeeDocumentPermissions(permissions);
+      for (const perm of empPerms) {
+        await prisma.documentPermission.create({
+          data: {
+            documentId: id,
+            employeeId: perm.employeeId,
+            roleGroupId: null,
+            departmentId: null,
+            accessLevel: perm.accessLevel,
+          },
+        });
       }
     }
     
@@ -481,45 +467,59 @@ export const updateDocumentPermissions = async (req: Request, res: Response) => 
     if (!isAdmin && document.ownerId !== user.id) {
       return res.status(403).json({ message: 'Chỉ chủ sở hữu hoặc Quản trị viên hệ thống mới có quyền phân quyền tài liệu' });
     }
-    
-    // Xóa permissions cũ
+
+    const oldRows = await prisma.documentPermission.findMany({
+      where: { documentId: id },
+      include: {
+        employee: { select: { fullName: true } },
+        roleGroup: { select: { name: true } },
+        department: { select: { name: true } },
+      },
+    });
+
     await prisma.documentPermission.deleteMany({ where: { documentId: id } });
-    
-    // Tạo permissions mới
+
+    const empPerms = pickEmployeeDocumentPermissions(permissions);
     const createdPermissions = [];
-    if (Array.isArray(permissions)) {
-      for (const perm of permissions) {
-        const created = await prisma.documentPermission.create({
-          data: {
-            documentId: id,
-            employeeId: perm.employeeId || null,
-            roleGroupId: perm.roleGroupId || null,
-            departmentId: perm.departmentId || null,
-            accessLevel: perm.accessLevel || 'VIEWER'
-          },
-          include: {
-            employee: { select: { id: true, fullName: true } },
-            roleGroup: { select: { id: true, name: true } },
-            department: { select: { id: true, name: true } }
-          }
-        });
-        createdPermissions.push(created);
-      }
+    for (const perm of empPerms) {
+      const created = await prisma.documentPermission.create({
+        data: {
+          documentId: id,
+          employeeId: perm.employeeId,
+          roleGroupId: null,
+          departmentId: null,
+          accessLevel: perm.accessLevel,
+        },
+        include: {
+          employee: { select: { id: true, fullName: true } },
+        },
+      });
+      createdPermissions.push(created);
     }
-    
+
+    const beforeStr = formatDocumentPermissionsForAudit(oldRows);
+    const afterStr = formatDocumentPermissionsForAudit(
+      createdPermissions.map((c) => ({
+        accessLevel: c.accessLevel,
+        employee: c.employee,
+        roleGroup: null,
+        department: null,
+      }))
+    );
+
     await logAudit({
       ...getAuditUser(req),
       action: 'UPDATE',
       object: 'DOCUMENT_PERMISSION',
       objectId: id,
       result: 'SUCCESS',
-      details: `Updated permissions for document: ${document.name}`,
-      req
+      details: `Cập nhật phân quyền tài liệu "${document.name}". Trước: ${beforeStr}. Sau: ${afterStr}.`,
+      req,
     });
-    
-    res.json({ 
+
+    res.json({
       message: 'Đã cập nhật phân quyền',
-      permissions: createdPermissions
+      permissions: createdPermissions,
     });
   } catch (error) {
     console.error('Update permissions error:', error);
@@ -754,54 +754,6 @@ export const getEmployeesForPermission = async (req: Request, res: Response) => 
   } catch (error) {
     console.error('Get employees error:', error);
     res.status(500).json({ message: 'Lỗi khi lấy danh sách nhân sự' });
-  }
-};
-
-/**
- * Lấy danh sách khối và phòng ban để phân quyền
- */
-export const getDivisionsAndDepartments = async (req: Request, res: Response) => {
-  try {
-    const docOrgId = await getDefaultOrganizationId();
-    const divisions = docOrgId
-      ? await prisma.department.findMany({
-          where: { type: 'DIVISION', organizationId: docOrgId },
-          include: {
-            children: {
-              select: { id: true, name: true, code: true },
-            },
-          },
-          orderBy: { displayOrder: 'asc' },
-        })
-      : [];
-    
-    // Map children to departments for frontend compatibility
-    const mapped = divisions.map(d => ({
-      ...d,
-      departments: d.children
-    }));
-    
-    res.json(mapped);
-  } catch (error) {
-    console.error('Get divisions error:', error);
-    res.status(500).json({ message: 'Lỗi khi lấy danh sách khối/phòng ban' });
-  }
-};
-
-/**
- * Lấy danh sách nhóm quyền để phân quyền
- */
-export const getRoleGroupsForPermission = async (req: Request, res: Response) => {
-  try {
-    const roleGroups = await prisma.roleGroup.findMany({
-      select: { id: true, name: true, code: true },
-      orderBy: { sortOrder: 'asc' }
-    });
-    
-    res.json(roleGroups);
-  } catch (error) {
-    console.error('Get role groups error:', error);
-    res.status(500).json({ message: 'Lỗi khi lấy danh sách nhóm quyền' });
   }
 };
 

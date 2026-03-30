@@ -3,10 +3,10 @@ import {
   FileText, Download, ExternalLink, Plus, Search, Filter, 
   Edit, Trash2, Book, HelpCircle, Shield, Wrench, HeartHandshake,
   X, AlertCircle, Upload, Save, Users, Lock, Eye, Pencil, Settings,
-  Building2, UserCheck, ChevronDown, ChevronRight, Check, Printer
+  Check, Printer
 } from 'lucide-react';
 import { useAuthStore } from '../context/useAuthStore';
-import { isTechnicalAdminRole, ROLE_CODES } from '../constants/rbac';
+import { isTechnicalAdminRole } from '../constants/rbac';
 import { apiClient } from '../api/client';
 import type { SystemDocument } from '../types/index';
 import DocumentViewer from '../components/DocumentViewer';
@@ -30,25 +30,7 @@ interface DocumentPermission {
   id?: string;
   employeeId?: string;
   employee?: { id: string; fullName: string; avatarUrl?: string };
-  roleGroupId?: string;
-  roleGroup?: { id: string; name: string; code: string };
-  departmentId?: string;
-  department?: { id: string; name: string };
-  divisionId?: string;
-  division?: { id: string; name: string };
   accessLevel: 'VIEWER' | 'VIEW_DOWNLOAD' | 'EDITOR';
-}
-
-interface Division {
-  id: string;
-  name: string;
-  departments: { id: string; name: string; code: string }[];
-}
-
-interface RoleGroup {
-  id: string;
-  name: string;
-  code: string;
 }
 
 interface Employee {
@@ -86,11 +68,8 @@ const Documents = () => {
   const [permissionDoc, setPermissionDoc] = useState<any>(null);
   const [permissions, setPermissions] = useState<DocumentPermission[]>([]);
   
-  const [divisions, setDivisions] = useState<Division[]>([]);
-  const [roleGroups, setRoleGroups] = useState<RoleGroup[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState('');
-  const [expandedDivisions, setExpandedDivisions] = useState<string[]>([]);
   const selectAllEmployeeCheckboxRef = useRef<HTMLInputElement>(null);
 
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeItem[]>([]);
@@ -163,13 +142,7 @@ const Documents = () => {
 
   const fetchPermissionHelpers = async () => {
     try {
-      const [divData, rgData, empData] = await Promise.all([
-        apiClient.get('/documents-helper/divisions'),
-        apiClient.get('/documents-helper/role-groups'),
-        apiClient.get('/documents-helper/employees')
-      ]);
-      setDivisions(divData);
-      setRoleGroups(rgData);
+      const empData = await apiClient.get('/documents-helper/employees');
       setEmployees(empData);
     } catch (error) {
       console.error('Failed to fetch permission helpers:', error);
@@ -281,7 +254,8 @@ const Documents = () => {
     await fetchPermissionHelpers();
     const detail = await fetchDocumentDetail(doc.id);
     if (detail) {
-      setPermissions(detail.permissions || []);
+      const raw = (detail.permissions || []) as DocumentPermission[];
+      setPermissions(raw.filter((p) => p.employeeId));
     }
     setShowPermissionModal(true);
   };
@@ -299,36 +273,16 @@ const Documents = () => {
   };
 
   const addPermission = (
-    type: 'employee' | 'roleGroup' | 'department' | 'division',
-    id: string,
+    employeeId: string,
     accessLevel: 'VIEWER' | 'VIEW_DOWNLOAD' | 'EDITOR' = 'VIEWER'
   ) => {
-    const exists = permissions.some(p => {
-      if (type === 'employee') return p.employeeId === id;
-      if (type === 'roleGroup') return p.roleGroupId === id;
-      if (type === 'department') return p.departmentId === id;
-      if (type === 'division') return p.divisionId === id;
-      return false;
-    });
-    
-    if (exists) return;
-    
-    const newPerm: DocumentPermission = { accessLevel };
-    if (type === 'employee') {
-      newPerm.employeeId = id;
-      newPerm.employee = employees.find(e => e.id === id) as any;
-    } else if (type === 'roleGroup') {
-      newPerm.roleGroupId = id;
-      newPerm.roleGroup = roleGroups.find(r => r.id === id) as any;
-    } else if (type === 'department') {
-      newPerm.departmentId = id;
-      const dept = divisions.flatMap(d => d.departments).find(dp => dp.id === id);
-      newPerm.department = dept as any;
-    } else if (type === 'division') {
-      newPerm.divisionId = id;
-      newPerm.division = divisions.find(d => d.id === id) as any;
-    }
-    
+    if (permissions.some((p) => p.employeeId === employeeId)) return;
+    const emp = employees.find((e) => e.id === employeeId);
+    const newPerm: DocumentPermission = {
+      accessLevel,
+      employeeId,
+      ...(emp ? { employee: { id: emp.id, fullName: emp.fullName, avatarUrl: emp.avatarUrl } } : {}),
+    };
     setPermissions([...permissions, newPerm]);
   };
 
@@ -819,9 +773,7 @@ const Documents = () => {
             
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Selection */}
                 <div className="space-y-4">
-                  {/* Employees */}
                   <div className="border border-gray-200 rounded-lg p-4">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                       <Users size={18} />
@@ -874,7 +826,7 @@ const Documents = () => {
                           <div 
                             key={emp.id}
                             className="flex items-center justify-between py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer"
-                            onClick={() => addPermission('employee', emp.id, 'VIEWER')}
+                            onClick={() => addPermission(emp.id, 'VIEWER')}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <img src={getAvatarUrl(emp.avatarUrl, emp.fullName)} className="w-5 h-5 rounded-full shrink-0" alt="" />
@@ -884,71 +836,6 @@ const Documents = () => {
                             <Plus size={14} className="text-gray-400 shrink-0" />
                           </div>
                         ))}
-                    </div>
-                  </div>
-
-                  {/* Role Groups */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <UserCheck size={18} />
-                      Chọn nhóm quyền
-                    </h4>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {roleGroups.filter(rg => rg.code !== ROLE_CODES.SYSTEM_ADMINISTRATOR).map(rg => (
-                        <div 
-                          key={rg.id}
-                          className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                          onClick={() => addPermission('roleGroup', rg.id, 'VIEWER')}
-                        >
-                          <span className="text-sm">{rg.name}</span>
-                          <Plus size={16} className="text-gray-400" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Divisions & Departments */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <Building2 size={18} />
-                      Chọn Khối / Phòng ban
-                    </h4>
-                    <div className="max-h-60 overflow-y-auto space-y-1">
-                      {divisions.map(div => (
-                        <div key={div.id}>
-                          <div 
-                            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                            onClick={() => setExpandedDivisions(prev => 
-                              prev.includes(div.id) ? prev.filter(d => d !== div.id) : [...prev, div.id]
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              {expandedDivisions.includes(div.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                              <span className="text-sm font-medium">{div.name}</span>
-                            </div>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); addPermission('division', div.id, 'VIEWER'); }}
-                              className="text-xs text-primary hover:underline"
-                            >
-                              Chọn cả khối
-                            </button>
-                          </div>
-                          {expandedDivisions.includes(div.id) && (
-                            <div className="ml-6 space-y-1">
-                              {div.departments.map(dept => (
-                                <div 
-                                  key={dept.id}
-                                  className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                  onClick={() => addPermission('department', dept.id, 'VIEWER')}
-                                >
-                                  <span className="text-sm text-gray-600">{dept.name}</span>
-                                  <Plus size={14} className="text-gray-400" />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
                     </div>
                   </div>
                 </div>
@@ -975,24 +862,6 @@ const Documents = () => {
                               <>
                                 <img src={getAvatarUrl(perm.employee.avatarUrl, perm.employee.fullName)} className="w-6 h-6 rounded-full" alt="" />
                                 <span className="text-sm">{perm.employee.fullName}</span>
-                              </>
-                            )}
-                            {perm.roleGroup && (
-                              <>
-                                <UserCheck size={16} className="text-purple-500" />
-                                <span className="text-sm">{perm.roleGroup.name}</span>
-                              </>
-                            )}
-                            {perm.department && (
-                              <>
-                                <Building2 size={16} className="text-blue-500" />
-                                <span className="text-sm">{perm.department.name}</span>
-                              </>
-                            )}
-                            {perm.division && !perm.department && (
-                              <>
-                                <Building2 size={16} className="text-green-500" />
-                                <span className="text-sm">{perm.division.name} (Cả khối)</span>
                               </>
                             )}
                           </div>
