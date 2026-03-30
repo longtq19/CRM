@@ -9,14 +9,10 @@ import fs from 'fs';
 import apiRoutes from './routes/api';
 import webhookRoutes from './routes/webhookRoutes';
 import { apiErrorHandler } from './middleware/apiErrorHandler';
-import { connectDB } from './config/database';
 import { getRootDir } from './utils/pathHelper';
 import { auditLog } from './middleware/auditLogMiddleware';
 
 console.log('[HCRM] Backend loading...');
-
-// Connect to Database
-connectDB();
 
 const app = express();
 

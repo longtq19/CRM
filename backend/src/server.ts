@@ -1,6 +1,7 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import app from './app';
+import { connectDB } from './config/database';
 import { initSocket } from './socket';
 import { initLogCleanup } from './cron/logCleanup';
 import { initContractExpiryReminder } from './cron/contractExpiryReminder';
@@ -16,14 +17,20 @@ const io = new Server(httpServer, {
 
 const PORT = process.env.PORT || 5000;
 
-// Initialize Socket.IO
-initSocket(io);
+async function start() {
+  await connectDB();
 
-// Initialize Cron Jobs
-initLogCleanup();
-initContractExpiryReminder();
-initLeadDistributionCron();
+  initSocket(io);
+  initLogCleanup();
+  initContractExpiryReminder();
+  initLeadDistributionCron();
 
-httpServer.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+  httpServer.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("[HCRM] Failed to start server:", err);
+  process.exit(1);
 });

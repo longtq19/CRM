@@ -8,7 +8,7 @@ import app from '../app';
 
 describe('API HCRM', () => {
   beforeAll(() => {
-    // App đã load, DB connect trong app
+    // App đã load; kết nối DB thực tế trong `server.ts` (không chạy khi test import chỉ `app`).
   });
 
   afterAll(async () => {

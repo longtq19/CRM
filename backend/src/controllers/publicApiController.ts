@@ -299,9 +299,19 @@ export const receivePublicLead = async (req: Request, res: Response) => {
       });
     }
 
+    const keyTrim = String(apiKey).trim();
+    /** Key do hệ thống sinh: `mkt_` + 48 ký tự hex — từ chối sớm không cần DB (tránh 500 khi DB lỗi / test không có DB). */
+    const PUBLIC_LEAD_API_KEY_FORMAT = /^mkt_[a-f0-9]{48}$/;
+    if (!PUBLIC_LEAD_API_KEY_FORMAT.test(keyTrim)) {
+      return res.status(401).json({
+        success: false,
+        message: 'API key không hợp lệ',
+      });
+    }
+
     // Tìm chiến dịch theo API key
     const campaign = await prisma.marketingCampaign.findUnique({
-      where: { apiKey },
+      where: { apiKey: keyTrim },
       include: {
         source: true,
         createdByEmployee: {
