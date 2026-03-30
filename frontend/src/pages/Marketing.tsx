@@ -39,6 +39,7 @@ import {
   Send,
   Database,
   Settings,
+  MessageSquare,
 } from 'lucide-react';
 import type { MarketingSource, MarketingCampaign, MarketingLead } from '../types';
 import MarketingCostEffectiveness from '../components/MarketingCostEffectiveness';
@@ -133,6 +134,7 @@ const INTERACTION_TYPE_MAP: Record<string, string> = {
   VISIT: 'Thăm viếng',
   FACEBOOK: 'Facebook',
   OTHER: 'Khác',
+  marketing_duplicate_interaction: 'Trùng số (Marketing)',
 };
 
 const SHIPPING_STATUS_MAP: Record<string, string> = {
@@ -148,6 +150,15 @@ const SHIPPING_STATUS_MAP: Record<string, string> = {
 const translateStatus = (value: string | null | undefined, map: Record<string, string>): string => {
   if (!value) return 'Chưa phân loại';
   return map[value] || value;
+};
+
+const formatVndAmount = (value: number | null | undefined) => {
+  if (value == null || Number.isNaN(Number(value))) return '—';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(Number(value));
 };
 
 const Marketing = () => {
@@ -194,6 +205,8 @@ const Marketing = () => {
   const [pushingToPool, setPushingToPool] = useState(false);
 
   const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [leadImpactModalOpen, setLeadImpactModalOpen] = useState(false);
+  const [leadImpactRecord, setLeadImpactRecord] = useState<MarketingLead | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagRefreshSignal, setTagRefreshSignal] = useState(0);
   const canManageCustomerTags =
@@ -201,6 +214,12 @@ const Marketing = () => {
     hasPermission('MANAGE_MARKETING_GROUPS') ||
     hasPermission('MANAGE_SALES') ||
     hasPermission('MANAGE_RESALES');
+  const canViewMarketingPlatforms =
+    hasPermission('VIEW_MARKETING_PLATFORMS') ||
+    hasPermission('MANAGE_MARKETING_PLATFORMS') ||
+    hasPermission('MANAGE_CUSTOMERS');
+  const canManageMarketingPlatforms =
+    hasPermission('MANAGE_MARKETING_PLATFORMS') || hasPermission('MANAGE_CUSTOMERS');
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
   const [leadForm, setLeadForm] = useState({
@@ -275,7 +294,7 @@ const Marketing = () => {
   ];
 
   useEffect(() => {
-    loadSources();
+    if (canViewMarketingPlatforms) loadSources();
     loadCampaigns();
     loadLeads();
     loadMarketingEmployeesForCampaign();
@@ -293,6 +312,12 @@ const Marketing = () => {
       }
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'sources' && !canViewMarketingPlatforms) {
+      setActiveTab('leads');
+    }
+  }, [activeTab, canViewMarketingPlatforms]);
 
   const loadMarketingEmployeesForCampaign = async () => {
     try {
@@ -545,6 +570,12 @@ const Marketing = () => {
     }
   };
 
+  const openLeadImpactHistory = (e: React.MouseEvent, lead: MarketingLead) => {
+    e.stopPropagation();
+    setLeadImpactRecord(lead);
+    setLeadImpactModalOpen(true);
+  };
+
   const handleDeleteCampaign = async (campaign: MarketingCampaign) => {
     if (!hasPermission('DELETE_MARKETING_CAMPAIGN')) return;
     if (
@@ -566,24 +597,25 @@ const Marketing = () => {
   const handleDeleteSource = async (source: MarketingSource) => {
     const campaignCount = (source as any)._count?.campaigns ?? 0;
     if (campaignCount > 0) {
-      alert('Không thể xóa nguồn đang được sử dụng bởi chiến dịch');
+      alert('Không thể xóa nền tảng đang được sử dụng bởi chiến dịch');
       return;
     }
-    if (!confirm(`Bạn có chắc muốn xóa nguồn "${source.name}"?`)) return;
+    if (!confirm(`Bạn có chắc muốn xóa nền tảng "${source.name}"?`)) return;
     try {
       await apiClient.delete(`/marketing/sources/${source.id}`);
       await loadSources();
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg.includes('Not Found') || msg.includes('404')) {
-        alert('Không tìm thấy API xóa nguồn. Vui lòng build lại và triển khai backend, sau đó thử lại.');
+        alert('Không tìm thấy API xóa nền tảng. Vui lòng build lại và triển khai backend, sau đó thử lại.');
       } else {
-        alert(msg || 'Không thể xóa nguồn');
+        alert(msg || 'Không thể xóa nền tảng');
       }
     }
   };
 
   const handleOpenSourceModal = (source?: MarketingSource) => {
+    if (!canManageMarketingPlatforms) return;
     if (source) {
       setEditingSource(source);
       setSourceForm({
@@ -609,11 +641,11 @@ const Marketing = () => {
     const trimmedName = sourceForm.name.trim();
     const trimmedDesc = (sourceForm.description || '').trim();
     if (!trimmedName) {
-      alert('Tên nguồn là bắt buộc');
+      alert('Tên nền tảng là bắt buộc');
       return;
     }
     if (!trimmedDesc) {
-      alert('Mô tả nguồn là bắt buộc');
+      alert('Mô tả nền tảng là bắt buộc');
       return;
     }
     try {
@@ -687,7 +719,7 @@ const Marketing = () => {
       alert('Ngân sách dự kiến là bắt buộc');
       return;
     }
-    if (!campaignForm.sourceId) { alert('Nguồn chiến dịch là bắt buộc'); return; }
+    if (!campaignForm.sourceId) { alert('Nền tảng chiến dịch là bắt buộc'); return; }
     if (editingCampaign && isAdmin() && (!campaignForm.memberIds?.length)) {
       alert('Khi chỉnh sửa, phải chọn ít nhất 1 nhân viên marketing phụ trách.');
       return;
@@ -856,7 +888,7 @@ const Marketing = () => {
             <Target size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Nguồn đang theo dõi</p>
+            <p className="text-sm text-gray-500">Nền tảng đang theo dõi</p>
             <p className="text-2xl font-bold">
               {sources.filter((s) => s.isActive).length}
             </p>
@@ -956,7 +988,7 @@ const Marketing = () => {
           }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
-          <option value="">Tất cả nguồn</option>
+          <option value="">Tất cả nền tảng</option>
           {sources.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -1046,9 +1078,12 @@ const Marketing = () => {
               <th className="px-4 py-3 whitespace-nowrap">Khách hàng</th>
               <th className="px-4 py-3 whitespace-nowrap min-w-[160px]">Thẻ khách hàng</th>
               <th className="px-4 py-3 whitespace-nowrap">Liên hệ</th>
-              <th className="px-4 py-3 whitespace-nowrap">Nguồn</th>
+              <th className="px-4 py-3 whitespace-nowrap">Nền tảng</th>
               <th className="px-4 py-3 whitespace-nowrap">Chiến dịch</th>
               <th className="px-4 py-3 whitespace-nowrap">NV Marketing</th>
+              <th className="px-4 py-3 whitespace-nowrap max-w-[160px]">Mô tả trùng số</th>
+              <th className="px-4 py-3 whitespace-nowrap text-right">Giá trị đơn chốt</th>
+              <th className="px-4 py-3 whitespace-nowrap">NV phụ trách (Sales)</th>
               <th className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
               <th className="px-4 py-3 whitespace-nowrap text-right">
                 Ngày tạo
@@ -1122,8 +1157,31 @@ const Marketing = () => {
                 </td>
                 <td className="px-4 py-3">
                   <div className="text-sm text-gray-900">
-                    {(lead as any).marketingOwner?.fullName || '—'}
+                    {lead.marketingOwner?.fullName || '—'}
                   </div>
+                </td>
+                <td className="px-4 py-3 max-w-[200px]">
+                  <div
+                    className="text-xs text-amber-800 line-clamp-3"
+                    title={lead.duplicatePhoneNote || undefined}
+                  >
+                    {lead.duplicatePhoneNote || '—'}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                  {formatVndAmount(lead.firstDeliveredOrderAmount ?? null)}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-sm text-gray-900">{lead.employee?.fullName || '—'}</div>
+                  {lead.employee?.phone && (
+                    <a
+                      href={`tel:${lead.employee.phone}`}
+                      className="text-xs text-primary hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {lead.employee.phone}
+                    </a>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -1151,20 +1209,31 @@ const Marketing = () => {
                     : ''}
                 </td>
                 <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => handleOpenLeadDetail(lead.id)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 hover:bg-blue-50"
-                  >
-                    <Eye size={14} />
-                    Chi tiết
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-1 justify-center items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenLeadDetail(lead.id)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                    >
+                      <Eye size={14} />
+                      Chi tiết
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => openLeadImpactHistory(e, lead)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      <MessageSquare size={14} />
+                      Lịch sử
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {paginatedLeads.length === 0 && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={13}
                   className="px-4 py-6 text-center text-sm text-gray-500"
                 >
                   Không có khách hàng nào phù hợp
@@ -1206,13 +1275,25 @@ const Marketing = () => {
               </span>
             </div>
             <div className="text-xs text-gray-500">
-              Nguồn: {lead.leadSource?.name || 'Chưa gán'}
+              Nền tảng: {lead.leadSource?.name || 'Chưa gán'}
             </div>
             <div className="text-xs text-gray-500">
               Chiến dịch: {lead.campaign?.name || 'Chưa gán'}
             </div>
             <div className="text-xs text-gray-500">
-              NV Marketing: {(lead as any).marketingOwner?.fullName || '—'}
+              NV Marketing: {lead.marketingOwner?.fullName || '—'}
+            </div>
+            {lead.duplicatePhoneNote && (
+              <div className="text-xs text-amber-800 bg-amber-50 rounded p-2 mt-1">
+                Trùng số: {lead.duplicatePhoneNote}
+              </div>
+            )}
+            <div className="text-xs text-gray-600">
+              Đơn chốt đầu: {formatVndAmount(lead.firstDeliveredOrderAmount ?? null)}
+            </div>
+            <div className="text-xs text-gray-600">
+              NV phụ trách: {lead.employee?.fullName || '—'}
+              {lead.employee?.phone ? ` · ${lead.employee.phone}` : ''}
             </div>
             <div className="pt-1" onClick={(e) => e.stopPropagation()}>
               <div className="text-xs text-gray-500 mb-1">Thẻ khách hàng</div>
@@ -1232,13 +1313,24 @@ const Marketing = () => {
                 tagRefreshSignal={tagRefreshSignal}
               />
             </div>
-            <button
-              onClick={() => handleOpenLeadDetail(lead.id)}
-              className="mt-2 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 hover:bg-blue-50"
-            >
-              <Eye size={14} />
-              Chi tiết
-            </button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenLeadDetail(lead.id)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-xs font-medium text-blue-600 hover:bg-blue-50"
+              >
+                <Eye size={14} />
+                Chi tiết
+              </button>
+              <button
+                type="button"
+                onClick={(e) => openLeadImpactHistory(e, lead)}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <MessageSquare size={14} />
+                Lịch sử tác động
+              </button>
+            </div>
           </div>
         ))}
         {paginatedLeads.length === 0 && (
@@ -1294,6 +1386,70 @@ const Marketing = () => {
           tagRefreshSignal={tagRefreshSignal}
         />
       )}
+      {leadImpactModalOpen && leadImpactRecord && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+          onClick={() => {
+            setLeadImpactModalOpen(false);
+            setLeadImpactRecord(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <div className="flex items-center gap-2 min-w-0">
+                <MessageSquare className="w-5 h-5 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 truncate">Lịch sử tác động</h3>
+                  <p className="text-xs text-gray-500 truncate">
+                    {leadImpactRecord.name || 'Khách'} · {leadImpactRecord.phone}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-gray-100 shrink-0"
+                onClick={() => {
+                  setLeadImpactModalOpen(false);
+                  setLeadImpactRecord(null);
+                }}
+                aria-label="Đóng"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 text-sm">
+              {(leadImpactRecord.impactHistory || []).length === 0 ? (
+                <p className="text-center text-gray-400 py-6">Chưa có tương tác ghi nhận</p>
+              ) : (
+                <ul className="space-y-2">
+                  {(leadImpactRecord.impactHistory || []).map((row) => (
+                    <li key={row.id} className="border rounded-lg p-2 bg-slate-50">
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>{formatDateTime(row.createdAt)}</span>
+                        <span>{row.employee?.fullName || '—'}</span>
+                      </div>
+                      <div className="mt-1 text-xs">
+                        <span className="font-medium text-gray-700">
+                          {INTERACTION_TYPE_MAP[row.type] || row.type}
+                        </span>
+                      </div>
+                      {row.content && (
+                        <p className="mt-1 text-gray-800 whitespace-pre-wrap text-sm">{row.content}</p>
+                      )}
+                      {row.detail && (
+                        <p className="mt-1 text-gray-600 text-xs whitespace-pre-wrap border-t pt-1">{row.detail}</p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {tagManagerOpen && (
         <CustomerTagsManager
           onClose={() => {
@@ -1321,7 +1477,7 @@ const Marketing = () => {
   const renderSourcesTab = () => (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Nguồn khách hàng</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Nền tảng</h2>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button
             onClick={loadSources}
@@ -1334,13 +1490,15 @@ const Marketing = () => {
             )}
             Làm mới
           </button>
+          {canManageMarketingPlatforms && (
           <button
             onClick={() => handleOpenSourceModal()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90"
           >
             <Plus size={16} />
-            Thêm nguồn
+            Thêm nền tảng
           </button>
+          )}
         </div>
       </div>
 
@@ -1348,8 +1506,8 @@ const Marketing = () => {
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 text-gray-600 text-sm uppercase font-semibold">
             <tr>
-              <th className="px-4 py-3 whitespace-nowrap">Mã nguồn</th>
-              <th className="px-4 py-3 whitespace-nowrap">Tên nguồn</th>
+              <th className="px-4 py-3 whitespace-nowrap">Mã nền tảng</th>
+              <th className="px-4 py-3 whitespace-nowrap">Tên nền tảng</th>
               <th className="px-4 py-3 whitespace-nowrap">Mô tả</th>
               <th className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
               <th className="px-4 py-3 whitespace-nowrap text-right">Thao tác</th>
@@ -1381,11 +1539,13 @@ const Marketing = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span className="inline-flex items-center gap-1">
+                    {canManageMarketingPlatforms ? (
+                      <>
                     <button
                       onClick={() => handleOpenSourceModal(source)}
                       disabled={((source as any)._count?.campaigns ?? 0) > 0}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={((source as any)._count?.campaigns ?? 0) > 0 ? 'Nguồn đang được sử dụng bởi chiến dịch' : ''}
+                      title={((source as any)._count?.campaigns ?? 0) > 0 ? 'Nền tảng đang được sử dụng bởi chiến dịch' : ''}
                     >
                       <Edit size={14} />
                       Sửa
@@ -1394,11 +1554,15 @@ const Marketing = () => {
                       onClick={() => handleDeleteSource(source)}
                       disabled={((source as any)._count?.campaigns ?? 0) > 0}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={((source as any)._count?.campaigns ?? 0) > 0 ? 'Không thể xóa nguồn đang có chiến dịch' : 'Xóa nguồn'}
+                      title={((source as any)._count?.campaigns ?? 0) > 0 ? 'Không thể xóa nền tảng đang có chiến dịch' : 'Xóa nền tảng'}
                     >
                       <Trash2 size={14} />
                       Xóa
                     </button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">Chỉ xem</span>
+                    )}
                   </span>
                 </td>
               </tr>
@@ -1409,7 +1573,7 @@ const Marketing = () => {
                   colSpan={5}
                   className="px-4 py-6 text-center text-sm text-gray-500"
                 >
-                  Chưa có nguồn khách hàng nào
+                  Chưa có nền tảng nào
                 </td>
               </tr>
             )}
@@ -1421,13 +1585,13 @@ const Marketing = () => {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6">
             <h3 className="text-lg font-semibold mb-4">
-              {editingSource ? 'Chỉnh sửa nguồn khách hàng' : 'Thêm nguồn khách hàng'}
+              {editingSource ? 'Chỉnh sửa nền tảng' : 'Thêm nền tảng'}
             </h3>
             <form className="space-y-4" onSubmit={handleSubmitSource}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mã nguồn
+                    Mã nền tảng
                   </label>
                   <input
                     type="text"
@@ -1441,7 +1605,7 @@ const Marketing = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tên nguồn <span className="text-red-500">*</span>
+                    Tên nền tảng <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1590,7 +1754,7 @@ const Marketing = () => {
               <th className="px-4 py-3 whitespace-nowrap">Mã chiến dịch</th>
               <th className="px-4 py-3 whitespace-nowrap">Tên chiến dịch</th>
               <th className="px-4 py-3 whitespace-nowrap">Người tạo</th>
-              <th className="px-4 py-3 whitespace-nowrap">Nguồn</th>
+              <th className="px-4 py-3 whitespace-nowrap">Nền tảng</th>
               <th className="px-4 py-3 whitespace-nowrap">Trạng thái</th>
               <th className="px-4 py-3 whitespace-nowrap">Lead</th>
               <th className="px-4 py-3 whitespace-nowrap">API</th>
@@ -1779,7 +1943,7 @@ const Marketing = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nguồn <span className="text-red-500">*</span>
+                    Nền tảng <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={campaignForm.sourceId}
@@ -1791,7 +1955,7 @@ const Marketing = () => {
                     }
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="">Chọn nguồn</option>
+                    <option value="">Chọn nền tảng</option>
                     {sources
                       .filter((s) => s.isActive || (editingCampaign && s.id === editingCampaign.sourceId))
                       .map((s) => (
@@ -2661,7 +2825,7 @@ const Marketing = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Marketing</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Quản lý khách hàng Marketing, nguồn và chiến dịch quảng cáo.
+          Quản lý khách hàng Marketing, nền tảng và chiến dịch quảng cáo.
         </p>
       </div>
 
@@ -2678,6 +2842,7 @@ const Marketing = () => {
           <List size={18} />
           Khách hàng Marketing
         </button>
+        {canViewMarketingPlatforms && (
         <button
           onClick={() => setActiveTab('sources')}
           className={clsx(
@@ -2688,8 +2853,9 @@ const Marketing = () => {
           )}
         >
           <Target size={18} />
-          Nguồn khách hàng
+          Nền tảng
         </button>
+        )}
         <button
           onClick={() => setActiveTab('campaigns')}
           className={clsx(
@@ -2751,7 +2917,7 @@ const Marketing = () => {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nguồn (tùy chọn)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nền tảng (tùy chọn)</label>
                 <select
                   value={importSourceId}
                   onChange={(e) => { setImportSourceId(e.target.value); setImportCampaignId(''); }}
@@ -2772,7 +2938,7 @@ const Marketing = () => {
                   <option value="">— Không chọn —</option>
                   {campaigns.filter(c => !importSourceId || c.sourceId === importSourceId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
-                {!importSourceId && <p className="text-xs text-gray-400 mt-1">Chọn nguồn trước để lọc chiến dịch</p>}
+                {!importSourceId && <p className="text-xs text-gray-400 mt-1">Chọn nền tảng trước để lọc chiến dịch</p>}
               </div>
               {isAdmin() && (
                 <div>
@@ -2944,7 +3110,7 @@ const Marketing = () => {
                     {leadDetailData.leadSource && (
                       <div className="flex items-center gap-2 text-gray-700">
                         <Target size={14} className="text-gray-400" />
-                        Nguồn: <span className="font-medium">{leadDetailData.leadSource.name}</span>
+                        Nền tảng: <span className="font-medium">{leadDetailData.leadSource.name}</span>
                       </div>
                     )}
                     {leadDetailData.campaign && (

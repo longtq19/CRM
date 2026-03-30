@@ -268,18 +268,14 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
 
   const handleSubmitCost = async () => {
     if (!selectedCampaignId || !costForm.costDate || !costForm.amount) {
-      alert('Vui lòng điền ngày chi phí và số tiền'); return;
+      alert('Vui lòng chọn chiến dịch, điền ngày chi phí và số tiền');
+      return;
     }
-    if (!costForm.costType) { alert('Vui lòng chọn hoặc nhập loại chi phí'); return; }
-    if (!costForm.platform) { alert('Vui lòng chọn hoặc nhập nền tảng'); return; }
-    if (!costForm.impressions) { alert('Vui lòng nhập lượt hiển thị'); return; }
-    if (!costForm.clicks) { alert('Vui lòng nhập lượt click'); return; }
-    if (!costForm.reach) { alert('Vui lòng nhập lượt tiếp cận'); return; }
-    if (!costForm.description) { alert('Vui lòng nhập ghi chú'); return; }
-    if (!editingCost && costFiles.length === 0) {
-      alert('Vui lòng tải lên ảnh chụp màn hình hoặc chứng từ chi phí'); return;
+    if (!costForm.costType) {
+      alert('Vui lòng chọn hoặc nhập loại chi phí');
+      return;
     }
-    
+
     try {
       setCostSubmitting(true);
 
@@ -299,15 +295,19 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
       }
       
       const rawAmount = parseAmountInput(costForm.amount);
+      const parseOptInt = (v: string) => {
+        const n = parseInt(v, 10);
+        return v !== '' && !Number.isNaN(n) ? n : null;
+      };
       const payload: any = {
         costDate: costForm.costDate,
         amount: parseFloat(rawAmount),
         costType: costForm.costType,
-        platform: costForm.platform,
-        impressions: parseInt(costForm.impressions),
-        clicks: parseInt(costForm.clicks),
-        reach: parseInt(costForm.reach),
-        description: costForm.description,
+        platform: costForm.platform?.trim() ? costForm.platform.trim() : null,
+        impressions: parseOptInt(costForm.impressions),
+        clicks: parseOptInt(costForm.clicks),
+        reach: parseOptInt(costForm.reach),
+        description: costForm.description?.trim() ? costForm.description.trim() : null,
         attachmentUrl: attachmentUrls.length > 0 ? attachmentUrls.join(',') : null,
       };
       
@@ -779,7 +779,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
               <h3 className="text-lg font-semibold">
                 {editingCost ? 'Sửa chi phí' : 'Thêm chi phí mới'}
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Tất cả các trường đánh dấu * là bắt buộc</p>
+              <p className="text-xs text-gray-500 mt-1">Bắt buộc: ngày chi phí, số tiền, loại chi phí. Chiến dịch chọn ở danh sách phía trên. Các trường khác tùy chọn.</p>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
@@ -838,7 +838,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nền tảng <span className="text-red-500">*</span>
+                    Nền tảng <span className="text-gray-400 text-xs">(tùy chọn — đã gắn qua chiến dịch nếu cần)</span>
                   </label>
                   {useCustomPlatform ? (
                     <div className="flex gap-1">
@@ -866,7 +866,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Lượt hiển thị <span className="text-red-500">*</span>
+                    Lượt hiển thị
                     <span className="ml-1 text-gray-400 text-xs" title="Impressions - Số lần quảng cáo được hiển thị">ⓘ</span>
                   </label>
                   <input type="number" value={costForm.impressions}
@@ -875,7 +875,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Lượt click <span className="text-red-500">*</span>
+                    Lượt click
                     <span className="ml-1 text-gray-400 text-xs" title="Clicks - Số lần click vào quảng cáo">ⓘ</span>
                   </label>
                   <input type="number" value={costForm.clicks}
@@ -884,7 +884,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tiếp cận <span className="text-red-500">*</span>
+                    Tiếp cận
                     <span className="ml-1 text-gray-400 text-xs" title="Reach - Số người duy nhất đã xem">ⓘ</span>
                   </label>
                   <input type="number" value={costForm.reach}
@@ -895,7 +895,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ghi chú <span className="text-red-500">*</span>
+                  Ghi chú
                 </label>
                 <textarea value={costForm.description}
                   onChange={(e) => setCostForm({ ...costForm, description: e.target.value })}
@@ -906,7 +906,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
               {/* File Upload */}
               <div className="border-t pt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ảnh chụp màn hình / Chứng từ chi phí <span className="text-red-500">*</span>
+                  Ảnh chụp màn hình / Chứng từ chi phí <span className="text-gray-400 text-xs">(tùy chọn)</span>
                 </label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
                   <input

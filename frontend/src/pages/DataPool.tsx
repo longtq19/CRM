@@ -466,7 +466,7 @@ const DataPool = () => {
             value={sourceFilter}
             onChange={e => { setSourceFilter(e.target.value); setPage(1); }}
           >
-            <option value="all">Tất cả nguồn</option>
+            <option value="all">Tất cả nền tảng</option>
             <option value="MARKETING">Marketing</option>
             <option value="RECALL">Thu hồi</option>
             <option value="IMPORT">Nhập</option>
@@ -526,7 +526,7 @@ const DataPool = () => {
                 <th className="px-3 py-3 text-left">Khách hàng</th>
                 <th className="px-3 py-3 text-left">Liên hệ</th>
                 <th className="px-3 py-3 text-left min-w-[160px]">Thẻ khách hàng</th>
-                <th className="px-3 py-3 text-left">Nguồn</th>
+                <th className="px-3 py-3 text-left">Nền tảng</th>
                 <th className="px-3 py-3 text-left">Trạng thái xử lý</th>
                 <th className="px-3 py-3 text-left">Vòng quay</th>
                 <th className="px-3 py-3 text-left">Ngày vào kho</th>

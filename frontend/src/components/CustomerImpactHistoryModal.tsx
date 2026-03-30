@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { X, Loader, MessageSquare } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { formatDateTime } from '../utils/format';
+import { DEFAULT_POOL_PUSH_PROCESSING_STATUSES } from '../constants/operationParams';
 
 const INTERACTION_TYPES = [
   { value: 'CALL', label: 'Gọi điện' },
@@ -50,6 +51,8 @@ export function CustomerImpactHistoryModal({
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [minNoteChars, setMinNoteChars] = useState(10);
+  /** Mã trạng thái xử lý đưa số về kho thả nổi — bỏ qua tối thiểu ký tự ghi chú */
+  const [poolPushStatuses, setPoolPushStatuses] = useState<string[]>([]);
 
   const [formType, setFormType] = useState('CALL');
   const [formStatus, setFormStatus] = useState('');
@@ -67,10 +70,28 @@ export function CustomerImpactHistoryModal({
         const n = parseInt(String(row.value), 10);
         if (Number.isFinite(n) && n > 0) setMinNoteChars(n);
       }
+      const poolRow = arr.find((c: { key?: string }) => c.key === 'pool_push_processing_statuses');
+      if (poolRow?.value != null && String(poolRow.value).trim()) {
+        try {
+          const p = JSON.parse(String(poolRow.value));
+          if (Array.isArray(p)) {
+            setPoolPushStatuses(p.filter((x: unknown): x is string => typeof x === 'string'));
+          } else {
+            setPoolPushStatuses([]);
+          }
+        } catch {
+          setPoolPushStatuses([]);
+        }
+      } else {
+        setPoolPushStatuses([]);
+      }
     } catch {
       /* ignore */
     }
   }, []);
+
+  const effectivePoolPushStatuses =
+    poolPushStatuses.length > 0 ? poolPushStatuses : DEFAULT_POOL_PUSH_PROCESSING_STATUSES;
 
   const loadList = useCallback(async () => {
     if (!customerId) return;
@@ -109,7 +130,9 @@ export function CustomerImpactHistoryModal({
     const detailTrim = formDetail.trim();
     const contentTrim = formContent.trim() || detailTrim.slice(0, 80);
     const checkLen = detailTrim || contentTrim;
-    if (checkLen.length < minNoteChars) {
+    const skipMinNote = effectivePoolPushStatuses.includes(formStatus);
+    const requiredLen = skipMinNote ? 0 : minNoteChars;
+    if (requiredLen > 0 && checkLen.length < requiredLen) {
       alert(`Chi tiết tương tác phải tối thiểu ${minNoteChars} ký tự (theo tham số vận hành).`);
       return;
     }
@@ -198,14 +221,23 @@ export function CustomerImpactHistoryModal({
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-600">Chi tiết tương tác * (tối thiểu {minNoteChars} ký tự)</label>
+                <label className="text-xs text-gray-600">
+                  Chi tiết tương tác *
+                  {effectivePoolPushStatuses.includes(formStatus)
+                    ? ' (trạng thái đẩy kho thả nổi — không bắt buộc tối thiểu ký tự)'
+                    : ` (tối thiểu ${minNoteChars} ký tự)`}
+                </label>
                 <textarea
                   className="w-full border rounded px-2 py-1.5 text-sm placeholder:text-gray-400"
                   rows={4}
                   value={formDetail}
                   onChange={(e) => setFormDetail(e.target.value)}
-                  placeholder={`Nhập ít nhất ${minNoteChars} ký tự…`}
-                  required
+                  placeholder={
+                    effectivePoolPushStatuses.includes(formStatus)
+                      ? 'Có thể ghi ngắn hoặc để trống…'
+                      : `Nhập ít nhất ${minNoteChars} ký tự…`
+                  }
+                  required={!effectivePoolPushStatuses.includes(formStatus)}
                 />
               </div>
               <label className="flex items-center gap-2 text-xs text-gray-700">

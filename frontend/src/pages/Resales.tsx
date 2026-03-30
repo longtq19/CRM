@@ -779,7 +779,7 @@ const Resales = () => {
                   )}
                   <th className="px-3 py-2 text-left">Khách</th>
                   <th className="px-3 py-2 text-left">SĐT</th>
-                  <th className="px-3 py-2 text-left">Nguồn</th>
+                  <th className="px-3 py-2 text-left">Nền tảng</th>
                   <th className="px-3 py-2 text-left">Vào kho</th>
                 </tr>
               </thead>
@@ -938,7 +938,7 @@ const Resales = () => {
                 onChange={(e) => setSourceFilter(e.target.value)}
                 className="px-4 py-2 border rounded-lg"
               >
-                <option value="all">Tất cả nguồn</option>
+                <option value="all">Tất cả nền tảng</option>
                 <option value="MARKETING">Marketing</option>
                 <option value="RECALL">Thu hồi</option>
                 <option value="IMPORT">Nhập</option>
@@ -990,7 +990,7 @@ const Resales = () => {
                       <th className="px-3 py-3 text-left min-w-[11rem]">Hẹn gọi lại</th>
                       <th className="px-3 py-3 text-left">NV phụ trách</th>
                       <th className="px-3 py-3 text-left min-w-[120px]">NV marketing</th>
-                      <th className="px-3 py-3 text-left">Nguồn</th>
+                      <th className="px-3 py-3 text-left">Nền tảng</th>
                       <th className="px-3 py-3 text-left min-w-[140px]">Tác động</th>
                       <th className="px-3 py-3 text-center">Cập nhật</th>
                     </tr>

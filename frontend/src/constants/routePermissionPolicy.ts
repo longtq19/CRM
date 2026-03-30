@@ -27,3 +27,9 @@ export const DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS = [
   'VIEW_FLOATING_POOL',
   'VIEW_MANAGED_UNIT_POOL',
 ] as const;
+
+/** Vào `/sales` khi có quản lý Marketing + Sales (không bắt buộc có menu nếu đủ quyền). */
+export const SALES_MODULE_PATH_ACCESS_PERMISSIONS = [
+  'MANAGE_MARKETING_GROUPS',
+  'MANAGE_SALES',
+] as const;

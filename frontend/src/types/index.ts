@@ -117,6 +117,22 @@ export interface MarketingLead extends Customer {
   invalidReason?: string | null;
   /** Gán từ API marketing leads (`tags` + `tag`). */
   tags?: Array<{ tag: { id: string; name: string; color: string; bgColor?: string | null } }>;
+  marketingOwner?: { id: string; fullName: string; avatarUrl?: string | null } | null;
+  /** NV Sales/CS phụ trách */
+  employee?: { id: string; fullName: string; phone?: string | null } | null;
+  /** Đơn giao đầu tiên (DELIVERED) — giá trị chốt */
+  firstDeliveredOrderAmount?: number | null;
+  /** Mô tả khi xử lý trùng số (cross-campaign) */
+  duplicatePhoneNote?: string | null;
+  /** Tối đa 50 bản ghi từ API danh sách lead */
+  impactHistory?: Array<{
+    id: string;
+    type: string;
+    content: string;
+    detail: string | null;
+    createdAt: string;
+    employee?: { fullName: string; phone?: string | null } | null;
+  }>;
 }
 
 export interface InternalNote {

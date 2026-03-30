@@ -389,10 +389,11 @@ export function getAttributionExpiredAt(createdAt: Date, attributionDays: number
   return d;
 }
 
-/** Lấy danh sách employeeId cần gửi notification khi trùng (marketing_owner, sales_owner), loại bỏ trùng. */
+/**
+ * Khi trùng số giữa các chiến dịch: thông báo nhân viên phụ trách khách (Sales/CS — employee_id).
+ */
 export function getDuplicateNotificationTargets(existingCustomer: any): string[] {
   const ids: string[] = [];
-  if (existingCustomer?.marketingOwnerId) ids.push(existingCustomer.marketingOwnerId);
   if (existingCustomer?.employeeId) ids.push(existingCustomer.employeeId);
   return [...new Set(ids)];
 }

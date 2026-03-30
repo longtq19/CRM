@@ -188,6 +188,8 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
     e.preventDefault();
 
     if (!form.phone.trim()) { alert('Số điện thoại là bắt buộc'); return; }
+    if (!form.leadSourceId?.trim()) { alert('Nền tảng là bắt buộc'); return; }
+    if (!form.campaignId?.trim()) { alert('Chiến dịch là bắt buộc'); return; }
     if (!form.note.trim()) { alert('Ghi chú là bắt buộc'); return; }
 
     if (form.mainCrops.length > 0) {
@@ -210,6 +212,10 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
         farmArea: form.farmArea ? parseFloat(form.farmArea) : null,
         farmingYears: form.farmingYears ? parseInt(form.farmingYears) : null,
       });
+      if (data?.sameCampaignWarning) {
+        alert(data.message || 'Số điện thoại đã tồn tại trong chiến dịch này.');
+        return;
+      }
       if (data?.duplicate) {
         const msg = data.message || 'Số điện thoại đã tồn tại. Hệ thống đã ghi nhận note và gửi thông báo.';
         alert(msg);
@@ -362,19 +368,19 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
               )}
             </div>
 
-            {/* Nguồn & Chiến dịch (tùy chọn) */}
+            {/* Nền tảng & Chiến dịch (tùy chọn) */}
             <div className="border-b">
-              <SectionHeader title="Nguồn & Chiến dịch" icon={Megaphone} section="marketing" />
+              <SectionHeader title="Nền tảng & Chiến dịch" icon={Megaphone} section="marketing" />
               {expandedSections.marketing && (
                 <div className="pb-4 grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nguồn khách hàng
+                      Nền tảng
                     </label>
                     <select value={form.leadSourceId}
                       onChange={e => setForm({ ...form, leadSourceId: e.target.value, campaignId: '' })}
                       className={selectCls}>
-                      <option value="">Chọn nguồn</option>
+                      <option value="">Chọn nền tảng</option>
                       {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
@@ -387,12 +393,12 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
                       className={selectCls}
                       disabled={!form.leadSourceId}>
                       <option value="">
-                        {!form.leadSourceId ? 'Chọn nguồn trước' : filteredCampaigns.length === 0 ? 'Không có chiến dịch' : 'Chọn chiến dịch'}
+                        {!form.leadSourceId ? 'Chọn nền tảng trước' : filteredCampaigns.length === 0 ? 'Không có chiến dịch' : 'Chọn chiến dịch'}
                       </option>
                       {filteredCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     {form.leadSourceId && filteredCampaigns.length === 0 && (
-                      <p className="text-xs text-amber-600 mt-1">Nguồn này chưa có chiến dịch nào</p>
+                      <p className="text-xs text-amber-600 mt-1">Nền tảng này chưa có chiến dịch nào</p>
                     )}
                   </div>
                 </div>

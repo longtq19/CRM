@@ -34,8 +34,8 @@ import { assignLeadsUsingTeamRatios } from '../services/teamRatioDistributionSer
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 
 const MK_SOURCE_LABELS: Record<string, string> = {
-  code: 'Mã nguồn',
-  name: 'Tên nguồn',
+  code: 'Mã nền tảng',
+  name: 'Tên nền tảng',
   description: 'Mô tả',
   isActive: 'Đang dùng',
 };
@@ -48,7 +48,7 @@ const MK_CAMPAIGN_LABELS: Record<string, string> = {
   startDate: 'Ngày bắt đầu',
   endDate: 'Ngày kết thúc',
   totalBudget: 'Ngân sách dự kiến',
-  sourceId: 'Mã nguồn (ID)',
+  sourceId: 'Mã nền tảng (ID)',
   createdByEmployeeId: 'Người tạo (ID)',
 };
 
@@ -87,7 +87,7 @@ const MK_COST_LABELS: Record<string, string> = {
   reach: 'Tiếp cận',
   description: 'Mô tả',
   attachmentUrl: 'Tệp đính kèm',
-  sourceId: 'Nguồn (ID)',
+  sourceId: 'Nền tảng (ID)',
   employeeGroupId: 'Nhóm nhân viên (ID)',
 };
 
@@ -131,7 +131,7 @@ export const getMarketingSources = async (req: Request, res: Response) => {
 
     res.json(sources);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi lấy danh sách nguồn khách hàng' });
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách nền tảng' });
   }
 };
 
@@ -147,16 +147,16 @@ export const createMarketingSource = async (req: Request, res: Response) => {
     const trimmedName = typeof name === 'string' ? name.trim() : '';
     const trimmedDesc = typeof description === 'string' ? description.trim() : '';
     if (!trimmedName) {
-      return res.status(400).json({ message: 'Tên nguồn là bắt buộc' });
+      return res.status(400).json({ message: 'Tên nền tảng là bắt buộc' });
     }
     if (!trimmedDesc) {
-      return res.status(400).json({ message: 'Mô tả nguồn là bắt buộc' });
+      return res.status(400).json({ message: 'Mô tả nền tảng là bắt buộc' });
     }
 
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : generateSourceCode();
     const existing = await prisma.marketingSource.findUnique({ where: { code: finalCode } });
     if (existing) {
-      return res.status(400).json({ message: 'Mã nguồn khách hàng đã tồn tại' });
+      return res.status(400).json({ message: 'Mã nền tảng đã tồn tại' });
     }
 
     const source = await prisma.marketingSource.create({
@@ -172,10 +172,10 @@ export const createMarketingSource = async (req: Request, res: Response) => {
       await logAudit({
         ...getAuditUser(req),
         action: 'Tạo mới',
-        object: 'Nguồn marketing',
+        object: 'Nền tảng marketing',
         objectId: source.id,
         result: 'SUCCESS',
-        details: `Tạo nguồn "${source.name}" (mã ${source.code}).\nMô tả: ${source.description}`,
+        details: `Tạo nền tảng "${source.name}" (mã ${source.code}).\nMô tả: ${source.description}`,
         newValues: { code: source.code, name: source.name },
         req,
       });
@@ -183,7 +183,7 @@ export const createMarketingSource = async (req: Request, res: Response) => {
 
     res.status(201).json(source);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi tạo nguồn khách hàng' });
+    res.status(500).json({ message: 'Lỗi khi tạo nền tảng' });
   }
 };
 
@@ -198,26 +198,26 @@ export const updateMarketingSource = async (req: Request, res: Response) => {
       include: { _count: { select: { campaigns: true } } }
     });
     if (!existing) {
-      return res.status(404).json({ message: 'Nguồn khách hàng không tồn tại' });
+      return res.status(404).json({ message: 'Nền tảng không tồn tại' });
     }
     if (existing._count.campaigns > 0) {
-      return res.status(403).json({ message: 'Không thể sửa nguồn đang được sử dụng bởi chiến dịch' });
+      return res.status(403).json({ message: 'Không thể sửa nền tảng đang được sử dụng bởi chiến dịch' });
     }
 
     const trimmedName = typeof name === 'string' ? name.trim() : '';
     const trimmedDesc = typeof description === 'string' ? description.trim() : '';
     if (!trimmedName) {
-      return res.status(400).json({ message: 'Tên nguồn là bắt buộc' });
+      return res.status(400).json({ message: 'Tên nền tảng là bắt buộc' });
     }
     if (!trimmedDesc) {
-      return res.status(400).json({ message: 'Mô tả nguồn là bắt buộc' });
+      return res.status(400).json({ message: 'Mô tả nền tảng là bắt buộc' });
     }
 
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : existing.code;
     if (finalCode !== existing.code) {
       const codeConflict = await prisma.marketingSource.findUnique({ where: { code: finalCode } });
       if (codeConflict) {
-        return res.status(400).json({ message: 'Mã nguồn khách hàng đã tồn tại' });
+        return res.status(400).json({ message: 'Mã nền tảng đã tồn tại' });
       }
     }
 
@@ -246,12 +246,12 @@ export const updateMarketingSource = async (req: Request, res: Response) => {
       };
       let details = describeChangesVi(oldP, newP, MK_SOURCE_LABELS);
       if (!details.trim()) {
-        details = `Cập nhật nguồn "${updated.name}" — không phát hiện thay đổi nội dung.`;
+        details = `Cập nhật nền tảng "${updated.name}" — không phát hiện thay đổi nội dung.`;
       }
       await logAudit({
         ...getAuditUser(req),
         action: 'Cập nhật',
-        object: 'Nguồn marketing',
+        object: 'Nền tảng marketing',
         objectId: updated.id,
         result: 'SUCCESS',
         details,
@@ -263,7 +263,7 @@ export const updateMarketingSource = async (req: Request, res: Response) => {
 
     res.json(updated);
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi cập nhật nguồn khách hàng' });
+    res.status(500).json({ message: 'Lỗi khi cập nhật nền tảng' });
   }
 };
 
@@ -277,10 +277,10 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
       include: { _count: { select: { campaigns: true } } }
     });
     if (!existing) {
-      return res.status(404).json({ message: 'Nguồn khách hàng không tồn tại' });
+      return res.status(404).json({ message: 'Nền tảng không tồn tại' });
     }
     if (existing._count.campaigns > 0) {
-      return res.status(403).json({ message: 'Không thể xóa nguồn đang được sử dụng bởi chiến dịch' });
+      return res.status(403).json({ message: 'Không thể xóa nền tảng đang được sử dụng bởi chiến dịch' });
     }
 
     await prisma.marketingSource.delete({ where: { id } });
@@ -288,17 +288,17 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
       await logAudit({
         ...getAuditUser(req),
         action: 'Xóa',
-        object: 'Nguồn marketing',
+        object: 'Nền tảng marketing',
         objectId: id,
         result: 'SUCCESS',
-        details: `Xóa nguồn "${existing.name}" (mã ${existing.code}).`,
+        details: `Xóa nền tảng "${existing.name}" (mã ${existing.code}).`,
         oldValues: { code: existing.code, name: existing.name },
         req,
       });
     }
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ message: 'Lỗi khi xóa nguồn khách hàng' });
+    res.status(500).json({ message: 'Lỗi khi xóa nền tảng' });
   }
 };
 
@@ -369,7 +369,7 @@ export const createMarketingCampaign = async (req: Request, res: Response) => {
     if (totalBudget === undefined || totalBudget === null || totalBudget === '') {
       return res.status(400).json({ message: 'Ngân sách dự kiến là bắt buộc' });
     }
-    if (!sourceId) return res.status(400).json({ message: 'Nguồn chiến dịch là bắt buộc' });
+    if (!sourceId) return res.status(400).json({ message: 'Nền tảng chiến dịch là bắt buộc' });
 
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : generateCampaignCode();
     const exists = await prisma.marketingCampaign.findUnique({ where: { code: finalCode } });
@@ -454,7 +454,7 @@ export const updateMarketingCampaign = async (req: Request, res: Response) => {
     if (totalBudget === undefined || totalBudget === null || totalBudget === '') {
       return res.status(400).json({ message: 'Ngân sách dự kiến là bắt buộc' });
     }
-    if (!sourceId) return res.status(400).json({ message: 'Nguồn chiến dịch là bắt buộc' });
+    if (!sourceId) return res.status(400).json({ message: 'Nền tảng chiến dịch là bắt buộc' });
 
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : existing.code;
     if (finalCode !== existing.code) {
@@ -681,11 +681,64 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
         marketingOwner: {
           select: { id: true, fullName: true, avatarUrl: true }
         },
-        tags: { include: { tag: true } }
+        employee: {
+          select: { id: true, fullName: true, phone: true }
+        },
+        tags: { include: { tag: true } },
+        interactions: {
+          orderBy: { createdAt: 'asc' },
+          take: 50,
+          select: {
+            id: true,
+            type: true,
+            content: true,
+            detail: true,
+            createdAt: true,
+            employee: { select: { fullName: true, phone: true } },
+          },
+        },
       }
     });
 
-    res.json(leads);
+    const ids = leads.map((l) => l.id);
+    let firstAmountByCustomer = new Map<string, number>();
+    let duplicateNoteByCustomer = new Map<string, string>();
+    if (ids.length > 0) {
+      const [deliveredOrders, dupRows] = await Promise.all([
+        prisma.order.findMany({
+          where: { customerId: { in: ids }, shippingStatus: 'DELIVERED' },
+          orderBy: [{ orderDate: 'asc' }],
+          select: { customerId: true, finalAmount: true, orderDate: true, deliveredAt: true },
+        }),
+        prisma.customerInteraction.findMany({
+          where: { customerId: { in: ids }, type: 'marketing_duplicate_interaction' },
+          orderBy: { createdAt: 'desc' },
+          select: { customerId: true, content: true },
+        }),
+      ]);
+      for (const o of deliveredOrders) {
+        if (!firstAmountByCustomer.has(o.customerId)) {
+          firstAmountByCustomer.set(o.customerId, Number(o.finalAmount || 0));
+        }
+      }
+      for (const d of dupRows) {
+        if (!duplicateNoteByCustomer.has(d.customerId)) {
+          duplicateNoteByCustomer.set(d.customerId, d.content);
+        }
+      }
+    }
+
+    const enriched = leads.map((row) => {
+      const { interactions, ...rest } = row as any;
+      return {
+        ...rest,
+        firstDeliveredOrderAmount: firstAmountByCustomer.get(row.id) ?? null,
+        duplicatePhoneNote: duplicateNoteByCustomer.get(row.id) ?? null,
+        impactHistory: interactions ?? [],
+      };
+    });
+
+    res.json(enriched);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi khi lấy danh sách khách hàng Marketing' });
   }
@@ -784,7 +837,7 @@ export const exportMarketingLeads = async (req: Request, res: Response) => {
       { header: 'MST', key: 'taxCode', width: 14 },
       { header: 'Số TK', key: 'bankAccount', width: 18 },
       { header: 'Ngân hàng', key: 'bankName', width: 18 },
-      { header: 'Nguồn lead', key: 'leadSource', width: 18 },
+      { header: 'Nền tảng lead', key: 'leadSource', width: 18 },
       { header: 'Chiến dịch', key: 'campaign', width: 20 },
       { header: 'Trạng thái lead', key: 'leadStatus', width: 14 },
       { header: 'NV Marketing', key: 'marketingOwner', width: 18 },
@@ -1013,7 +1066,7 @@ export const getMarketingLeadImportTemplate = async (_req: Request, res: Respons
     const notes = [
       ['Số điện thoại (*)', 'Có', 'Không trùng trong hệ thống'],
       ['Họ và tên', 'Không', ''],
-      ['Chiến dịch/Nguồn', 'Không', 'Có thể chọn khi Import (form) thay vì ghi trong file'],
+      ['Chiến dịch/Nền tảng', 'Không', 'Có thể chọn khi Import (form) thay vì ghi trong file'],
       ['Cây trồng chính', 'Không', 'Cách nhau dấu phẩy'],
       ['Số gốc', 'Không', 'Bắt buộc nếu cây trồng chính thuộc nhóm tính theo gốc. Nhập 1 số.'],
     ];
@@ -1251,6 +1304,12 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Số điện thoại là bắt buộc' });
     }
 
+    const campaignIdStr =
+      typeof campaignId === 'string' && campaignId.trim() ? campaignId.trim() : '';
+    if (!campaignIdStr) {
+      return res.status(400).json({ message: 'Chiến dịch là bắt buộc khi tạo lead Marketing.' });
+    }
+
     const noteTrim =
       note !== undefined && note !== null && String(note).trim() !== '' ? String(note).trim() : '';
     if (!noteTrim) {
@@ -1259,13 +1318,33 @@ export const createMarketingLead = async (req: Request, res: Response) => {
 
     const trimmedPhone = normalizePhone(String(phone));
 
-    // Kiểm tra trùng: không tạo Lead mới, cho phép thêm note + ghi lịch sử + gửi notification
+    const existingSameCampaign = await findExistingByPhone(trimmedPhone);
+    if (existingSameCampaign?.campaignId === campaignIdStr) {
+      await logAudit({
+        ...getAuditUser(req),
+        action: 'Cảnh báo',
+        object: 'Lead marketing',
+        objectId: existingSameCampaign.id,
+        result: 'SUCCESS',
+        details: `Nhập số trùng trong cùng chiến dịch. SĐT ${trimmedPhone}, chiến dịch ${campaignIdStr}.`,
+        req,
+      });
+      return res.status(200).json({
+        duplicate: true,
+        sameCampaignWarning: true,
+        customerId: existingSameCampaign.id,
+        message: 'Số điện thoại đã tồn tại trong chiến dịch này.',
+      });
+    }
+
+    // Kiểm tra trùng (chiến dịch khác / khách đã có): ghi note, lịch sử, thông báo NV phụ trách
     const duplicateResult = await checkDuplicateAndHandle({
       phone: trimmedPhone,
       actorId: actor?.id,
       actorName: actor?.fullName || actor?.name || 'Unknown',
       actorPhone: actor?.phone,
-      note: noteTrim || undefined
+      note: noteTrim || undefined,
+      campaignId: campaignIdStr,
     });
 
     if (duplicateResult.rejectedDuplicate) {

@@ -16,7 +16,7 @@ import { describeCustomerAuditDiff } from '../utils/vietnameseAuditDiff';
 import { CUSTOMER_FIELD_LABELS, formatValueForHistory } from '../constants/customerFieldLabels';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
 import { userCanAccessCustomerForSalesModule, userCanAccessCustomerForResalesModule } from '../utils/customerRowAccess';
-import { normalizePhone } from '../services/leadDuplicateService';
+import { normalizePhone, getMarketingAttributionDays, getAttributionExpiredAt } from '../services/leadDuplicateService';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
 
 const TAG_AUDIT_LABELS: Record<string, string> = {
@@ -483,7 +483,7 @@ export const createCustomer = async (req: Request, res: Response) => {
       farmingYears, farmingMethod, irrigationType, soilType,
       businessType, taxCode, bankAccount, bankName,
       salesChannel, salesChannelNote,
-      leadSourceId, campaignId, employeeId,
+      leadSourceId, campaignId, employeeId, marketingOwnerId: marketingOwnerIdBody,
       note,
       tagIds,
       statusId
@@ -533,6 +533,30 @@ export const createCustomer = async (req: Request, res: Response) => {
       else if (isSalesRole(roleCode)) createdByRole = 'SALES';
     }
 
+    const marketingOwnerIdVal = emptyToNull(marketingOwnerIdBody);
+    if (marketingOwnerIdVal) {
+      const mk = await prisma.employee.findUnique({
+        where: { id: marketingOwnerIdVal },
+        select: { id: true },
+      });
+      if (!mk) {
+        return res.status(400).json({ message: 'Nhân viên Marketing được chọn không tồn tại.' });
+      }
+    }
+
+    const effectiveMarketingOwnerId =
+      marketingOwnerIdVal != null
+        ? marketingOwnerIdVal
+        : createdByRole === 'MARKETING'
+          ? actor.id
+          : null;
+
+    let attributionExpiredAt: Date | null = null;
+    if (effectiveMarketingOwnerId) {
+      const days = await getMarketingAttributionDays();
+      attributionExpiredAt = getAttributionExpiredAt(new Date(), days);
+    }
+
     const count = await prisma.customer.count();
     const code = `KH-${String(count + 1).padStart(6, '0')}`;
 
@@ -575,7 +599,8 @@ export const createCustomer = async (req: Request, res: Response) => {
         createdById: actor.id,
         createdByRole,
         employeeId: employeeIdVal,
-        marketingOwnerId: createdByRole === 'MARKETING' ? actor.id : null,
+        marketingOwnerId: effectiveMarketingOwnerId,
+        attributionExpiredAt,
         leadSourceId: leadSourceIdVal,
         campaignId: campaignIdVal,
         salesChannel: emptyToNull(salesChannel),
@@ -1576,7 +1601,7 @@ export const exportCustomersExcel = async (req: Request, res: Response) => {
       { header: 'NV Marketing', key: 'marketingOwner', width: 18 },
       { header: 'Nguồn tạo', key: 'createdByRole', width: 12 },
       { header: 'Trạng thái lead', key: 'leadStatus', width: 14 },
-      { header: 'Nguồn lead', key: 'leadSource', width: 18 },
+      { header: 'Nền tảng lead', key: 'leadSource', width: 18 },
       { header: 'Chiến dịch', key: 'campaign', width: 20 },
       { header: 'Trạng thái', key: 'status', width: 12 },
       { header: 'Hạng chi tiêu', key: 'spendingRank', width: 14 },
@@ -1738,7 +1763,7 @@ export const getCustomerImportTemplate = async (req: Request, res: Response) => 
       ['Số gốc', 'Không', 'Bắt buộc nếu cây trồng chính thuộc nhóm tính theo gốc. Nhập 1 số.'],
       ['Đơn vị DT', 'Không', 'ha | m2 | công | sào'],
       ['Trạng thái lead', 'Không', 'NEW | CONTACTED | QUALIFIED | CUSTOMER | ...'],
-      ['Nguồn lead / Chiến dịch', 'Không', 'Tên hoặc mã (nếu có trong hệ thống)'],
+      ['Nền tảng lead / Chiến dịch', 'Không', 'Tên hoặc mã (nếu có trong hệ thống)'],
       ['Trạng thái', 'Không', 'ACTIVE | INACTIVE'],
       ['NV phụ trách / NV Marketing', 'Không', 'Mã nhân viên (nếu phân công)'],
       ['Hạng chi tiêu / Hạng khu vực', 'Không', 'Mã hạng (nếu có)'],

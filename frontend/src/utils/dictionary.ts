@@ -170,6 +170,8 @@ export const DICTIONARY: Record<string, string> = {
   'DELETE_CUSTOMER': 'Xóa khách hàng',
   'DELETE_MARKETING_CAMPAIGN': 'Xóa chiến dịch marketing',
   'MANAGE_MARKETING_GROUPS': 'Quản lý nhóm Marketing',
+  'VIEW_MARKETING_PLATFORMS': 'Xem danh mục nền tảng (Marketing)',
+  'MANAGE_MARKETING_PLATFORMS': 'Quản lý nền tảng (Marketing)',
   'VIEW_SALES': 'Xem Sales',
   'MANAGE_SALES': 'Quản lý Sales',
   'VIEW_RESALES': 'Xem CSKH',

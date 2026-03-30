@@ -31,11 +31,31 @@ import {
 
 const router = Router();
 
-// Sources
-router.get('/marketing/sources', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingSources);
-router.post('/marketing/sources', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), createMarketingSource);
-router.put('/marketing/sources/:id', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), updateMarketingSource);
-router.delete('/marketing/sources/:id', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), deleteMarketingSource);
+// Sources — nền tảng (marketing_sources): xem / CRUD theo catalog
+router.get(
+  '/marketing/sources',
+  authMiddleware,
+  checkPermission(['VIEW_MARKETING_PLATFORMS', 'MANAGE_MARKETING_PLATFORMS', 'MANAGE_CUSTOMERS']),
+  getMarketingSources
+);
+router.post(
+  '/marketing/sources',
+  authMiddleware,
+  checkPermission(['MANAGE_MARKETING_PLATFORMS', 'MANAGE_CUSTOMERS']),
+  createMarketingSource
+);
+router.put(
+  '/marketing/sources/:id',
+  authMiddleware,
+  checkPermission(['MANAGE_MARKETING_PLATFORMS', 'MANAGE_CUSTOMERS']),
+  updateMarketingSource
+);
+router.delete(
+  '/marketing/sources/:id',
+  authMiddleware,
+  checkPermission(['MANAGE_MARKETING_PLATFORMS', 'MANAGE_CUSTOMERS']),
+  deleteMarketingSource
+);
 
 // Campaigns
 router.get('/marketing/campaigns', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingCampaigns);

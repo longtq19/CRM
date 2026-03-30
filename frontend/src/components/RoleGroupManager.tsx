@@ -279,6 +279,8 @@ const RoleGroupManager: React.FC = () => {
         VIEW_CUSTOMERS: '5. Kinh doanh',
         VIEW_ALL_COMPANY_CUSTOMERS: '5. Kinh doanh',
         MANAGE_CUSTOMERS: '5. Kinh doanh',
+        VIEW_MARKETING_PLATFORMS: '5. Kinh doanh',
+        MANAGE_MARKETING_PLATFORMS: '5. Kinh doanh',
         DELETE_CUSTOMER: '5. Kinh doanh',
         MANAGE_MARKETING_GROUPS: '5. Kinh doanh',
         DELETE_MARKETING_CAMPAIGN: '5. Kinh doanh',

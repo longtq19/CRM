@@ -30,8 +30,86 @@ const getMarketingRevenueDays = async (): Promise<number> => {
   const config = await prisma.systemConfig.findFirst({
     where: { key: 'marketing_revenue_attribution_days' }
   });
-  return config ? parseInt(config.value) : 45;
+  const n = config ? parseInt(config.value, 10) : 45;
+  return Number.isFinite(n) && n > 0 ? n : 45;
 };
+
+/**
+ * Doanh thu Sales: đơn giao đầu tiên của khách + các đơn sau khi cách đơn giao liền trước ≥ gapDays.
+ * Doanh thu Resales: các đơn trong khoảng ngắn hơn gapDays (đơn thứ 2, 3… gần nhau).
+ * Mốc thời gian: deliveredAt (hoặc orderDate nếu không có). Chỉ tính đơn DELIVERED trong kỳ lọc.
+ */
+async function computeMarketingAttributionRevenue(
+  marketingOwnerId: string,
+  startDate: Date | undefined,
+  endDate: Date | undefined,
+  gapDays: number
+): Promise<{ salesRevenue: number; resalesRevenue: number }> {
+  const gap = Math.max(1, gapDays);
+  const customers = await prisma.customer.findMany({
+    where: { marketingOwnerId },
+    select: { id: true },
+  });
+  const customerIds = customers.map((c) => c.id);
+  if (customerIds.length === 0) return { salesRevenue: 0, resalesRevenue: 0 };
+
+  const orders = await prisma.order.findMany({
+    where: {
+      customerId: { in: customerIds },
+      shippingStatus: 'DELIVERED',
+    },
+    select: {
+      customerId: true,
+      finalAmount: true,
+      orderDate: true,
+      deliveredAt: true,
+    },
+  });
+
+  const byCustomer = new Map<string, typeof orders>();
+  for (const o of orders) {
+    const list = byCustomer.get(o.customerId) || [];
+    list.push(o);
+    byCustomer.set(o.customerId, list);
+  }
+
+  let salesRevenue = 0;
+  let resalesRevenue = 0;
+
+  const inWindow = (t: Date) => {
+    if (startDate && t < startDate) return false;
+    if (endDate && t > endDate) return false;
+    return true;
+  };
+
+  for (const [, list] of byCustomer) {
+    list.sort((a, b) => {
+      const ta = a.deliveredAt ?? a.orderDate;
+      const tb = b.deliveredAt ?? b.orderDate;
+      return ta.getTime() - tb.getTime();
+    });
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      const t = o.deliveredAt ?? o.orderDate;
+      if (!inWindow(t)) continue;
+      const amt = Number(o.finalAmount || 0);
+      if (i === 0) {
+        salesRevenue += amt;
+      } else {
+        const prev = list[i - 1];
+        const prevT = prev.deliveredAt ?? prev.orderDate;
+        const daysDiff = (t.getTime() - prevT.getTime()) / 86400000;
+        if (daysDiff >= gap) {
+          salesRevenue += amt;
+        } else {
+          resalesRevenue += amt;
+        }
+      }
+    }
+  }
+
+  return { salesRevenue, resalesRevenue };
+}
 
 // ==================== MARKETING PERFORMANCE ====================
 
@@ -75,9 +153,9 @@ export const getMarketingPerformance = async (req: Request, res: Response) => {
     }
     
     const marketingRevenueDays = await getMarketingRevenueDays();
-    const revenueDeadline = new Date();
-    revenueDeadline.setDate(revenueDeadline.getDate() - marketingRevenueDays);
-    
+    const startD = startDate ? new Date(startDate as string) : undefined;
+    const endD = endDate ? new Date(endDate as string) : undefined;
+
     // Tính hiệu suất cho từng nhân viên
     const performances = await Promise.all(marketingEmployees.map(async (emp) => {
       // Số lead tạo
@@ -103,42 +181,12 @@ export const getMarketingPerformance = async (req: Request, res: Response) => {
         }
       });
       
-      // Doanh số từ đơn ĐẦU TIÊN của lead (trong thời hạn marketing được hưởng)
-      const salesRevenueResult = await prisma.order.aggregate({
-        where: {
-          customer: {
-            marketingOwnerId: emp.id,
-            attributionExpiredAt: { gt: new Date() }
-          },
-          isFirstOrder: true,
-          shippingStatus: 'DELIVERED',
-          orderDate: {
-            gte: startDate ? new Date(startDate as string) : undefined,
-            lte: endDate ? new Date(endDate as string) : undefined
-          }
-        },
-        _sum: { finalAmount: true }
-      });
-
-      // Doanh số từ đơn MUA LẠI (2+ trở đi) trong thời hạn marketing được hưởng
-      const resalesRevenueResult = await prisma.order.aggregate({
-        where: {
-          customer: {
-            marketingOwnerId: emp.id,
-            attributionExpiredAt: { gt: new Date() }
-          },
-          isFirstOrder: false,
-          shippingStatus: 'DELIVERED',
-          orderDate: {
-            gte: startDate ? new Date(startDate as string) : undefined,
-            lte: endDate ? new Date(endDate as string) : undefined
-          }
-        },
-        _sum: { finalAmount: true }
-      });
-
-      const salesRevenue = Number(salesRevenueResult._sum.finalAmount || 0);
-      const resalesRevenue = Number(resalesRevenueResult._sum.finalAmount || 0);
+      const { salesRevenue, resalesRevenue } = await computeMarketingAttributionRevenue(
+        emp.id,
+        startD,
+        endD,
+        marketingRevenueDays
+      );
       const totalRevenue = salesRevenue + resalesRevenue;
 
       const conversionRate = leadsCreated > 0 ? (leadsConverted / leadsCreated * 100) : 0;

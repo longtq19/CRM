@@ -12,3 +12,17 @@ export const POOL_PUSH_STATUS_DEFINITIONS: { code: string; label: string }[] = [
   { code: 'COMPETITOR', label: 'Đang dùng đối thủ' },
   { code: 'PRICE_OBJECTION', label: 'Chê giá' },
 ];
+
+/** Đồng bộ `DEFAULT_POOL_PUSH_PROCESSING_STATUSES` backend — khi chưa có cấu hình trong DB */
+export const DEFAULT_POOL_PUSH_PROCESSING_STATUSES: string[] = [
+  'WRONG_NUMBER',
+  'INVALID_NUMBER_TYPE',
+  'NO_ANSWER',
+  'NO_NEED',
+  'BROWSING',
+  'TRASH_LEAD',
+  'RELEASED',
+  'FOLLOW_UP_LATER',
+  'COMPETITOR',
+  'PRICE_OBJECTION',
+];

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '../api/client';
 import { 
   X, User, Phone, Mail, MapPin, Sprout, Building2, 
-  Save, Loader, ChevronDown, ChevronUp, Tag, Plus
+  Save, Loader, ChevronDown, ChevronUp, Tag, Plus, Megaphone
 } from 'lucide-react';
 import { CustomerTagSelector } from './CustomerTags';
 import { ToolbarButton } from './ui/ToolbarButton';
@@ -60,6 +60,10 @@ interface CustomerFormData {
   salesChannelNote: string;
   note: string;
   tagIds: string[];
+  /** Gán số cho Marketing (Sales tạo khách — tùy chọn) */
+  marketingOwnerId: string;
+  campaignId: string;
+  leadSourceId: string;
 }
 
 interface Props {
@@ -137,6 +141,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     address: true,
     farming: false,
     business: false,
+    marketing: false,
     salesChannel: true,
     tags: true,
   });
@@ -169,7 +174,15 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     salesChannelNote: '',
     note: '',
     tagIds: [],
+    marketingOwnerId: '',
+    campaignId: '',
+    leadSourceId: '',
   });
+
+  const [marketingEmployees, setMarketingEmployees] = useState<{ id: string; fullName: string }[]>([]);
+  const [marketingCampaigns, setMarketingCampaigns] = useState<
+    { id: string; name: string; sourceId: string | null }[]
+  >([]);
 
   useEffect(() => {
     loadInitialData();
@@ -177,6 +190,55 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
       loadCustomer();
     }
   }, [customerId]);
+
+  useEffect(() => {
+    if (customerId) return;
+    apiClient
+      .get('/hr/employees?limit=500')
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res?.data || [];
+        const filtered = list.filter((emp: any) => {
+          if (emp.salesType === 'MARKETING') return true;
+          if (emp.roleGroup?.code?.includes('MKT')) return true;
+          const dept = emp.department?.name?.toLowerCase() || '';
+          const div = emp.department?.division?.name?.toLowerCase() || '';
+          if (dept.includes('marketing') || div.includes('marketing')) return true;
+          return false;
+        });
+        setMarketingEmployees(
+          filtered.map((e: any) => ({ id: e.id, fullName: e.fullName || e.code || e.id }))
+        );
+      })
+      .catch(() => {});
+  }, [customerId]);
+
+  useEffect(() => {
+    if (customerId || !form.marketingOwnerId) {
+      if (!form.marketingOwnerId) setMarketingCampaigns([]);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get(`/marketing/campaigns?createdByEmployeeId=${encodeURIComponent(form.marketingOwnerId)}`)
+      .then((data: any) => {
+        if (cancelled) return;
+        const arr = Array.isArray(data) ? data : [];
+        setMarketingCampaigns(
+          arr.map((c: any) => ({ id: c.id, name: c.name, sourceId: c.sourceId ?? null }))
+        );
+        if (arr.length === 1) {
+          setForm((f) => ({
+            ...f,
+            campaignId: arr[0].id,
+            leadSourceId: arr[0].sourceId || '',
+          }));
+        }
+      })
+      .catch(() => setMarketingCampaigns([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [form.marketingOwnerId, customerId]);
 
   useEffect(() => {
     if (form.provinceId && form.addressType === 'OLD') {
@@ -309,6 +371,9 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
         salesChannelNote: customer.salesChannelNote || '',
         note: customer.note || '',
         tagIds: customer.tags?.map((t: any) => t.tagId) || [],
+        marketingOwnerId: (customer as any).marketingOwnerId || '',
+        campaignId: (customer as any).campaignId || '',
+        leadSourceId: (customer as any).leadSourceId || '',
       });
 
       const channelInList = SALES_CHANNELS.some(c => c.value === customer.salesChannel);
@@ -341,6 +406,17 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     if (!form.salesChannel) {
       alert('Vui lòng chọn hoặc nhập kênh tiếp cận khách hàng');
       setExpandedSections(prev => ({ ...prev, salesChannel: true }));
+      return;
+    }
+
+    if (
+      !customerId &&
+      form.marketingOwnerId &&
+      marketingCampaigns.length > 0 &&
+      !form.campaignId
+    ) {
+      alert('Vui lòng chọn chiến dịch marketing (hoặc bỏ chọn nhân viên Marketing).');
+      setExpandedSections(prev => ({ ...prev, marketing: true }));
       return;
     }
 
@@ -386,11 +462,16 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
 
     try {
       setSaving(true);
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...form,
         farmArea: form.farmArea ? parseFloat(form.farmArea) : null,
         farmingYears: form.farmingYears ? parseInt(form.farmingYears) : null,
       };
+      if (!customerId && form.marketingOwnerId) {
+        payload.marketingOwnerId = form.marketingOwnerId;
+        payload.campaignId = form.campaignId || null;
+        payload.leadSourceId = form.leadSourceId || null;
+      }
 
       if (customerId) {
         await apiClient.put(`/customers/${customerId}`, payload);
@@ -1078,6 +1159,78 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                 </div>
               )}
             </div>
+
+            {/* Gán Marketing (chỉ khi tạo mới từ Sales) */}
+            {!customerId && (
+              <div className="border-b">
+                <SectionHeader title="Gán Marketing" icon={Megaphone} section="marketing" />
+                {expandedSections.marketing && (
+                  <div className="pb-4 grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-500 mb-2">
+                        Tùy chọn: gán số cho nhân viên Marketing và chiến dịch. Nền tảng (nếu có) lấy theo chiến dịch đã chọn.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nhân viên Marketing
+                      </label>
+                      <select
+                        value={form.marketingOwnerId}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            marketingOwnerId: e.target.value,
+                            campaignId: '',
+                            leadSourceId: '',
+                          })
+                        }
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">— Không gán —</option>
+                        {marketingEmployees.map((emp) => (
+                          <option key={emp.id} value={emp.id}>
+                            {emp.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Chiến dịch
+                      </label>
+                      <select
+                        value={form.campaignId}
+                        disabled={!form.marketingOwnerId}
+                        onChange={(e) => {
+                          const cid = e.target.value;
+                          const c = marketingCampaigns.find((x) => x.id === cid);
+                          setForm({
+                            ...form,
+                            campaignId: cid,
+                            leadSourceId: c?.sourceId || '',
+                          });
+                        }}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                      >
+                        <option value="">
+                          {form.marketingOwnerId
+                            ? marketingCampaigns.length
+                              ? 'Chọn chiến dịch'
+                              : 'Đang tải / không có chiến dịch'
+                            : 'Chọn NV Marketing trước'}
+                        </option>
+                        {marketingCampaigns.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Kênh tiếp cận (Sales) */}
             <div className="border-b">

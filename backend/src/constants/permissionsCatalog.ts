@@ -207,7 +207,17 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'MANAGE_CUSTOMERS',
     name: 'Quản lý khách hàng & Marketing',
     description:
-      'Sửa khách, Marketing (nguồn, chiến dịch, lead, chi phí), tag khách; không bao gồm xóa khách (DELETE_CUSTOMER) hay xóa chiến dịch (DELETE_MARKETING_CAMPAIGN) nếu tách riêng.',
+      'Sửa khách, Marketing (nền tảng, chiến dịch, lead, chi phí), tag khách; không bao gồm xóa khách (DELETE_CUSTOMER) hay xóa chiến dịch (DELETE_MARKETING_CAMPAIGN) nếu tách riêng.',
+  },
+  {
+    code: 'VIEW_MARKETING_PLATFORMS',
+    name: 'Xem danh mục nền tảng (Marketing)',
+    description: 'Xem danh sách nền tảng quảng cáo (marketing_sources) qua API; không bao gồm tạo/sửa/xóa.',
+  },
+  {
+    code: 'MANAGE_MARKETING_PLATFORMS',
+    name: 'Quản lý nền tảng (Marketing)',
+    description: 'Tạo, sửa, xóa danh mục nền tảng quảng cáo (CRUD marketing_sources).',
   },
   {
     code: 'DELETE_CUSTOMER',

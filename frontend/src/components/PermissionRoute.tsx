@@ -6,6 +6,7 @@ import { isTechnicalAdminRole } from '../constants/rbac';
 import {
   SYSTEM_MODULE_PATH_ACCESS_PERMISSIONS,
   DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS,
+  SALES_MODULE_PATH_ACCESS_PERMISSIONS,
 } from '../constants/routePermissionPolicy';
 
 interface PermissionRouteProps {
@@ -56,7 +57,11 @@ const PermissionRoute = ({ modulePath, requiredPermissions, children }: Permissi
         DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS.includes(p as (typeof DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS)[number])
       );
 
-    if (!hasModuleAccess && !hasSystemAccessByPermission && !hasDataPoolAccessByPermission) {
+    const hasSalesAccessByPermission =
+      modulePath === '/sales' &&
+      SALES_MODULE_PATH_ACCESS_PERMISSIONS.every((code) => permCodes.includes(code));
+
+    if (!hasModuleAccess && !hasSystemAccessByPermission && !hasDataPoolAccessByPermission && !hasSalesAccessByPermission) {
       // Render Unauthorized View
       return (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] text-center p-6">

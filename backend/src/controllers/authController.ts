@@ -246,6 +246,8 @@ async function ensureCrmAdministratorDefaultPermissions(): Promise<void> {
     'VIEW_CUSTOMERS',
     'VIEW_ALL_COMPANY_CUSTOMERS',
     'MANAGE_CUSTOMERS',
+    'VIEW_MARKETING_PLATFORMS',
+    'MANAGE_MARKETING_PLATFORMS',
     'DELETE_CUSTOMER',
     'MANAGE_MARKETING_GROUPS',
     'DELETE_MARKETING_CAMPAIGN',

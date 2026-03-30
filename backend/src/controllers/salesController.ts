@@ -6,6 +6,7 @@ import { getSubordinateIds, buildCustomerWhereByScope, getVisibleEmployeeIds } f
 import { isTechnicalAdminRoleCode } from '../constants/rbac';
 import { userCanAccessCustomerForSalesModule } from '../utils/customerRowAccess';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
+import { parsePoolPushStatusesJson } from '../constants/operationParams';
 
 /**
  * Lấy danh sách Lead của tôi (Sales/Telesales). Quản lý có thể lọc theo nhân viên (employeeId).
@@ -553,7 +554,11 @@ export const addInteraction = async (req: Request, res: Response) => {
     const minNoteCfg = await prisma.systemConfig.findUnique({ where: { key: 'min_note_characters' } }).catch(() => null);
     const minNoteChars = minNoteCfg ? parseInt(minNoteCfg.value, 10) : 10;
     const textToCheck = detail != null && String(detail).trim() !== '' ? String(detail).trim() : String(content).trim();
-    if (textToCheck.length < minNoteChars) {
+    const pushCfg = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } }).catch(() => null);
+    const poolPushStatuses = parsePoolPushStatusesJson(pushCfg?.value);
+    const ps = processingStatus != null ? String(processingStatus).trim() : '';
+    const skipMinNoteForPool = ps !== '' && poolPushStatuses.includes(ps);
+    if (!skipMinNoteForPool && textToCheck.length < minNoteChars) {
       return res.status(400).json({
         message:
           detail != null && String(detail).trim() !== ''
