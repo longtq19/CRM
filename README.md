@@ -1111,6 +1111,7 @@ Nghiệp vụ:
    - `npm run dev`
 3. Lưu ý Vite proxy:
    - Trong `frontend/vite.config.ts`, `/api`, `/uploads`, `/socket.io` được proxy về `http://localhost:3000`.
+   - **`timeout` / `proxyTimeout` (ví dụ 300s):** tránh lỗi **502** khi request lâu (upload ảnh đại diện multipart + nén Sharp). Nếu vẫn 502: kiểm tra backend có chạy; ảnh quá lớn có thể làm xử lý chậm.
 4. **Màn hình trắng (chỉ thấy tiêu đề tab, không có UI):** thường do thiếu mã nguồn `frontend/src` hoặc `frontend/public` (file `index.html` vẫn tải nhưng script `/src/main.tsx` không còn). Khôi phục từ Git: `git restore frontend/src frontend/public`. Tạm thời có thể xem bản build có sẵn: `npm run preview` (cần thư mục `frontend/dist`). Sau khi khôi phục, dừng Vite cũ và chạy lại `npm run dev`, làm mới cứng trình duyệt nếu cần.
 5. **Vùng nội dung trắng sau khi đăng nhập:** thường do URL không khớp route con (ví dụ gõ nhầm `/abc`); app sẽ chuyển về `/`. Nếu backend `/api/me` không phản hồi lâu, phiên kiểm tra có timeout để không kẹt màn “Đang tải dữ liệu…” vô hạn. Trước khi bundle JS chạy, `index.html` hiển thị dòng “Đang tải ứng dụng…” trong `#root`.
 

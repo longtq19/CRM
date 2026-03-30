@@ -20,16 +20,21 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 600,
   },
+  /** Proxy dev: tăng timeout tránh 502 khi upload/xử lý ảnh lớn (avatar multipart + Sharp). */
   server: {
     host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 300000,
+        proxyTimeout: 300000,
       },
       '/uploads': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 300000,
+        proxyTimeout: 300000,
       },
       '/socket.io': {
         target: 'http://localhost:3000',
@@ -44,10 +49,14 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 300000,
+        proxyTimeout: 300000,
       },
       '/uploads': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        timeout: 300000,
+        proxyTimeout: 300000,
       },
       '/socket.io': {
         target: 'http://localhost:3000',

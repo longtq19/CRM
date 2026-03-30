@@ -55,8 +55,6 @@ export const processAvatar = async (req: Request, res: Response, next: NextFunct
 
   try {
     const maxSize = 50 * 1024; // 50KB
-    const originalExt = path.extname(req.file.originalname).toLowerCase() || '.jpg';
-    
     let filename = '';
     
     // Một file duy nhất / nhân viên: ưu tiên employeeId (ghi đè cùng đường dẫn, tránh nhiều file khi đổi tên/mã).
@@ -78,7 +76,9 @@ export const processAvatar = async (req: Request, res: Response, next: NextFunct
 
     let width = 512;
     let quality = 80;
+    // Một lần giải mã ảnh gốc (có thể rất lớn); các vòng sau xử lý từ buffer JPEG đã nhỏ hơn — tránh treo Node/proxy 502 khi nén lặp từ file gốc.
     let buffer = await sharp(req.file.buffer)
+      .rotate()
       .resize(width, width, {
         fit: 'inside',
         withoutEnlargement: true
@@ -89,7 +89,6 @@ export const processAvatar = async (req: Request, res: Response, next: NextFunct
       })
       .toBuffer();
 
-    // Gradually reduce quality/size until under maxSize or reach lower bounds
     while (buffer.length > maxSize && (quality > 40 || width > 256)) {
       if (quality > 40) {
         quality -= 10;
@@ -99,7 +98,7 @@ export const processAvatar = async (req: Request, res: Response, next: NextFunct
         break;
       }
 
-      buffer = await sharp(req.file.buffer)
+      buffer = await sharp(buffer)
         .resize(width, width, {
           fit: 'inside',
           withoutEnlargement: true

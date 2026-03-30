@@ -33,9 +33,9 @@ function fallbackMessageForStatus(status: number): string {
   if (status === 413) {
     return 'Dung lượng gửi lên quá lớn (giới hạn proxy hoặc máy chủ). Hãy thử ảnh nhỏ hơn hoặc tăng client_max_body_size trên reverse proxy.';
   }
-  // Vite proxy trả 502 khi backend không lắng nghe (ví dụ chưa `npm run dev` trong `backend/`, cổng 3000).
+  // 502/503/504: backend tắt, proxy hết thời gian chờ (upload/xử lý file lâu), hoặc upstream lỗi tạm.
   if (status === 502 || status === 503 || status === 504) {
-    return 'Không kết nối được API. Hãy chạy backend (trong thư mục backend: npm run dev, cổng 3000) rồi thử lại.';
+    return 'Không nhận phản hồi kịp từ API (máy chủ tạm không sẵn sàng hoặc quá tải). Khi dev: đảm bảo backend chạy (trong thư mục backend: npm run dev, cổng 3000). Nếu vừa tải ảnh lớn, thử lại hoặc dùng ảnh nhỏ hơn — proxy có thể trả 502 nếu xử lý lâu.';
   }
   if (status >= 500) return 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.';
   return `Không thể hoàn tất yêu cầu (mã ${status}).`;
