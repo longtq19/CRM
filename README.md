@@ -204,6 +204,7 @@ JSON gồm: `marketingToSalesPct` (MKT → từng đơn vị lá Sales **trực 
 - **Kho hàng** (`PUT/POST/DELETE /api/inventory/warehouses...`): controller ghi log qua `logAudit` với nội dung **so sánh trước/sau** (ví dụ *Đổi tên kho từ "..." sang "..."*, *Đổi địa chỉ chi tiết từ "..." sang "..."*), kèm `oldValues`/`newValues` JSON khi cần tra cứu.
 - **Khách hàng / thẻ khách hàng / nông trại khách hàng** (`customerController`): mọi **Tạo mới / Cập nhật / Xóa** ghi `logAudit`; **cập nhật** dùng `describeCustomerAuditDiff` (và `describeChangesVi` cho thẻ/vườn) — các dòng *Đổi [trường] từ "..." sang "..."* bằng tiếng Việt; đối tượng trong nhật ký là tên tiếng Việt (ví dụ `Khách hàng`, `Thẻ khách hàng`).
 - **Marketing** (nguồn, chiến dịch, lead, chi phí chiến dịch): tương tự — `logAudit` + so sánh trước/sau cho cập nhật; tạo/xóa có mô tả tiếng Việt và `object_id` khi có.
+- **Chỉ tiêu vận đơn theo ngày** (`PUT /api/shipping/daily-quotas`): ghi `logAudit` khi gán/sửa/xóa chỉ tiêu (`shippingQuotaController`).
 - **`logAction` trong `logController`**: chuyển sang ghi qua `prisma.systemLog` (cùng pipeline `logAudit`), có cột `object_id` thay vì chỉ nối `ID` vào chuỗi `details`.
 - Tự nhận diện actor hệ thống cho một số luồng không có user đăng nhập (ví dụ API public/webhook).
 - Chống ghi trùng: nếu controller đã ghi qua `logAudit(...)` (đặc thù nghiệp vụ), middleware sẽ không ghi lặp cùng request.
@@ -273,7 +274,7 @@ Các key (chỉnh khi có quyền `CONFIG_OPERATIONS` hoặc `EDIT_SETTINGS`, ho
 ### 3.7 Ngôn ngữ hiển thị trên FE (tiếng Việt)
 
 - Sidebar hiển thị trực tiếp `menus.label` từ DB (FE không tự map menu). `syncDefaultMenus()` trong `backend/src/controllers/authController.ts` cập nhật `label` theo `path` để đảm bảo nhãn menu hiển thị tiếng Việt (ví dụ: `Bảng điều khiển`, `Tiếp thị`, `Kinh doanh`).
-- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **10 nhóm** trên UI: Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Kinh doanh, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **66 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
+- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **10 nhóm** trên UI: Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Kinh doanh, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **67 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
 - **Địa danh hành chính (tỉnh/thành, quận/huyện, phường/xã):** FE hiển thị dạng Title Case (mỗi từ viết hoa đầu, `vi-VN`) qua `administrativeTitleCase` / `formatAdminGeoLine` trong `frontend/src/utils/addressDisplayFormat.ts`; bản đồ phân bố khách dùng `matchAdministrativeNameKey` để khớp tên tỉnh từ API (có thể chữ thường) với bảng tọa độ cố định.
 
 ## 4. Nghiệp vụ theo chức năng chính
@@ -544,6 +545,15 @@ Luồng tạo & vận chuyển:
      - update `orderStatus=COMPLETED`, `paymentStatus=PAID`
      - cập nhật tổng chi tiêu/hạng khách theo `updateCustomerRank`
      - nếu là đơn đầu tiên: chạy `handleFirstOrderCompletion` để đẩy khách về pool Resales (nếu cấu hình bật).
+   - **Từ chối khi chờ xác nhận:** chuyển `shippingStatus` từ `PENDING` sang `CANCELLED` ghi `shippingDeclinedById` / `shippingDeclinedAt` (dùng đếm tiến độ “từ chối” trong chỉ tiêu ngày; xem mục dưới).
+5b. **Chỉ tiêu xử lý vận đơn theo ngày** (múi giờ `Asia/Ho_Chi_Minh`):
+   - Bảng `shipping_daily_quotas`: `employeeId`, `workDate` (DATE), `targetCount`, `assignedById`; unique `(employeeId, workDate)`.
+   - `GET /api/shipping/daily-quotas/me?workDate=YYYY-MM-DD` — quyền **`MANAGE_SHIPPING`**: chỉ tiêu + số đơn **đã xác nhận** / **từ chối** / tổng đã xử lý trong ngày.
+   - `GET /api/shipping/daily-quotas/assignable-employees` — quyền **`ASSIGN_SHIPPING_DAILY_QUOTA`**: danh sách nhân viên có `MANAGE_SHIPPING` (để gán chỉ tiêu); **luôn có thể gồm chính user** nếu cũng xử lý vận đơn — cho phép quản lý tự gán chỉ tiêu cho mình.
+   - `GET /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: chỉ tiêu + tiến độ theo từng NV cho một `workDate`.
+   - `PUT /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: upsert/xóa (gửi `targetCount: 0` xóa bản ghi ngày đó); ghi `logAudit` (chi tiết tiếng Việt).
+   - Controller: `backend/src/controllers/shippingQuotaController.ts`; route mount: `backend/src/routes/shippingQuotaRoutes.ts` → `/api/shipping`.
+   - **FE:** trang **Đơn hàng** (`orders`), khối chọn ngày + thẻ tiến độ (NV có `MANAGE_SHIPPING`) + bảng gán chỉ tiêu (user có `ASSIGN_SHIPPING_DAILY_QUOTA`).
 6. Hàng hoàn:
    - `POST /api/orders/:id/:orderDate/process-return`
    - tạo `returnedOrder` và nếu có `restockedQty/damagedQty` thì ghi `inventoryLog`.
@@ -631,13 +641,13 @@ Nghiệp vụ:
   - view scopes:
     - `GET/PUT /api/role-groups/view-scopes`
 - Nhóm quản trị kỹ thuật (`system_administrator` và legacy `ADM`): **luôn** gắn đủ mọi menu và mọi quyền trong catalog, phạm vi xem HR & Khách hàng là **COMPANY** (toàn công ty) — đồng bộ mỗi lần `syncDefaultMenus` (khởi động backend). **Không** chỉnh sửa nhóm này trên UI (tab **Hệ thống → Nhóm quyền**) và không đổi/xóa qua API; khi thêm quyền mới vào `DEFAULT_PERMISSIONS`, lần khởi động sau sẽ tự gán cho nhóm đó.
-- **Danh sách 66 quyền trong catalog** (10 nhóm, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`):
+- **Danh sách 67 quyền trong catalog** (10 nhóm, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`):
   1. **Hệ thống (9):** `FULL_ACCESS`, `MANAGE_SYSTEM`, `VIEW_LOGS`, `VIEW_SETTINGS`, `EDIT_SETTINGS`, `STAFF_LOGOUT`, `STAFF_LOCK`, `VIEW_ROLE_GROUPS`, `MANAGE_ROLE_GROUPS`
   2. **Dashboard & Báo cáo (3):** `VIEW_DASHBOARD`, `VIEW_REPORTS`, `VIEW_PERFORMANCE`
   3. **Nhân sự (8):** `MANAGE_HR`, `VIEW_HR`, `VIEW_EMPLOYEE_TYPE_CATALOG`, `MANAGE_EMPLOYEE_TYPE_CATALOG`, `VIEW_CONTRACTS`, `VIEW_LEAVE_REQUESTS`, `MANAGE_LEAVE_REQUESTS`, `DELETE_LEAVE_REQUESTS`
   4. **Kho số & Phân bổ (14):** `VIEW_FLOATING_POOL`, `MANAGE_DATA_POOL`, `DATA_POOL_CONFIG`, `CONFIG_DISTRIBUTION`, `CLAIM_LEAD`, `ASSIGN_LEAD`, `DISTRIBUTE_FLOATING_POOL`, `DISTRIBUTE_FLOATING_CROSS_ORG`, `CLAIM_FLOATING_POOL`, `VIEW_CSKH_POOL`, `MANAGE_CSKH_POOL`, `VIEW_MANAGED_UNIT_POOL`, `RECALL_MANAGED_UNIT_LEADS`, `DISTRIBUTE_SALES_CROSS_ORG`
   5. **Kinh doanh (14):** `VIEW_CUSTOMERS`, `VIEW_ALL_COMPANY_CUSTOMERS`, `MANAGE_CUSTOMERS`, `DELETE_CUSTOMER`, `MANAGE_MARKETING_GROUPS`, `DELETE_MARKETING_CAMPAIGN`, `VIEW_SALES`, `MANAGE_SALES`, `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_SALES_EFFECTIVENESS`, `VIEW_CSKH_EFFECTIVENESS`, `MANAGE_PRODUCTS`, `MANAGE_SUPPORT_TICKETS`
-  6. **Đơn hàng & Vận chuyển (6):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `CREATE_ORDER_OUTSIDE_SYSTEM`
+  6. **Đơn hàng & Vận chuyển (7):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`, `CREATE_ORDER_OUTSIDE_SYSTEM`
   7. **Kho vận (1):** `MANAGE_WAREHOUSE`
   8. **Kế toán (2):** `VIEW_ACCOUNTING`, `MANAGE_ACCOUNTING`
   9. **Vận hành & Cơ cấu (4):** `CONFIG_OPERATIONS`, `CONFIG_ORG_STRUCTURE`, `CONFIG_DATA_FLOW`, `VIEW_DIVISIONS`

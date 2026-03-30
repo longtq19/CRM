@@ -411,6 +411,9 @@ model Employee {
   campaignMemberships      MarketingCampaignMember[] @relation("CampaignMembersEmployee")
   createdCampaigns         MarketingCampaign[]       @relation("EmployeeCreatedCampaigns")
   orders                   Order[]
+  ordersShippingDeclined   Order[]                   @relation("OrderShippingDeclinedBy")
+  shippingDailyQuotas      ShippingDailyQuota[]      @relation("ShippingQuotaEmployee")
+  shippingQuotasAssigned   ShippingDailyQuota[]      @relation("ShippingQuotaAssignedBy")
   approvedPayrolls         Payroll[]                 @relation("PayrollApprover")
   createdPayrolls          Payroll[]                 @relation("PayrollCreator")
   payrolls                 Payroll[]
@@ -949,10 +952,14 @@ model Order {
   resalesEmployeeId  String?            @map("resales_employee_id")
   revenueCountedAt   DateTime?          @map("revenue_counted_at")
   salesEmployeeId    String?            @map("sales_employee_id")
+  /// NV vận đơn từ chối tiếp nhận (PENDING → CANCELLED / hủy vận chuyển từ chờ xác nhận)
+  shippingDeclinedById String?          @map("shipping_declined_by_id")
+  shippingDeclinedAt   DateTime?        @map("shipping_declined_at")
   items              OrderItem[]
   orderShippingLogs  OrderShippingLog[]
   customer           Customer           @relation(fields: [customerId], references: [id])
   employee           Employee?          @relation(fields: [employeeId], references: [id])
+  shippingDeclinedBy Employee?        @relation("OrderShippingDeclinedBy", fields: [shippingDeclinedById], references: [id])
 
   @@id([id, orderDate])
   @@unique([code, orderDate])
@@ -966,7 +973,26 @@ model Order {
   @@index([shippingStatus, orderDate])
   @@index([employeeId, orderDate])
   @@index([orderStatus])
+  @@index([shippingDeclinedById])
   @@map("orders")
+}
+
+/// Chỉ tiêu số đơn cần xử lý (xác nhận/từ chối) giao cho NV vận đơn theo ngày (Asia/Ho_Chi_Minh).
+model ShippingDailyQuota {
+  id           String   @id @default(uuid())
+  employeeId   String   @map("employee_id")
+  workDate     DateTime @map("work_date") @db.Date
+  targetCount  Int      @map("target_count")
+  assignedById String   @map("assigned_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  employee     Employee @relation("ShippingQuotaEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedBy   Employee @relation("ShippingQuotaAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, workDate])
+  @@index([workDate])
+  @@index([assignedById])
+  @@map("shipping_daily_quotas")
 }
 
 model OrderItem {

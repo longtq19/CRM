@@ -302,6 +302,12 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Xác nhận đơn, sửa vận chuyển, Viettel Post, trạng thái giao.',
   },
   {
+    code: 'ASSIGN_SHIPPING_DAILY_QUOTA',
+    name: 'Gán chỉ tiêu xử lý vận đơn theo ngày',
+    description:
+      'Chia thủ công số đơn cần xử lý (xác nhận/từ chối) cho NV vận đơn theo ngày; có thể gán cho chính mình.',
+  },
+  {
     code: 'CREATE_ORDER_OUTSIDE_SYSTEM',
     name: 'Tạo đơn ngoài hệ thống',
     description: 'Ghi nhận đơn phát sinh ngoài CRM (outside-system).',

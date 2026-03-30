@@ -142,5 +142,51 @@ export const orderApi = {
     if (endDate) params.append('endDate', endDate);
     const response = await apiClient.get(`/orders/stats?${params.toString()}`);
     return response as OrderStats;
-  }
+  },
+
+  /** Chỉ tiêu xử lý vận đơn theo ngày (NV có MANAGE_SHIPPING) */
+  getMyShippingDailyQuota: async (workDate?: string): Promise<{
+    workDate: string;
+    targetCount: number;
+    confirmedCount: number;
+    declinedCount: number;
+    doneTotal: number;
+    hasQuotaRow: boolean;
+  }> => {
+    const q = workDate ? `?workDate=${encodeURIComponent(workDate)}` : '';
+    const response = await apiClient.get(`/shipping/daily-quotas/me${q}`);
+    return response as any;
+  },
+
+  getShippingAssignableEmployees: async (): Promise<
+    Array<{ id: string; fullName: string; code: string }>
+  > => {
+    const response = await apiClient.get('/shipping/daily-quotas/assignable-employees');
+    return Array.isArray(response) ? response : [];
+  },
+
+  listShippingDailyQuotas: async (workDate?: string): Promise<{
+    workDate: string;
+    items: Array<{
+      id: string;
+      employeeId: string;
+      targetCount: number;
+      employee: { id: string; fullName: string; code: string };
+      assignedBy: { id: string; fullName: string; code: string };
+      confirmedCount: number;
+      declinedCount: number;
+      doneTotal: number;
+    }>;
+  }> => {
+    const q = workDate ? `?workDate=${encodeURIComponent(workDate)}` : '';
+    const response = await apiClient.get(`/shipping/daily-quotas${q}`);
+    return response as any;
+  },
+
+  upsertShippingDailyQuotas: async (body: {
+    workDate: string;
+    items: Array<{ employeeId: string; targetCount: number }>;
+  }): Promise<{ ok: boolean; workDate: string; updated: number }> => {
+    return apiClient.put('/shipping/daily-quotas', body) as Promise<any>;
+  },
 };

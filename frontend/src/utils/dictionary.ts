@@ -186,6 +186,7 @@ export const DICTIONARY: Record<string, string> = {
   'CREATE_ORDER': 'Tạo đơn hàng (của bản thân)',
   'MANAGE_ORDERS': 'Quản lý đơn hàng (sửa đơn)',
   'MANAGE_SHIPPING': 'Quản lý vận đơn',
+  'ASSIGN_SHIPPING_DAILY_QUOTA': 'Gán chỉ tiêu xử lý vận đơn theo ngày',
   'CREATE_ORDER_OUTSIDE_SYSTEM': 'Tạo đơn ngoài hệ thống',
   // ── 7. Kho vận ──
   'MANAGE_WAREHOUSE': 'Quản lý kho',

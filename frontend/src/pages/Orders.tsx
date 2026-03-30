@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
   RefreshCw, Calendar, User, Phone, MapPin, ChevronLeft, ChevronRight,
-  X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban
+  X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
 import CreateOrderModal from '../components/CreateOrderModal';
@@ -57,11 +57,15 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 };
 
+const todayVnYmd = () =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+
 const Orders = () => {
   const { hasPermission } = useAuthStore();
   const canManageOrders = hasPermission('MANAGE_ORDERS');
   const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
   const canManageShipping = hasPermission('MANAGE_SHIPPING');
+  const canAssignShippingQuota = hasPermission('ASSIGN_SHIPPING_DAILY_QUOTA');
   const canCreateOrderOutsideSystem = hasPermission('CREATE_ORDER_OUTSIDE_SYSTEM');
 
   // State
@@ -92,6 +96,30 @@ const Orders = () => {
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [shippingQuotaDate, setShippingQuotaDate] = useState(todayVnYmd);
+  const [myShippingQuota, setMyShippingQuota] = useState<{
+    workDate: string;
+    targetCount: number;
+    confirmedCount: number;
+    declinedCount: number;
+    doneTotal: number;
+    hasQuotaRow: boolean;
+  } | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const [managerQuotaDraft, setManagerQuotaDraft] = useState<Record<string, number>>({});
+  const [managerQuotaList, setManagerQuotaList] = useState<
+    Array<{
+      employeeId: string;
+      fullName: string;
+      code: string;
+      targetCount: number;
+      doneTotal: number;
+      confirmedCount: number;
+      declinedCount: number;
+    }>
+  >([]);
+  const [quotaSaving, setQuotaSaving] = useState(false);
+
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
@@ -121,6 +149,58 @@ const Orders = () => {
     fetchStats();
   }, [fetchOrders, fetchStats]);
 
+  const loadMyShippingQuota = useCallback(async () => {
+    if (!canManageShipping) return;
+    setQuotaLoading(true);
+    try {
+      const d = await orderApi.getMyShippingDailyQuota(shippingQuotaDate);
+      setMyShippingQuota(d);
+    } catch {
+      setMyShippingQuota(null);
+    } finally {
+      setQuotaLoading(false);
+    }
+  }, [canManageShipping, shippingQuotaDate]);
+
+  const loadManagerShippingQuotas = useCallback(async () => {
+    if (!canAssignShippingQuota) return;
+    try {
+      const [emps, listData] = await Promise.all([
+        orderApi.getShippingAssignableEmployees(),
+        orderApi.listShippingDailyQuotas(shippingQuotaDate),
+      ]);
+      const byEmp = new Map(listData.items.map((r) => [r.employeeId, r]));
+      const merged = emps.map((e) => {
+        const row = byEmp.get(e.id);
+        return {
+          employeeId: e.id,
+          fullName: e.fullName,
+          code: e.code,
+          targetCount: row?.targetCount ?? 0,
+          doneTotal: row?.doneTotal ?? 0,
+          confirmedCount: row?.confirmedCount ?? 0,
+          declinedCount: row?.declinedCount ?? 0,
+        };
+      });
+      setManagerQuotaList(merged);
+      const draft: Record<string, number> = {};
+      merged.forEach((m) => {
+        draft[m.employeeId] = m.targetCount;
+      });
+      setManagerQuotaDraft(draft);
+    } catch {
+      setManagerQuotaList([]);
+    }
+  }, [canAssignShippingQuota, shippingQuotaDate]);
+
+  useEffect(() => {
+    loadMyShippingQuota();
+  }, [loadMyShippingQuota]);
+
+  useEffect(() => {
+    loadManagerShippingQuotas();
+  }, [loadManagerShippingQuotas]);
+
   // Handlers
   const handleSearch = (value: string) => {
     setFilters(prev => ({ ...prev, search: value, page: 1 }));
@@ -132,6 +212,24 @@ const Orders = () => {
 
   const handlePageChange = (page: number) => {
     setFilters(prev => ({ ...prev, page }));
+  };
+
+  const handleSaveShippingQuotas = async () => {
+    if (!canAssignShippingQuota) return;
+    setQuotaSaving(true);
+    try {
+      const items = managerQuotaList.map((m) => ({
+        employeeId: m.employeeId,
+        targetCount: Math.max(0, Math.floor(Number(managerQuotaDraft[m.employeeId]) || 0)),
+      }));
+      await orderApi.upsertShippingDailyQuotas({ workDate: shippingQuotaDate, items });
+      await loadManagerShippingQuotas();
+      await loadMyShippingQuota();
+    } catch (error: any) {
+      alert(error.message || 'Không lưu được chỉ tiêu vận đơn theo ngày');
+    } finally {
+      setQuotaSaving(false);
+    }
   };
 
   const handleViewDetail = async (order: Order) => {
@@ -151,6 +249,8 @@ const Orders = () => {
       await orderApi.confirmOrder(order.id, order.orderDate);
       fetchOrders();
       fetchStats();
+      loadMyShippingQuota();
+      loadManagerShippingQuotas();
       if (selectedOrder?.id === order.id) {
         const detail = await orderApi.getOrderById(order.id, order.orderDate);
         setSelectedOrder(detail);
@@ -212,6 +312,8 @@ const Orders = () => {
       await orderApi.updateShippingStatus(order.id, order.orderDate, status, note || undefined);
       fetchOrders();
       fetchStats();
+      loadMyShippingQuota();
+      loadManagerShippingQuotas();
       if (selectedOrder?.id === order.id) {
         const detail = await orderApi.getOrderById(order.id, order.orderDate);
         setSelectedOrder(detail);
@@ -309,6 +411,151 @@ const Orders = () => {
             </div>
             <div className="text-lg font-bold text-primary">{formatCurrency(stats.totalRevenue)}</div>
           </div>
+        </div>
+      )}
+
+      {/* Chỉ tiêu xử lý vận đơn theo ngày (VN) */}
+      {(canManageShipping || canAssignShippingQuota) && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ngày làm việc (giờ VN)</label>
+              <input
+                type="date"
+                value={shippingQuotaDate}
+                onChange={(e) => setShippingQuotaDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                loadMyShippingQuota();
+                loadManagerShippingQuotas();
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              <RefreshCw size={16} />
+              Làm mới chỉ tiêu
+            </button>
+          </div>
+
+          {canManageShipping && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <ClipboardList className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold text-gray-800">Chỉ tiêu xử lý của tôi</h2>
+                {quotaLoading && <Loader className="w-4 h-4 animate-spin text-gray-400" />}
+              </div>
+              {myShippingQuota ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                  <div className="rounded-lg bg-gray-50 p-3 border border-gray-100">
+                    <div className="text-gray-500">Chỉ tiêu (đơn)</div>
+                    <div className="text-xl font-bold text-gray-900">
+                      {myShippingQuota.hasQuotaRow ? myShippingQuota.targetCount : '—'}
+                    </div>
+                    {!myShippingQuota.hasQuotaRow && (
+                      <p className="text-xs text-amber-700 mt-1">Chưa có chỉ tiêu cho ngày này</p>
+                    )}
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-3 border border-blue-100">
+                    <div className="text-blue-700">Đã xác nhận</div>
+                    <div className="text-xl font-bold text-blue-900">{myShippingQuota.confirmedCount}</div>
+                  </div>
+                  <div className="rounded-lg bg-orange-50 p-3 border border-orange-100">
+                    <div className="text-orange-700">Đã từ chối (hủy khi chờ)</div>
+                    <div className="text-xl font-bold text-orange-900">{myShippingQuota.declinedCount}</div>
+                  </div>
+                  <div className="rounded-lg bg-emerald-50 p-3 border border-emerald-100">
+                    <div className="text-emerald-700">Tổng đã xử lý</div>
+                    <div className="text-xl font-bold text-emerald-900">{myShippingQuota.doneTotal}</div>
+                  </div>
+                  <div className="rounded-lg bg-primary/5 p-3 border border-primary/20 md:col-span-1 col-span-2">
+                    <div className="text-primary">Tiến độ</div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {myShippingQuota.hasQuotaRow && myShippingQuota.targetCount > 0
+                        ? `${Math.min(100, Math.round((myShippingQuota.doneTotal / myShippingQuota.targetCount) * 100))}%`
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Không tải được dữ liệu chỉ tiêu.</p>
+              )}
+              <p className="text-xs text-gray-500 mt-3">
+                Xác nhận đơn và từ chối (hủy vận đơn khi trạng thái &quot;Chờ xác nhận&quot;) trong ngày được tính vào tiến độ.
+              </p>
+            </div>
+          )}
+
+          {canAssignShippingQuota && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-gray-800">Gán chỉ tiêu cho nhân viên vận đơn</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveShippingQuotas}
+                  disabled={quotaSaving}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {quotaSaving ? <Loader className="w-4 h-4 animate-spin" /> : <Check size={18} />}
+                  Lưu chỉ tiêu
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                Chỉ áp dụng cho nhân viên có quyền quản lý vận đơn. Đặt 0 để xóa chỉ tiêu ngày đó. Bạn có thể gán chỉ tiêu cho chính mình nếu tài khoản cũng xử lý vận đơn.
+              </p>
+              <div className="overflow-x-auto border border-gray-100 rounded-lg">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-gray-600">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Nhân viên</th>
+                      <th className="px-3 py-2 font-medium w-28">Mã NV</th>
+                      <th className="px-3 py-2 font-medium w-32">Chỉ tiêu (đơn)</th>
+                      <th className="px-3 py-2 font-medium">Đã xác nhận / Từ chối / Tổng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managerQuotaList.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
+                          Không có nhân viên được gán quyền vận đơn hoặc chưa tải xong.
+                        </td>
+                      </tr>
+                    ) : (
+                      managerQuotaList.map((row) => (
+                        <tr key={row.employeeId} className="border-t border-gray-100 hover:bg-gray-50/80">
+                          <td className="px-3 py-2 font-medium text-gray-900">{row.fullName}</td>
+                          <td className="px-3 py-2 text-gray-600">{row.code}</td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={managerQuotaDraft[row.employeeId] ?? 0}
+                              onChange={(e) =>
+                                setManagerQuotaDraft((prev) => ({
+                                  ...prev,
+                                  [row.employeeId]: e.target.value === '' ? 0 : Number(e.target.value),
+                                }))
+                              }
+                              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-gray-700">
+                            {row.confirmedCount} / {row.declinedCount} / <span className="font-semibold">{row.doneTotal}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1204,6 +1204,14 @@ export const updateShippingStatus = async (req: Request, res: Response) => {
 
     const updateData: any = { shippingStatus: status };
 
+    if (
+      order.shippingStatus === 'PENDING' &&
+      status === 'CANCELLED'
+    ) {
+      updateData.shippingDeclinedById = user.id;
+      updateData.shippingDeclinedAt = new Date();
+    }
+
     if (status === 'DELIVERED') {
       const deliveredAt = new Date();
       updateData.deliveredAt = deliveredAt;

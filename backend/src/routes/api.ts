@@ -33,6 +33,7 @@ import supportTicketRoutes from './supportTicketRoutes';
 import seedRoutes from './seedRoutes';
 import inventoryRoutes from './inventoryRoutes';
 import customerStatusRoutes from './customerStatusRoutes';
+import shippingQuotaRoutes from './shippingQuotaRoutes';
 
 const router = Router();
 
@@ -60,6 +61,7 @@ router.use('/data-pool', dataPoolRoutes);
 router.use('/sales', salesRoutes);
 router.use('/resales', resalesRoutes);
 router.use('/orders', orderRoutes);
+router.use('/shipping', shippingQuotaRoutes);
 router.use('/user-notifications', userNotificationRoutes);
 router.use('/system-configs', systemConfigRoutes);
 router.use('/accounting', accountingRoutes);
