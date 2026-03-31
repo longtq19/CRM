@@ -1314,6 +1314,7 @@ export const updateShippingStatus = async (req: Request, res: Response) => {
  */
 export const getOrderStats = async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
     const { startDate, endDate } = req.query;
 
     const where: any = {};
@@ -1322,6 +1323,18 @@ export const getOrderStats = async (req: Request, res: Response) => {
     }
     if (endDate) {
       where.orderDate = { ...where.orderDate, lte: new Date(String(endDate)) };
+    }
+
+    const scopeUser = {
+      id: user.id,
+      roleGroupId: user.roleGroupId,
+      departmentId: user.departmentId,
+      permissions: user.permissions,
+      roleGroupCode: user.roleGroupCode,
+    };
+    const visibleOrderIds = await getVisibleEmployeeIds(scopeUser, 'ORDER');
+    if (visibleOrderIds) {
+      where.employeeId = { in: visibleOrderIds };
     }
 
     const [

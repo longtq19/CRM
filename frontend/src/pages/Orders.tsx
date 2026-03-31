@@ -119,6 +119,8 @@ const Orders = () => {
     }>
   >([]);
   const [quotaSaving, setQuotaSaving] = useState(false);
+  const showShippingQuotaTab = canManageShipping || canAssignShippingQuota;
+  const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota'>('list');
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
@@ -359,8 +361,36 @@ const Orders = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      {stats && (
+      {/* Tab: danh sách vs chỉ tiêu vận đơn */}
+      {showShippingQuotaTab && (
+        <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-0">
+          <button
+            type="button"
+            onClick={() => setOrdersMainTab('list')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
+              ordersMainTab === 'list'
+                ? 'border-primary text-primary bg-white'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Danh sách đơn hàng
+          </button>
+          <button
+            type="button"
+            onClick={() => setOrdersMainTab('quota')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors ${
+              ordersMainTab === 'quota'
+                ? 'border-primary text-primary bg-white'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Chỉ tiêu vận đơn
+          </button>
+        </div>
+      )}
+
+      {/* Stats Cards — tab danh sách */}
+      {(!showShippingQuotaTab || ordersMainTab === 'list') && stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 text-gray-500 text-sm mb-1">
@@ -414,8 +444,8 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Chỉ tiêu xử lý vận đơn theo ngày (VN) */}
-      {(canManageShipping || canAssignShippingQuota) && (
+      {/* Chỉ tiêu — tab riêng */}
+      {showShippingQuotaTab && ordersMainTab === 'quota' && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -506,7 +536,8 @@ const Orders = () => {
                 </button>
               </div>
               <p className="text-sm text-gray-600 mb-3">
-                Chỉ áp dụng cho nhân viên có quyền quản lý vận đơn. Đặt 0 để xóa chỉ tiêu ngày đó. Bạn có thể gán chỉ tiêu cho chính mình nếu tài khoản cũng xử lý vận đơn.
+                Chỉ áp dụng cho nhân viên loại «Vận đơn» (danh mục loại nhân viên). Đặt 0 để xóa chỉ tiêu ngày đó. Có thể gán cho chính mình nếu hồ sơ nhân viên của tài khoản cũng là Vận đơn. Chỉ nhóm quyền được gán quyền{' '}
+                <code className="text-xs bg-gray-100 px-1 rounded">ASSIGN_SHIPPING_DAILY_QUOTA</code> trong catalog mới thấy bảng và lưu được.
               </p>
               <div className="overflow-x-auto border border-gray-100 rounded-lg">
                 <table className="min-w-full text-sm">
@@ -522,7 +553,7 @@ const Orders = () => {
                     {managerQuotaList.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
-                          Không có nhân viên được gán quyền vận đơn hoặc chưa tải xong.
+                          Không có nhân viên loại Vận đơn trong hệ thống hoặc chưa tải xong.
                         </td>
                       </tr>
                     ) : (
@@ -559,7 +590,8 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filters + bảng đơn — tab danh sách */}
+      {(!showShippingQuotaTab || ordersMainTab === 'list') && (
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           {/* Search */}
@@ -651,8 +683,9 @@ const Orders = () => {
           </div>
         )}
       </div>
+      )}
 
-      {/* Orders Table */}
+      {(!showShippingQuotaTab || ordersMainTab === 'list') && (
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -805,6 +838,7 @@ const Orders = () => {
           />
         )}
       </div>
+      )}
 
       {/* Order Detail Modal */}
       {showDetailModal && selectedOrder && (

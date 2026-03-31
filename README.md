@@ -527,7 +527,8 @@ Luồng tạo & vận chuyển:
   - **Modal tạo đơn (FE `CreateOrderModal`):** bước **Chọn khách hàng** tự động gọi `GET /api/customers` (phân trang) để hiển thị danh sách khách trong **phạm vi được phép** — cùng logic với module Khách hàng; khi gõ từ **2 ký tự** trở lên thêm tham số `search`. Response có `viewScopeDescription` (tiếng Việt) khi backend trả về. Bước **Thêm sản phẩm** gọi `GET /api/products` (phân trang) để hiển thị **đủ danh sách sản phẩm theo trang** ngay khi vào bước; từ **2 ký tự** trở lên thêm `search` (lọc tên/mã). Tổng số lượng đặt **không vượt tổng tồn** (`stocks` trên từng sản phẩm): hết tồn hoặc vượt tồn thì hiện cảnh báo và không cho thêm/tăng số lượng.
   - Hỗ trợ thêm `warehouseId` (kho gửi), `receiverProvinceId/DistrictId/WardId` (địa chỉ nhận).
    - Quyền: **`CREATE_ORDER`** (tạo đơn gán `employeeId` = người tạo) và/hoặc **`MANAGE_ORDERS`** (luồng quản lý rộng hơn — xem `orderRoutes.ts`). Nút tạo đơn trên FE hiển thị khi có một trong hai quyền.
-  - **Danh sách / chi tiết đơn** (`GET /api/orders`, `GET /api/orders/:id`): mặc định chỉ đơn do user tạo hoặc thuộc cây quản lý (`getVisibleEmployeeIds(..., 'ORDER')`). Quyền **`VIEW_ALL_COMPANY_ORDERS`** bỏ giới hạn này (xem mọi đơn công ty).
+  - **Danh sách / chi tiết đơn** (`GET /api/orders`, `GET /api/orders/:id`): lọc theo `employeeId` người tạo đơn — mặc định **bản thân + cấp dưới quản lý** (`getVisibleEmployeeIds(..., 'ORDER')`, cùng logic Sales/CSKH xem phạm vi cây quản lý). Quyền **`VIEW_ALL_COMPANY_ORDERS`** hoặc phạm vi nhóm **COMPANY** (tab Nhóm quyền → phạm vi xem đơn hàng) bỏ giới hạn — xem **toàn công ty**.
+  - **`GET /api/orders/stats`:** cùng phạm vi lọc `employeeId` như danh sách (trước đây thống kê có thể lệch nếu không lọc; đã đồng bộ).
    - Tạo code `DH-XXXXXX`
    - Tính tổng giá trị từ `product.listPriceNet` + quantity
    - Set trạng thái:
@@ -564,12 +565,13 @@ Luồng tạo & vận chuyển:
    - **Từ chối khi chờ xác nhận:** chuyển `shippingStatus` từ `PENDING` sang `CANCELLED` ghi `shippingDeclinedById` / `shippingDeclinedAt` (dùng đếm tiến độ “từ chối” trong chỉ tiêu ngày; xem mục dưới).
 5b. **Chỉ tiêu xử lý vận đơn theo ngày** (múi giờ `Asia/Ho_Chi_Minh`):
    - Bảng `shipping_daily_quotas`: `employeeId`, `workDate` (DATE), `targetCount`, `assignedById`; unique `(employeeId, workDate)`.
+   - **Chỉ áp dụng cho nhân viên loại «Vận đơn»** (`employee_types.code = SHP`). Gán chỉ tiêu chỉ tới NV có loại này; **`targetCount: 0`** xóa chỉ tiêu ngày đó. Có thể gán cho **chính mình** nếu hồ sơ nhân viên của tài khoản cũng là loại Vận đơn.
    - `GET /api/shipping/daily-quotas/me?workDate=YYYY-MM-DD` — quyền **`MANAGE_SHIPPING`**: chỉ tiêu + số đơn **đã xác nhận** / **từ chối** / tổng đã xử lý trong ngày.
-   - `GET /api/shipping/daily-quotas/assignable-employees` — quyền **`ASSIGN_SHIPPING_DAILY_QUOTA`**: danh sách nhân viên có `MANAGE_SHIPPING` (để gán chỉ tiêu); **luôn có thể gồm chính user** nếu cũng xử lý vận đơn — cho phép quản lý tự gán chỉ tiêu cho mình.
+   - `GET /api/shipping/daily-quotas/assignable-employees` — quyền **`ASSIGN_SHIPPING_DAILY_QUOTA`**: danh sách NV **loại Vận đơn (SHP)** đang hoạt động; thêm **chính user** lên đầu nếu user cũng là SHP nhưng chưa nằm trong danh sách (để tự gán).
    - `GET /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: chỉ tiêu + tiến độ theo từng NV cho một `workDate`.
    - `PUT /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: upsert/xóa (gửi `targetCount: 0` xóa bản ghi ngày đó); ghi `logAudit` (chi tiết tiếng Việt).
    - Controller: `backend/src/controllers/shippingQuotaController.ts`; route mount: `backend/src/routes/shippingQuotaRoutes.ts` → `/api/shipping`.
-   - **FE:** trang **Đơn hàng** (`orders`), khối chọn ngày + thẻ tiến độ (NV có `MANAGE_SHIPPING`) + bảng gán chỉ tiêu (user có `ASSIGN_SHIPPING_DAILY_QUOTA`).
+   - **FE:** trang **Đơn hàng** (`/orders`) — **tab «Danh sách đơn hàng»** (thống kê, lọc, bảng đơn); **tab «Chỉ tiêu vận đơn»** (chọn ngày, tiến độ của tôi nếu có `MANAGE_SHIPPING`, bảng gán nếu có `ASSIGN_SHIPPING_DAILY_QUOTA`).
 6. Hàng hoàn:
    - `POST /api/orders/:id/:orderDate/process-return`
    - tạo `returnedOrder` và nếu có `restockedQty/damagedQty` thì ghi `inventoryLog`.

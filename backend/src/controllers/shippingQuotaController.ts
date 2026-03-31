@@ -14,50 +14,47 @@ function parseWorkDate(ymd: string): Date | null {
   return new Date(`${ymd}T12:00:00.000Z`);
 }
 
-async function employeeHasManageShipping(employeeId: string): Promise<boolean> {
+/** Loại nhân viên «Vận đơn» trong danh mục (seed `employee_types.code`). */
+const LOGISTICS_EMPLOYEE_TYPE_CODE = 'SHP';
+
+async function employeeIsLogisticsType(employeeId: string): Promise<boolean> {
   const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
     select: {
-      roleGroup: { select: { permissions: { select: { code: true } } } },
+      employeeType: { select: { code: true } },
     },
   });
-  return emp?.roleGroup?.permissions?.some((p) => p.code === 'MANAGE_SHIPPING') ?? false;
+  return emp?.employeeType?.code === LOGISTICS_EMPLOYEE_TYPE_CODE;
 }
 
 async function assertAssignableTarget(actorId: string, targetId: string): Promise<string | null> {
-  if (targetId === actorId) return null;
-  const ok = await employeeHasManageShipping(targetId);
-  return ok ? null : 'Chỉ được gán chỉ tiêu cho nhân viên có quyền Quản lý vận đơn hoặc cho chính mình.';
+  const ok = await employeeIsLogisticsType(targetId);
+  if (!ok) {
+    return 'Chỉ được gán chỉ tiêu cho nhân viên loại «Vận đơn» (hoặc chính bạn khi hồ sơ cũng là Vận đơn).';
+  }
+  return null;
 }
 
 export async function getShippingAssignableEmployees(req: Request, res: Response) {
   try {
     const user = (req as any).user;
-    const groups = await prisma.roleGroup.findMany({
-      where: { permissions: { some: { code: 'MANAGE_SHIPPING' } } },
-      select: { id: true },
+    const employees = await prisma.employee.findMany({
+      where: {
+        status: { isActive: true },
+        employeeType: { code: LOGISTICS_EMPLOYEE_TYPE_CODE },
+      },
+      select: { id: true, fullName: true, code: true },
+      orderBy: { fullName: 'asc' },
     });
-    const rgIds = groups.map((g) => g.id);
-    const employees =
-      rgIds.length === 0
-        ? []
-        : await prisma.employee.findMany({
-            where: {
-              roleGroupId: { in: rgIds },
-              status: { isActive: true },
-            },
-            select: { id: true, fullName: true, code: true },
-            orderBy: { fullName: 'asc' },
-          });
 
     const byId = new Map(employees.map((e) => [e.id, e]));
     if (user?.id && !byId.has(user.id)) {
       const self = await prisma.employee.findUnique({
         where: { id: user.id },
-        select: { id: true, fullName: true, code: true },
+        select: { id: true, fullName: true, code: true, employeeType: { select: { code: true } } },
       });
-      if (self) {
-        employees.unshift(self);
+      if (self?.employeeType?.code === LOGISTICS_EMPLOYEE_TYPE_CODE) {
+        employees.unshift({ id: self.id, fullName: self.fullName, code: self.code });
       }
     }
 
