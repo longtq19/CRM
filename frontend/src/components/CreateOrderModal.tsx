@@ -203,9 +203,11 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     return () => clearTimeout(t);
   }, [searchProduct]);
 
-  /** Danh sách sản phẩm: tải ngay khi vào bước 2; từ 2 ký tự gửi search (GET /products phân trang) */
   useEffect(() => {
-    if (step !== 2) return;
+    if (step !== 2 || !warehouseId) {
+      if (step === 2 && !warehouseId) setProducts([]);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setProductsLoading(true);
