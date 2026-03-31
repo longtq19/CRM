@@ -40,8 +40,6 @@ interface ShippingService {
 interface CreateOrderModalProps {
   onClose: () => void;
   onSuccess: () => void;
-  /** Chế độ tạo đơn ngoài hệ thống (khách chưa có) - chỉ ADM, phục vụ test VTP */
-  isOutsideSystem?: boolean;
 }
 
 const formatCurrency = (value: number) => {
@@ -54,8 +52,8 @@ const getProductStockTotal = (product: Product): number => {
   return product.stocks.reduce((sum, s) => sum + (Number(s.quantity) > 0 ? Number(s.quantity) : 0), 0);
 };
 
-const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: CreateOrderModalProps) => {
-  const [step, setStep] = useState(isOutsideSystem ? 2 : 1);
+const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,14 +81,6 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
   const [orderItems, setOrderItems] = useState<{ product: Product; quantity: number }[]>([]);
   const [discount, setDiscount] = useState(0);
   const [note, setNote] = useState('');
-  // Đơn ngoài hệ thống - nhập tay, không lấy từ DB
-  const [externalProduct, setExternalProduct] = useState({
-    productName: '',
-    productQuantity: 1,
-    productWeight: 500,
-    productPrice: 0
-  });
-  const [pushToVTP, setPushToVTP] = useState(true);
   /** Cảnh báo khi thêm/tăng SL vượt tồn kho (bước sản phẩm) */
   const [stockWarning, setStockWarning] = useState<string | null>(null);
 
@@ -121,19 +111,14 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
   const [selectedService, setSelectedService] = useState<ShippingService | null>(null);
   const [loadingServices, setLoadingServices] = useState(false);
 
-  /** Tổng khối lượng gửi VTP tính cước: Σ(weight×SL); SP không có weight → 500g/đơn vị; đơn ngoài: trọng × SL */
+  /** Tổng khối lượng gửi VTP tính cước: Σ(weight×SL); SP không có weight → 500g/đơn vị */
   const totalWeightGrams = useMemo(() => {
-    if (isOutsideSystem) {
-      const w = externalProduct.productWeight || 500;
-      const q = Math.max(1, externalProduct.productQuantity || 1);
-      return Math.max(100, Math.round(w * q));
-    }
     const t = orderItems.reduce((sum, { product, quantity }) => {
       const w = product.weight != null && Number(product.weight) > 0 ? Number(product.weight) : 500;
       return sum + w * quantity;
     }, 0);
     return Math.max(100, Math.round(t));
-  }, [isOutsideSystem, orderItems, externalProduct.productWeight, externalProduct.productQuantity]);
+  }, [orderItems]);
 
   // Sender info (from company)
   const senderInfo = {
@@ -148,8 +133,8 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
   // Calculate totals
   const totalAmount = orderItems.reduce((sum, item) => sum + ((item.product.listPriceNet || 0) * item.quantity), 0);
   const shippingFee = selectedService?.GIA_CUOC || 0;
-  const displayTotalAmount = isOutsideSystem ? (externalProduct.productPrice || 0) : totalAmount;
-  const displayDiscount = isOutsideSystem ? 0 : discount;
+  const displayTotalAmount = totalAmount;
+  const displayDiscount = discount;
   const finalAmount = displayTotalAmount - displayDiscount + shippingFee;
 
   // Debounce ô tìm khách
@@ -160,7 +145,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
 
   // Tải danh sách khách (có sẵn khi chưa gõ tìm; từ 2 ký tự gửi search lên API)
   useEffect(() => {
-    if (step !== 1 || isOutsideSystem) return;
+    if (step !== 1) return;
     let cancelled = false;
     (async () => {
       setCustomersLoading(true);
@@ -199,7 +184,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
     return () => {
       cancelled = true;
     };
-  }, [step, isOutsideSystem, customerPage, customerLimit, debouncedSearch]);
+  }, [step, customerPage, customerLimit, debouncedSearch]);
 
   // Debounce ô tìm sản phẩm
   useEffect(() => {
@@ -209,7 +194,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
 
   /** Danh sách sản phẩm: tải ngay khi vào bước 2; từ 2 ký tự gửi search (GET /products phân trang) */
   useEffect(() => {
-    if (step !== 2 || isOutsideSystem) return;
+    if (step !== 2) return;
     let cancelled = false;
     (async () => {
       setProductsLoading(true);
@@ -246,7 +231,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
     return () => {
       cancelled = true;
     };
-  }, [step, isOutsideSystem, productPage, productLimit, debouncedProductSearch]);
+  }, [step, productPage, productLimit, debouncedProductSearch]);
 
   useEffect(() => {
     if (!stockWarning) return;
@@ -329,7 +314,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
       setLoadingServices(true);
       setError(null);
 
-      const codAmount = isOutsideSystem ? externalProduct.productPrice : totalAmount;
+      const codAmount = totalAmount;
 
       const response: any = await apiClient.post('/vtp/calculate-fee', {
         senderProvince: senderInfo.provinceId,
@@ -363,8 +348,6 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
     receiverInfo.receiverWardId,
     totalWeightGrams,
     totalAmount,
-    isOutsideSystem,
-    externalProduct.productPrice
   ]);
 
   // Add product (không vượt tổng tồn kho)
@@ -476,16 +459,11 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
 
   // Submit order
   const handleSubmit = async () => {
-    if (!isOutsideSystem && !selectedCustomer) {
+    if (!selectedCustomer) {
       setError('Vui lòng chọn khách hàng');
       return;
     }
-    if (isOutsideSystem) {
-      if (!externalProduct.productName?.trim()) {
-        setError('Vui lòng nhập tên sản phẩm');
-        return;
-      }
-    } else if (orderItems.length === 0) {
+    if (orderItems.length === 0) {
       setError('Vui lòng thêm sản phẩm');
       return;
     }
@@ -502,42 +480,22 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
       setLoading(true);
       setError(null);
 
-      if (isOutsideSystem) {
-        await orderApi.createOrderOutsideSystem({
-          productName: externalProduct.productName.trim(),
-          productQuantity: externalProduct.productQuantity,
-          productWeight: externalProduct.productWeight,
-          productPrice: externalProduct.productPrice,
-          note,
-          receiverName: receiverInfo.receiverName,
-          receiverPhone: receiverInfo.receiverPhone,
-          receiverAddress: receiverInfo.receiverAddress,
-          receiverProvince: receiverInfo.receiverProvinceName,
-          receiverDistrict: receiverInfo.receiverDistrictName,
-          receiverWard: receiverInfo.receiverWardName,
-          receiverProvinceId: Number(receiverInfo.receiverProvinceId) || undefined,
-          receiverDistrictId: Number(receiverInfo.receiverDistrictId) || undefined,
-          receiverWardId: Number(receiverInfo.receiverWardId) || undefined,
-          pushToVTP
-        });
-      } else {
-        const data: CreateOrderData = {
-          customerId: selectedCustomer!.id,
-          items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity })),
-          discount,
-          note,
-          receiverName: receiverInfo.receiverName,
-          receiverPhone: receiverInfo.receiverPhone,
-          receiverAddress: receiverInfo.receiverAddress,
-          receiverProvince: receiverInfo.receiverProvinceName,
-          receiverDistrict: receiverInfo.receiverDistrictName,
-          receiverWard: receiverInfo.receiverWardName,
-          receiverProvinceId: Number(receiverInfo.receiverProvinceId) || undefined,
-          receiverDistrictId: Number(receiverInfo.receiverDistrictId) || undefined,
-          receiverWardId: Number(receiverInfo.receiverWardId) || undefined,
-        };
-        await orderApi.createOrder(data);
-      }
+      const data: CreateOrderData = {
+        customerId: selectedCustomer!.id,
+        items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity })),
+        discount,
+        note,
+        receiverName: receiverInfo.receiverName,
+        receiverPhone: receiverInfo.receiverPhone,
+        receiverAddress: receiverInfo.receiverAddress,
+        receiverProvince: receiverInfo.receiverProvinceName,
+        receiverDistrict: receiverInfo.receiverDistrictName,
+        receiverWard: receiverInfo.receiverWardName,
+        receiverProvinceId: Number(receiverInfo.receiverProvinceId) || undefined,
+        receiverDistrictId: Number(receiverInfo.receiverDistrictId) || undefined,
+        receiverWardId: Number(receiverInfo.receiverWardId) || undefined,
+      };
+      await orderApi.createOrder(data);
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tạo đơn hàng');
@@ -549,8 +507,8 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
   // Step validation
   const canProceed = () => {
     switch (step) {
-      case 1: return isOutsideSystem ? (!!externalProduct.productName?.trim()) : !!selectedCustomer;
-      case 2: return isOutsideSystem ? (!!externalProduct.productName?.trim()) : orderItems.length > 0;
+      case 1: return !!selectedCustomer;
+      case 2: return orderItems.length > 0;
       case 3: return receiverInfo.receiverName && receiverInfo.receiverPhone && 
                receiverInfo.receiverAddress && receiverInfo.receiverProvinceId && 
                receiverInfo.receiverDistrictId && receiverInfo.receiverWardId;
@@ -558,9 +516,12 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
     }
   };
 
-  const progressSteps = isOutsideSystem
-    ? [{ num: 2, label: 'Sản phẩm', icon: Package }, { num: 3, label: 'Địa chỉ', icon: MapPin }, { num: 4, label: 'Vận chuyển', icon: Truck }]
-    : [{ num: 1, label: 'Khách hàng', icon: User }, { num: 2, label: 'Sản phẩm', icon: Package }, { num: 3, label: 'Địa chỉ', icon: MapPin }, { num: 4, label: 'Vận chuyển', icon: Truck }];
+  const progressSteps = [
+    { num: 1, label: 'Khách hàng', icon: User },
+    { num: 2, label: 'Sản phẩm', icon: Package },
+    { num: 3, label: 'Địa chỉ', icon: MapPin },
+    { num: 4, label: 'Vận chuyển', icon: Truck },
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -612,8 +573,8 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
             </div>
           )}
 
-          {/* Step 1: Customer (bỏ qua khi tạo đơn ngoài hệ thống) */}
-          {step === 1 && !isOutsideSystem && (
+          {/* Step 1: Customer */}
+          {step === 1 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
@@ -735,77 +696,6 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
           {/* Step 2: Products */}
           {step === 2 && (
             <div className="space-y-6">
-              {isOutsideSystem ? (
-                <>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <Package className="text-primary" size={20} />
-                    Thông tin sản phẩm (nhập trực tiếp)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Tên sản phẩm *</label>
-                      <input
-                        type="text"
-                        value={externalProduct.productName}
-                        onChange={(e) => setExternalProduct(p => ({ ...p, productName: e.target.value }))}
-                        placeholder="VD: Phân bón sinh học 500g"
-                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={externalProduct.productQuantity}
-                        onChange={(e) => setExternalProduct(p => ({ ...p, productQuantity: parseInt(e.target.value) || 1 }))}
-                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Trọng lượng (gram)</label>
-                      <input
-                        type="number"
-                        min={100}
-                        value={externalProduct.productWeight}
-                        onChange={(e) => setExternalProduct(p => ({ ...p, productWeight: parseInt(e.target.value) || 500 }))}
-                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">COD (VNĐ)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={externalProduct.productPrice || ''}
-                        onChange={(e) => setExternalProduct(p => ({ ...p, productPrice: parseFloat(e.target.value) || 0 }))}
-                        placeholder="Tiền thu hộ"
-                        className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl"
-                      />
-                    </div>
-                    <div className="md:col-span-2 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="pushToVTP"
-                        checked={pushToVTP}
-                        onChange={(e) => setPushToVTP(e.target.checked)}
-                        className="rounded"
-                      />
-                      <label htmlFor="pushToVTP" className="text-sm">Tạo xong tự động gửi lên Viettel Post</label>
-                    </div>
-                  </div>
-                  <div className="pt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú</label>
-                    <input
-                      type="text"
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl"
-                      placeholder="Nhập ghi chú (tùy chọn)"
-                    />
-                  </div>
-                </>
-              ) : (
               <>
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
@@ -1028,7 +918,6 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
                 </div>
               </div>
               </>
-              )}
             </div>
           )}
 
@@ -1040,7 +929,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
                   <MapPin className="text-primary" size={20} />
                   Thông tin người nhận
                 </h3>
-                {!isOutsideSystem && selectedCustomer && (
+                {selectedCustomer && (
                   <button
                     onClick={useCustomerInfo}
                     className="text-sm text-primary hover:underline flex items-center gap-1"
@@ -1253,9 +1142,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
                   step="100"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {isOutsideSystem
-                    ? 'Tính từ trọng lượng × số lượng (bước Sản phẩm).'
-                    : 'Tự tính từ khối lượng từng sản phẩm × số lượng trong giỏ (SP không có trọng lượng → 500g/đơn vị).'}
+                  Tự tính từ khối lượng từng sản phẩm × số lượng trong giỏ (SP không có trọng lượng → 500g/đơn vị).
                 </p>
               </div>
 
@@ -1323,7 +1210,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
                 </h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">{isOutsideSystem ? 'Tiền COD:' : 'Tiền hàng:'}</span>
+                    <span className="text-gray-600">Tiền hàng:</span>
                     <span className="font-medium">{formatCurrency(displayTotalAmount)}</span>
                   </div>
                   {displayDiscount > 0 && (
@@ -1350,12 +1237,11 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
           <button
             onClick={() => {
-              const minStep = isOutsideSystem ? 2 : 1;
-              step > minStep ? setStep(step - 1) : onClose();
+              step > 1 ? setStep(step - 1) : onClose();
             }}
             className="px-5 py-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
           >
-            {(isOutsideSystem ? step > 2 : step > 1) ? '← Quay lại' : 'Hủy'}
+            {step > 1 ? '← Quay lại' : 'Hủy'}
           </button>
 
           {step < 4 ? (
@@ -1364,8 +1250,8 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
               className="px-6 py-2.5"
               onClick={() => {
                 if (!canProceed()) {
-                  if (step === 1 && !isOutsideSystem) setError('Vui lòng chọn khách hàng');
-                  else if (step === 2) setError(isOutsideSystem ? 'Vui lòng nhập tên sản phẩm' : 'Vui lòng thêm sản phẩm');
+                  if (step === 1) setError('Vui lòng chọn khách hàng');
+                  else if (step === 2) setError('Vui lòng thêm sản phẩm');
                   else if (step === 3) setError('Vui lòng nhập đầy đủ thông tin địa chỉ');
                   return;
                 }
@@ -1383,7 +1269,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
             <ToolbarButton
               variant="primary"
               onClick={handleSubmit}
-              disabled={loading || (!isOutsideSystem && !selectedService)}
+              disabled={loading || !selectedService}
               className="px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (

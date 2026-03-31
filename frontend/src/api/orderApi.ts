@@ -42,25 +42,6 @@ export interface CreateOrderData {
   warehouseId?: string;
 }
 
-export interface CreateOrderOutsideSystemData {
-  productName: string;
-  productQuantity?: number;
-  productWeight?: number;  // gram
-  productPrice?: number;  // COD
-  note?: string;
-  receiverName: string;
-  receiverPhone: string;
-  receiverAddress: string;
-  receiverProvince: string;
-  receiverDistrict: string;
-  receiverWard: string;
-  /** ID địa chỉ VTP (bắt buộc khi pushToVTP) */
-  receiverProvinceId?: number;
-  receiverDistrictId?: number;
-  receiverWardId?: number;
-  pushToVTP?: boolean;
-}
-
 export interface UpdateOrderData {
   orderStatus?: string;
   paymentStatus?: string;
@@ -92,11 +73,6 @@ export const orderApi = {
 
   createOrder: async (data: CreateOrderData): Promise<Order> => {
     const response = await apiClient.post('/orders', data);
-    return response as Order;
-  },
-
-  createOrderOutsideSystem: async (data: CreateOrderOutsideSystemData): Promise<Order> => {
-    const response = await apiClient.post('/orders/outside-system', data);
     return response as Order;
   },
 

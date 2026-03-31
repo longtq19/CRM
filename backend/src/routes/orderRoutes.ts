@@ -3,7 +3,6 @@ import {
   getOrders,
   getOrderById,
   createOrder,
-  createOrderOutsideSystem,
   updateOrder,
   confirmOrder,
   pushToViettelPost,
@@ -30,8 +29,6 @@ router.get('/', checkPermission('VIEW_ORDERS'), getOrders);
 // Chi tiết đơn hàng
 router.get('/:id/:orderDate', checkPermission('VIEW_ORDERS'), getOrderById);
 
-// Tạo đơn hàng ngoài hệ thống (chỉ ADM, phục vụ test VTP)
-router.post('/outside-system', checkPermission('CREATE_ORDER_OUTSIDE_SYSTEM'), createOrderOutsideSystem);
 // Tạo đơn hàng
 router.post('/', checkPermission(['CREATE_ORDER', 'MANAGE_ORDERS']), createOrder);
 

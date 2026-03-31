@@ -344,12 +344,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'ASSIGN_SHIPPING_DAILY_QUOTA',
     name: 'Gán chỉ tiêu xử lý vận đơn theo ngày',
     description:
-      'Gán chỉ tiêu ngày cho nhân viên loại «Vận đơn» (employee_types SHP); đặt 0 để xóa chỉ tiêu ngày đó; có thể gán cho chính mình nếu hồ sơ cũng là Vận đơn.',
-  },
-  {
-    code: 'CREATE_ORDER_OUTSIDE_SYSTEM',
-    name: 'Tạo đơn ngoài hệ thống',
-    description: 'Ghi nhận đơn phát sinh ngoài CRM (outside-system).',
+      'Gán chỉ tiêu ngày cho nhân viên loại «Vận đơn» (mã SHP, logistics hoặc tên chứa Vận đơn); đặt 0 để xóa chỉ tiêu ngày đó; có thể gán cho chính mình nếu hồ sơ cũng là Vận đơn.',
   },
 
   // ── 12. Kho vận ──

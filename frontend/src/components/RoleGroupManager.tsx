@@ -310,7 +310,6 @@ const RoleGroupManager: React.FC = () => {
         MANAGE_ORDERS: '11. Đơn hàng & Vận chuyển',
         MANAGE_SHIPPING: '11. Đơn hàng & Vận chuyển',
         ASSIGN_SHIPPING_DAILY_QUOTA: '11. Đơn hàng & Vận chuyển',
-        CREATE_ORDER_OUTSIDE_SYSTEM: '11. Đơn hàng & Vận chuyển',
         // 12. Kho vận
         MANAGE_WAREHOUSE: '12. Kho vận',
         // 13. Kế toán

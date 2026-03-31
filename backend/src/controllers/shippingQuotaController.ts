@@ -1,6 +1,10 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
+import {
+  employeeTypeRecordIsLogistics,
+  prismaEmployeeTypeLogisticsWhere,
+} from '../utils/logisticsEmployeeType';
 /** Biên ngày theo giờ VN (YYYY-MM-DD) */
 function vnDayBounds(ymd: string): { start: Date; end: Date } | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
@@ -41,7 +45,7 @@ export async function getShippingAssignableEmployees(req: Request, res: Response
     const employees = await prisma.employee.findMany({
       where: {
         status: { isActive: true },
-        employeeType: { code: LOGISTICS_EMPLOYEE_TYPE_CODE },
+        employeeType: prismaEmployeeTypeLogisticsWhere(),
       },
       select: { id: true, fullName: true, code: true },
       orderBy: { fullName: 'asc' },
@@ -51,9 +55,9 @@ export async function getShippingAssignableEmployees(req: Request, res: Response
     if (user?.id && !byId.has(user.id)) {
       const self = await prisma.employee.findUnique({
         where: { id: user.id },
-        select: { id: true, fullName: true, code: true, employeeType: { select: { code: true } } },
+        select: { id: true, fullName: true, code: true, employeeType: { select: { code: true, name: true } } },
       });
-      if (self?.employeeType?.code === LOGISTICS_EMPLOYEE_TYPE_CODE) {
+      if (self && employeeTypeRecordIsLogistics(self.employeeType ?? null)) {
         employees.unshift({ id: self.id, fullName: self.fullName, code: self.code });
       }
     }

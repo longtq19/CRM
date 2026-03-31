@@ -66,7 +66,6 @@ const Orders = () => {
   const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
   const canManageShipping = hasPermission('MANAGE_SHIPPING');
   const canAssignShippingQuota = hasPermission('ASSIGN_SHIPPING_DAILY_QUOTA');
-  const canCreateOrderOutsideSystem = hasPermission('CREATE_ORDER_OUTSIDE_SYSTEM');
 
   // State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -91,7 +90,6 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createModalMode, setCreateModalMode] = useState<'normal' | 'outside'>('normal');
   
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -341,21 +339,11 @@ const Orders = () => {
         <div className="flex items-center gap-2">
           {canCreateOrder && (
             <button
-              onClick={() => { setCreateModalMode('normal'); setShowCreateModal(true); }}
+              onClick={() => setShowCreateModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
             >
               <Plus size={20} />
               Tạo đơn hàng
-            </button>
-          )}
-          {canCreateOrderOutsideSystem && (
-            <button
-              onClick={() => { setCreateModalMode('outside'); setShowCreateModal(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
-              title="Tạo đơn cho khách chưa có trong hệ thống (test VTP)"
-            >
-              <Package size={20} />
-              Tạo đơn ngoài hệ thống
             </button>
           )}
         </div>
@@ -859,7 +847,6 @@ const Orders = () => {
         <CreateOrderModal
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => { setShowCreateModal(false); fetchOrders(); fetchStats(); }}
-          isOutsideSystem={createModalMode === 'outside'}
         />
       )}
     </div>
