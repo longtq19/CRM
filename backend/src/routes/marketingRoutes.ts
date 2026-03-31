@@ -57,10 +57,15 @@ router.delete(
   deleteMarketingSource
 );
 
-// Campaigns
-router.get('/marketing/campaigns', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingCampaigns);
-router.post('/marketing/campaigns', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), createMarketingCampaign);
-router.put('/marketing/campaigns/:id', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), updateMarketingCampaign);
+// Campaigns — R/U/C/D tách quyền; GET cho phép VIEW hoặc MANAGE_CUSTOMERS (tương thích dropdown Kinh doanh).
+router.get(
+  '/marketing/campaigns',
+  authMiddleware,
+  checkPermission(['VIEW_MARKETING_CAMPAIGNS', 'MANAGE_CUSTOMERS']),
+  getMarketingCampaigns
+);
+router.post('/marketing/campaigns', authMiddleware, checkPermission('CREATE_MARKETING_CAMPAIGN'), createMarketingCampaign);
+router.put('/marketing/campaigns/:id', authMiddleware, checkPermission('UPDATE_MARKETING_CAMPAIGN'), updateMarketingCampaign);
 router.delete('/marketing/campaigns/:id', authMiddleware, checkPermission('DELETE_MARKETING_CAMPAIGN'), deleteMarketingCampaign);
 
 // Leads

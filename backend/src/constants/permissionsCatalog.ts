@@ -207,7 +207,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'MANAGE_CUSTOMERS',
     name: 'Quản lý khách hàng & Marketing',
     description:
-      'Sửa khách, Marketing (chiến dịch, lead, chi phí; xem danh sách nền tảng cho dropdown), tag khách; CRUD danh mục Nền tảng cần MANAGE_MARKETING_PLATFORMS; không bao gồm xóa khách (DELETE_CUSTOMER) hay xóa chiến dịch (DELETE_MARKETING_CAMPAIGN) nếu tách riêng.',
+      'Sửa khách, lead Marketing, chi phí chiến dịch (khi đủ quyền chiến dịch), tag khách; xem nền tảng cho dropdown cần VIEW/MANAGE_MARKETING_PLATFORMS; CRUD chiến dịch dùng VIEW/CREATE/UPDATE/DELETE_MARKETING_CAMPAIGN; không gồm xóa khách (DELETE_CUSTOMER).',
   },
   {
     code: 'VIEW_MARKETING_PLATFORMS',
@@ -230,9 +230,26 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Quản lý nhóm Marketing (module nhóm / gán — theo route marketing-group).',
   },
   {
+    code: 'VIEW_MARKETING_CAMPAIGNS',
+    name: 'Xem chiến dịch marketing',
+    description:
+      'GET danh sách/chi tiết chiến dịch, API info chiến dịch; dropdown chiến dịch trên form Kinh doanh (không gồm tạo/sửa/xóa).',
+  },
+  {
+    code: 'CREATE_MARKETING_CAMPAIGN',
+    name: 'Tạo chiến dịch marketing',
+    description: 'POST tạo chiến dịch mới (marketing_campaigns).',
+  },
+  {
+    code: 'UPDATE_MARKETING_CAMPAIGN',
+    name: 'Sửa chiến dịch marketing',
+    description:
+      'PUT cập nhật chiến dịch; cấu hình API key / webhook / allowed-origins / tích hợp public lead cho chiến dịch.',
+  },
+  {
     code: 'DELETE_MARKETING_CAMPAIGN',
     name: 'Xóa chiến dịch marketing',
-    description: 'Xóa chiến dịch (gỡ gán khách, chi phí liên quan) — tách khỏi sửa chiến dịch thường.',
+    description: 'DELETE chiến dịch (gỡ gán khách, xóa chi phí/cơ hội gắn chiến dịch khi đủ điều kiện nghiệp vụ).',
   },
   {
     code: 'VIEW_SALES',

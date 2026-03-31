@@ -438,11 +438,14 @@ Các nhánh nghiệp vụ:
   - `GET/POST/PUT/DELETE /api/marketing/sources`
   - Quyền: `GET` một trong `VIEW_MARKETING_PLATFORMS` | `MANAGE_MARKETING_PLATFORMS` | `MANAGE_CUSTOMERS` (GET cho dropdown lead/chiến dịch/import khi chỉ có quyền Marketing khách); **`POST`/`PUT`/`DELETE` chỉ `MANAGE_MARKETING_PLATFORMS`** — gán trong **Hệ thống → Nhóm quyền** (quản trị hệ thống bypass theo quy ước dự án).
   - Chặn xóa nếu nền tảng đang dùng bởi campaign.
-- Campaign:
-  - `GET/POST/PUT /api/marketing/campaigns`
-  - `DELETE /api/marketing/campaigns/:id` — quyền **`DELETE_MARKETING_CAMPAIGN`**: xóa cơ hội (`lead_opportunities`) và chi phí/thành viên/sản phẩm gắn chiến dịch; **gỡ gán** `customers.campaign_id` (không xóa khách); ghi nhật ký.
+- Chiến dịch (CRUD tách quyền; **không** dùng `MANAGE_MARKETING_CATALOG` — đã loại; đồng bộ startup gán quyền mới cho nhóm từng có legacy + `VIEW` cho mọi nhóm có `MANAGE_CUSTOMERS`):
+  - `GET /api/marketing/campaigns` — **`VIEW_MARKETING_CAMPAIGNS`** hoặc **`MANAGE_CUSTOMERS`** (tương thích đọc danh sách / dropdown Kinh doanh).
+  - `POST` — **`CREATE_MARKETING_CAMPAIGN`**.
+  - `PUT /api/marketing/campaigns/:id` — **`UPDATE_MARKETING_CAMPAIGN`**.
+  - `DELETE /api/marketing/campaigns/:id` — **`DELETE_MARKETING_CAMPAIGN`**: xóa cơ hội (`lead_opportunities`) và chi phí/thành viên/sản phẩm gắn chiến dịch khi đủ điều kiện nghiệp vụ; **gỡ gán** `customers.campaign_id` (không xóa khách); ghi nhật ký.
+  - Tích hợp API public lead (`POST/PUT/DELETE` api-key, api-integration, allowed-origins): **`UPDATE_MARKETING_CAMPAIGN`**; `GET .../api-info`: **`VIEW_MARKETING_CAMPAIGNS`** hoặc **`MANAGE_CUSTOMERS`**.
   - `GET` query: `sourceId`, `status`, `search`, `createdByEmployeeId`; include `createdByEmployee` (người tạo).
-  - tạo campaign có owner = người tạo + tạo member liên quan.
+  - Tạo campaign có owner = người tạo + tạo member liên quan.
 - Lead marketing:
   - `GET /api/marketing/leads` (lọc theo source/campaign/status/search/tagIds; áp dụng View Scope qua `buildCustomerWhereByScope`). Response bổ sung: `firstDeliveredOrderAmount` (giá trị đơn giao **DELIVERED** đầu tiên), `duplicatePhoneNote` (mô tả trùng số cross-campaign), `impactHistory` (tối đa 50 tương tác gần nhất), `employee` (NV Sales phụ trách, kèm SĐT), `marketingOwner`, campaign/source, …
   - `POST /api/marketing/leads` (tạo lead thủ công): **bắt buộc** `phone`, `note`, **`campaignId`**. Nền tảng (`leadSourceId`) và cây trồng: theo form; nếu chọn cây tính theo gốc thì vẫn validate số gốc. (FE: `MarketingCustomerForm`.)
@@ -642,12 +645,12 @@ Nghiệp vụ:
   - view scopes:
     - `GET/PUT /api/role-groups/view-scopes`
 - Nhóm quản trị kỹ thuật (`system_administrator` và legacy `ADM`): **luôn** gắn đủ mọi menu và mọi quyền trong catalog, phạm vi xem HR & Khách hàng là **COMPANY** (toàn công ty) — đồng bộ mỗi lần `syncDefaultMenus` (khởi động backend). **Không** chỉnh sửa nhóm này trên UI (tab **Hệ thống → Nhóm quyền**) và không đổi/xóa qua API; khi thêm quyền mới vào `DEFAULT_PERMISSIONS`, lần khởi động sau sẽ tự gán cho nhóm đó.
-- **Danh sách 67 quyền trong catalog** (10 nhóm, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`):
+- **Danh sách 70 quyền trong catalog** (10 nhóm, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`):
   1. **Hệ thống (9):** `FULL_ACCESS`, `MANAGE_SYSTEM`, `VIEW_LOGS`, `VIEW_SETTINGS`, `EDIT_SETTINGS`, `STAFF_LOGOUT`, `STAFF_LOCK`, `VIEW_ROLE_GROUPS`, `MANAGE_ROLE_GROUPS`
   2. **Dashboard & Báo cáo (3):** `VIEW_DASHBOARD`, `VIEW_REPORTS`, `VIEW_PERFORMANCE`
   3. **Nhân sự (8):** `MANAGE_HR`, `VIEW_HR`, `VIEW_EMPLOYEE_TYPE_CATALOG`, `MANAGE_EMPLOYEE_TYPE_CATALOG`, `VIEW_CONTRACTS`, `VIEW_LEAVE_REQUESTS`, `MANAGE_LEAVE_REQUESTS`, `DELETE_LEAVE_REQUESTS`
   4. **Kho số & Phân bổ (14):** `VIEW_FLOATING_POOL`, `MANAGE_DATA_POOL`, `DATA_POOL_CONFIG`, `CONFIG_DISTRIBUTION`, `CLAIM_LEAD`, `ASSIGN_LEAD`, `DISTRIBUTE_FLOATING_POOL`, `DISTRIBUTE_FLOATING_CROSS_ORG`, `CLAIM_FLOATING_POOL`, `VIEW_CSKH_POOL`, `MANAGE_CSKH_POOL`, `VIEW_MANAGED_UNIT_POOL`, `RECALL_MANAGED_UNIT_LEADS`, `DISTRIBUTE_SALES_CROSS_ORG`
-  5. **Kinh doanh (14):** `VIEW_CUSTOMERS`, `VIEW_ALL_COMPANY_CUSTOMERS`, `MANAGE_CUSTOMERS`, `DELETE_CUSTOMER`, `MANAGE_MARKETING_GROUPS`, `DELETE_MARKETING_CAMPAIGN`, `VIEW_SALES`, `MANAGE_SALES`, `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_SALES_EFFECTIVENESS`, `VIEW_CSKH_EFFECTIVENESS`, `MANAGE_PRODUCTS`, `MANAGE_SUPPORT_TICKETS`
+  5. **Kinh doanh (19):** `VIEW_CUSTOMERS`, `VIEW_ALL_COMPANY_CUSTOMERS`, `MANAGE_CUSTOMERS`, `VIEW_MARKETING_PLATFORMS`, `MANAGE_MARKETING_PLATFORMS`, `DELETE_CUSTOMER`, `MANAGE_MARKETING_GROUPS`, `VIEW_MARKETING_CAMPAIGNS`, `CREATE_MARKETING_CAMPAIGN`, `UPDATE_MARKETING_CAMPAIGN`, `DELETE_MARKETING_CAMPAIGN`, `VIEW_SALES`, `MANAGE_SALES`, `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_SALES_EFFECTIVENESS`, `VIEW_CSKH_EFFECTIVENESS`, `MANAGE_PRODUCTS`, `MANAGE_SUPPORT_TICKETS`
   6. **Đơn hàng & Vận chuyển (7):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`, `CREATE_ORDER_OUTSIDE_SYSTEM`
   7. **Kho vận (1):** `MANAGE_WAREHOUSE`
   8. **Kế toán (2):** `VIEW_ACCOUNTING`, `MANAGE_ACCOUNTING`

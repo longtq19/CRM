@@ -231,6 +231,12 @@ const Marketing = () => {
   /** Tải danh sách nền tảng cho dropdown lead/import khi có quyền Marketing khác. */
   const shouldLoadMarketingSources =
     canViewMarketingPlatforms || hasPermission('MANAGE_CUSTOMERS');
+  /** Chiến dịch: R/C/U/D tách quyền catalog; xem danh sách có thể qua VIEW hoặc MANAGE_CUSTOMERS (tương thích). */
+  const canViewCampaigns =
+    hasPermission('VIEW_MARKETING_CAMPAIGNS') || hasPermission('MANAGE_CUSTOMERS');
+  const canCreateCampaign = hasPermission('CREATE_MARKETING_CAMPAIGN');
+  const canUpdateCampaign = hasPermission('UPDATE_MARKETING_CAMPAIGN');
+  const canDeleteCampaign = hasPermission('DELETE_MARKETING_CAMPAIGN');
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
   const [leadForm, setLeadForm] = useState({
@@ -306,8 +312,8 @@ const Marketing = () => {
 
   useEffect(() => {
     if (shouldLoadMarketingSources) loadSources();
-    loadCampaigns();
-    loadLeads();
+    if (canViewCampaigns) void loadCampaigns();
+    void loadLeads();
     loadMarketingEmployeesForCampaign();
     apiClient.get('/customer-tags?isActive=true').then((data: any) => {
       if (Array.isArray(data)) {
@@ -329,6 +335,12 @@ const Marketing = () => {
       setActiveTab('leads');
     }
   }, [activeTab, canViewMarketingPlatforms]);
+
+  useEffect(() => {
+    if (activeTab === 'campaigns' && !canViewCampaigns) {
+      setActiveTab('leads');
+    }
+  }, [activeTab, canViewCampaigns]);
 
   const loadMarketingEmployeesForCampaign = async () => {
     try {
@@ -590,7 +602,7 @@ const Marketing = () => {
   };
 
   const handleDeleteCampaign = async (campaign: MarketingCampaign) => {
-    if (!hasPermission('DELETE_MARKETING_CAMPAIGN')) return;
+    if (!canDeleteCampaign) return;
     if (
       !confirm(
         `Xóa chiến dịch "${campaign.name}" (${campaign.code})?\nKhách hàng gắn chiến dịch sẽ được gỡ gán; cơ hội/lead và chi phí thuộc chiến dịch sẽ bị xóa. Không thể hoàn tác.`
@@ -701,6 +713,10 @@ const Marketing = () => {
 
   const handleOpenCampaignModal = (campaign?: MarketingCampaign) => {
     if (campaign) {
+      if (!canUpdateCampaign) {
+        alert('Bạn không có quyền chỉnh sửa chiến dịch.');
+        return;
+      }
       setEditingCampaign(campaign);
       const fromMembers = (campaign as any).members?.map((m: any) => m.employee?.id ?? m.employeeId).filter(Boolean) ?? [];
       const memberIds = fromMembers.length > 0 ? fromMembers : ((campaign as any).createdByEmployeeId ? [(campaign as any).createdByEmployeeId] : []);
@@ -719,6 +735,10 @@ const Marketing = () => {
         memberIds,
       });
     } else {
+      if (!canCreateCampaign) {
+        alert('Bạn không có quyền tạo chiến dịch.');
+        return;
+      }
       setEditingCampaign(null);
       setCampaignForm({
         code: '',
@@ -804,6 +824,10 @@ const Marketing = () => {
 
   // API Integration handlers
   const handleOpenApiModal = async (campaign: MarketingCampaign) => {
+    if (!canViewCampaigns && !canUpdateCampaign) {
+      alert('Bạn không có quyền xem hoặc cấu hình tích hợp API chiến dịch.');
+      return;
+    }
     setApiModalOpen(true);
     setApiLoading(true);
     try {
@@ -827,6 +851,10 @@ const Marketing = () => {
 
   const handleGenerateApiKey = async () => {
     if (!apiInfo?.id) return;
+    if (!canUpdateCampaign) {
+      alert('Bạn không có quyền cấu hình API chiến dịch.');
+      return;
+    }
     try {
       setGeneratingKey(true);
       const fields = sanitizePublicLeadFields(apiFieldSelection);
@@ -855,6 +883,10 @@ const Marketing = () => {
 
   const handleUpdateApiIntegration = async () => {
     if (!apiInfo?.id || !apiInfo.apiKey) return;
+    if (!canUpdateCampaign) {
+      alert('Bạn không có quyền cấu hình API chiến dịch.');
+      return;
+    }
     try {
       setUpdatingApiIntegration(true);
       const fields = sanitizePublicLeadFields(apiFieldSelection);
@@ -880,6 +912,10 @@ const Marketing = () => {
 
   const handleRevokeApiKey = async () => {
     if (!apiInfo?.id) return;
+    if (!canUpdateCampaign) {
+      alert('Bạn không có quyền cấu hình API chiến dịch.');
+      return;
+    }
     if (!confirm('Bạn có chắc muốn thu hồi API key? Website đang sử dụng key này sẽ không thể gửi lead được nữa.')) return;
     try {
       await apiClient.delete(`/marketing/campaigns/${apiInfo.id}/api-key`);
@@ -1704,13 +1740,22 @@ const Marketing = () => {
     </div>
   );
 
-  const renderCampaignsTab = () => (
+  const renderCampaignsTab = () => {
+    if (!canViewCampaigns) {
+      return (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-6 text-sm text-amber-900">
+          Bạn không có quyền xem danh sách chiến dịch. Cần quyền <strong>Xem chiến dịch marketing</strong> hoặc{' '}
+          <strong>Quản lý khách hàng &amp; Marketing</strong> (tương thích).
+        </div>
+      );
+    }
+    return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900">Chiến dịch quảng cáo</h2>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button
-            onClick={loadCampaigns}
+            onClick={() => void loadCampaigns()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             {campaignsLoading ? (
@@ -1720,6 +1765,7 @@ const Marketing = () => {
             )}
             Làm mới
           </button>
+          {canCreateCampaign && (
           <button
             onClick={() => handleOpenCampaignModal()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90"
@@ -1727,6 +1773,7 @@ const Marketing = () => {
             <Plus size={16} />
             Thêm chiến dịch
           </button>
+          )}
         </div>
       </div>
 
@@ -1864,6 +1911,7 @@ const Marketing = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    {(canViewCampaigns || canUpdateCampaign) && (
                     <button
                       onClick={() => handleOpenApiModal(campaign)}
                       disabled={campaign.status !== 'ACTIVE' && !(campaign as any).apiKey}
@@ -1880,6 +1928,8 @@ const Marketing = () => {
                       <Code size={14} />
                       API
                     </button>
+                    )}
+                    {canUpdateCampaign && (
                     <button
                       onClick={() => handleOpenCampaignModal(campaign)}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -1887,7 +1937,8 @@ const Marketing = () => {
                       <Edit size={14} />
                       Sửa
                     </button>
-                    {hasPermission('DELETE_MARKETING_CAMPAIGN') && (
+                    )}
+                    {canDeleteCampaign && (
                       <button
                         type="button"
                         onClick={() => handleDeleteCampaign(campaign)}
@@ -2251,10 +2302,10 @@ const Marketing = () => {
                     </div>
                     <button
                       onClick={handleGenerateApiKey}
-                      disabled={generatingKey || apiInfo.status !== 'ACTIVE'}
+                      disabled={generatingKey || apiInfo.status !== 'ACTIVE' || !canUpdateCampaign}
                       className={clsx(
                         'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-white',
-                        generatingKey || apiInfo.status !== 'ACTIVE' ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'
+                        generatingKey || apiInfo.status !== 'ACTIVE' || !canUpdateCampaign ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'
                       )}
                     >
                       {generatingKey ? <Loader size={16} className="animate-spin" /> : <Key size={16} />}
@@ -2268,7 +2319,9 @@ const Marketing = () => {
                   <div className="space-y-5">
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium text-gray-900 flex items-center gap-2"><Key size={18} /> Thông tin API</h4>
+                      {canUpdateCampaign && (
                       <button onClick={handleRevokeApiKey} className="text-sm text-red-600 hover:text-red-700">Thu hồi key</button>
+                      )}
                     </div>
 
                     <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-3">
@@ -2310,11 +2363,11 @@ const Marketing = () => {
                       <button
                         type="button"
                         onClick={() => void handleUpdateApiIntegration()}
-                        disabled={updatingApiIntegration}
+                        disabled={updatingApiIntegration || !canUpdateCampaign}
                         className={clsx(
                           'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border',
-                          updatingApiIntegration
-                            ? 'border-gray-200 text-gray-400 cursor-wait'
+                          updatingApiIntegration || !canUpdateCampaign
+                            ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                             : 'border-primary text-primary hover:bg-primary/5'
                         )}
                       >
@@ -2437,7 +2490,8 @@ const Marketing = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   // Employee Ranking states
   const [employeeRankings, setEmployeeRankings] = useState<EmployeeRanking[]>([]);
@@ -2876,6 +2930,7 @@ const Marketing = () => {
           Nền tảng
         </button>
         )}
+        {canViewCampaigns && (
         <button
           onClick={() => setActiveTab('campaigns')}
           className={clsx(
@@ -2888,6 +2943,7 @@ const Marketing = () => {
           <Megaphone size={18} />
           Chiến dịch quảng cáo
         </button>
+        )}
         <button
           onClick={() => setActiveTab('cost-effectiveness')}
           className={clsx(

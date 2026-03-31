@@ -212,6 +212,9 @@ export async function syncDefaultMenus(): Promise<void> {
     await ensureAiMenuForRolesThatHaveChat();
     await ensureTechnicalAdminsHaveAllMenus();
     await ensureDefaultPermissionsCatalog();
+    await migrateMarketingCampaignPermissionsFromLegacyCatalog();
+    await ensureViewMarketingCampaignsForManageCustomersRoles();
+    await ensureCampaignWritePermissionsForMarketingRoles();
     await cleanupOrphanPermissions();
     await ensureTechnicalAdminsHaveAllPermissions();
     await ensureTechnicalAdminViewScopesFull();
@@ -250,6 +253,9 @@ async function ensureCrmAdministratorDefaultPermissions(): Promise<void> {
     'MANAGE_MARKETING_PLATFORMS',
     'DELETE_CUSTOMER',
     'MANAGE_MARKETING_GROUPS',
+    'VIEW_MARKETING_CAMPAIGNS',
+    'CREATE_MARKETING_CAMPAIGN',
+    'UPDATE_MARKETING_CAMPAIGN',
     'DELETE_MARKETING_CAMPAIGN',
     'VIEW_ORDERS',
     'VIEW_ALL_COMPANY_ORDERS',
@@ -292,6 +298,107 @@ async function ensureDefaultPermissionsCatalog(): Promise<void> {
         create: { code: p.code, name: p.name, description: p.description },
       })
       .catch(() => {});
+  }
+}
+
+/** Đồng bộ từ quyền legacy MANAGE_MARKETING_CATALOG (seed cũ) sang bộ R/C/U/D chiến dịch trước khi xóa orphan. */
+async function migrateMarketingCampaignPermissionsFromLegacyCatalog(): Promise<void> {
+  try {
+    const legacy = await prisma.permission.findUnique({
+      where: { code: 'MANAGE_MARKETING_CATALOG' },
+      select: { id: true },
+    });
+    if (!legacy) return;
+
+    const codes = [
+      'VIEW_MARKETING_CAMPAIGNS',
+      'CREATE_MARKETING_CAMPAIGN',
+      'UPDATE_MARKETING_CAMPAIGN',
+      'DELETE_MARKETING_CAMPAIGN',
+    ];
+    const perms = await prisma.permission.findMany({
+      where: { code: { in: codes } },
+      select: { id: true, code: true },
+    });
+    if (perms.length === 0) return;
+
+    const groups = await prisma.roleGroup.findMany({
+      where: { permissions: { some: { code: 'MANAGE_MARKETING_CATALOG' } } },
+      include: { permissions: { select: { code: true } } },
+    });
+
+    for (const g of groups) {
+      const has = new Set((g.permissions || []).map((p) => p.code));
+      const toConnect = perms.filter((p) => p.code && !has.has(p.code)).map((p) => ({ id: p.id }));
+      if (toConnect.length === 0) continue;
+      await prisma.roleGroup.update({
+        where: { id: g.id },
+        data: { permissions: { connect: toConnect } },
+      });
+    }
+  } catch (e) {
+    console.error('migrateMarketingCampaignPermissionsFromLegacyCatalog error:', e);
+  }
+}
+
+/** Gán VIEW_MARKETING_CAMPAIGNS cho mọi nhóm đã có MANAGE_CUSTOMERS (dropdown chiến dịch / đọc danh sách). */
+async function ensureViewMarketingCampaignsForManageCustomersRoles(): Promise<void> {
+  try {
+    const viewPerm = await prisma.permission.findUnique({
+      where: { code: 'VIEW_MARKETING_CAMPAIGNS' },
+      select: { id: true },
+    });
+    if (!viewPerm) return;
+
+    const groups = await prisma.roleGroup.findMany({
+      where: { permissions: { some: { code: 'MANAGE_CUSTOMERS' } } },
+      include: { permissions: { select: { code: true } } },
+    });
+
+    for (const g of groups) {
+      const has = new Set((g.permissions || []).map((p) => p.code));
+      if (has.has('VIEW_MARKETING_CAMPAIGNS')) continue;
+      await prisma.roleGroup.update({
+        where: { id: g.id },
+        data: { permissions: { connect: { id: viewPerm.id } } },
+      });
+    }
+  } catch (e) {
+    console.error('ensureViewMarketingCampaignsForManageCustomersRoles error:', e);
+  }
+}
+
+/** Nhóm có MANAGE_CUSTOMERS + MANAGE_MARKETING_PLATFORMS (Marketing vận hành nền tảng) nhận thêm CREATE/UPDATE chiến dịch nếu chưa có. */
+async function ensureCampaignWritePermissionsForMarketingRoles(): Promise<void> {
+  try {
+    const codes = ['CREATE_MARKETING_CAMPAIGN', 'UPDATE_MARKETING_CAMPAIGN'];
+    const perms = await prisma.permission.findMany({
+      where: { code: { in: codes } },
+      select: { id: true, code: true },
+    });
+    if (perms.length === 0) return;
+
+    const groups = await prisma.roleGroup.findMany({
+      where: {
+        AND: [
+          { permissions: { some: { code: 'MANAGE_CUSTOMERS' } } },
+          { permissions: { some: { code: 'MANAGE_MARKETING_PLATFORMS' } } },
+        ],
+      },
+      include: { permissions: { select: { code: true } } },
+    });
+
+    for (const g of groups) {
+      const has = new Set((g.permissions || []).map((p) => p.code));
+      const toConnect = perms.filter((p) => p.code && !has.has(p.code)).map((p) => ({ id: p.id }));
+      if (toConnect.length === 0) continue;
+      await prisma.roleGroup.update({
+        where: { id: g.id },
+        data: { permissions: { connect: toConnect } },
+      });
+    }
+  } catch (e) {
+    console.error('ensureCampaignWritePermissionsForMarketingRoles error:', e);
   }
 }
 

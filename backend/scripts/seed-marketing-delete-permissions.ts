@@ -5,12 +5,6 @@ const prisma = new PrismaClient();
 async function main() {
   const permissions = [
     {
-      code: 'MANAGE_MARKETING_CATALOG',
-      name: 'Quản lý danh mục Marketing',
-      description:
-        'Quyền bổ sung cho chiến dịch Marketing trong controller (tạo/sửa; xóa khi không phải người tạo). CRUD danh mục Nền tảng dùng MANAGE_MARKETING_PLATFORMS trong catalog.',
-    },
-    {
       code: 'PERMANENT_DELETE_CUSTOMER',
       name: 'Xóa khách hàng vĩnh viễn',
       description: 'Quyền xóa vĩnh viễn khách hàng khỏi hệ thống (Dành cho Quản trị viên)',
