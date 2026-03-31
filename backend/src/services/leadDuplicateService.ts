@@ -351,6 +351,15 @@ export async function checkDuplicateAndHandle(input: CheckDuplicateInput): Promi
 
   const allowDup = await getMarketingAllowDuplicatePhone();
   if (!allowDup) {
+    if (actorId) {
+      await addDuplicateNote(
+        existing.id,
+        actorId,
+        actorName,
+        note || 'Hệ thống từ chối ghi nhận (đã tắt cho phép nhập trùng SĐT).',
+        'marketing_duplicate_interaction'
+      );
+    }
     return {
       isNew: false,
       duplicate: true,

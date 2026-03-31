@@ -1522,6 +1522,12 @@ export const createMarketingLead = async (req: Request, res: Response) => {
 
     const trimmedPhone = normalizePhone(String(phone));
 
+    if (!actor?.id) {
+      return res.status(401).json({
+        message: 'Chưa đăng nhập hoặc không xác định được người dùng.',
+      });
+    }
+
     const existingSameCampaign = await findExistingByPhone(trimmedPhone);
     if (existingSameCampaign?.campaignId === campaignIdStr) {
       await logAudit({
@@ -1533,12 +1539,19 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         details: `Nhập số trùng trong cùng chiến dịch. SĐT ${trimmedPhone}, chiến dịch ${campaignIdStr}.`,
         req,
       });
+      await addDuplicateNote(
+        existingSameCampaign.id,
+        actor.id,
+        actor.fullName || actor.name || 'Unknown',
+        noteTrim,
+        'marketing_duplicate_interaction'
+      );
       await notifyDuplicateStakeholders({
         existingCustomer: existingSameCampaign,
         normalizedPhone: trimmedPhone,
-        actorId: actor?.id,
-        actorName: actor?.fullName || actor?.name || 'N/A',
-        actorPhone: actor?.phone,
+        actorId: actor.id,
+        actorName: actor.fullName || actor.name || 'N/A',
+        actorPhone: actor.phone,
         sourceLabel: 'Marketing (cùng chiến dịch)',
         note: noteTrim,
         customerId: existingSameCampaign.id,
@@ -1555,9 +1568,9 @@ export const createMarketingLead = async (req: Request, res: Response) => {
     // Kiểm tra trùng (chiến dịch khác / khách đã có): ghi note, lịch sử, thông báo NV phụ trách
     const duplicateResult = await checkDuplicateAndHandle({
       phone: trimmedPhone,
-      actorId: actor?.id,
-      actorName: actor?.fullName || actor?.name || 'Unknown',
-      actorPhone: actor?.phone,
+      actorId: actor.id,
+      actorName: actor.fullName || actor.name || 'Unknown',
+      actorPhone: actor.phone,
       note: noteTrim || undefined,
       campaignId: campaignIdStr,
     });
@@ -1567,9 +1580,9 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         await notifyDuplicateStakeholders({
           existingCustomer: duplicateResult.existingCustomer,
           normalizedPhone: trimmedPhone,
-          actorId: actor?.id,
-          actorName: actor?.fullName || actor?.name || 'N/A',
-          actorPhone: actor?.phone,
+          actorId: actor.id,
+          actorName: actor.fullName || actor.name || 'N/A',
+          actorPhone: actor.phone,
           sourceLabel: 'Marketing (từ chối trùng)',
           note: noteTrim,
           customerId: duplicateResult.customerId!,
@@ -1592,9 +1605,9 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       await notifyDuplicateStakeholders({
         existingCustomer: duplicateResult.existingCustomer,
         normalizedPhone: trimmedPhone,
-        actorId: actor?.id,
-        actorName: actor?.fullName || actor?.name || 'N/A',
-        actorPhone: actor?.phone,
+        actorId: actor.id,
+        actorName: actor.fullName || actor.name || 'N/A',
+        actorPhone: actor.phone,
         sourceLabel: 'Marketing',
         note: noteTrim,
         customerId: duplicateResult.customerId!,
@@ -1659,9 +1672,9 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         bankName: bankName || null,
         note: noteTrim || null,
         createdByRole: 'MARKETING',
-        createdById: actor?.id || null,
+        createdById: actor.id,
         employeeId: null,
-        marketingOwnerId: actor?.id || null,
+        marketingOwnerId: actor.id,
         attributionExpiredAt,
         leadSourceId: leadSourceId || null,
         campaignId: campaignId || null,
@@ -1670,34 +1683,30 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       }
     });
 
-    if (actor?.id) {
-      await upsertMarketingContributor(lead.id, actor.id);
-    }
+    await upsertMarketingContributor(lead.id, actor.id);
 
     if (tagIds && tagIds.length > 0) {
       await prisma.customerTagAssignment.createMany({
         data: tagIds.map((tagId: string) => ({
           customerId: lead.id,
           tagId,
-          assignedBy: actor?.id || null
+          assignedBy: actor.id
         }))
       });
     }
 
-    if (actor) {
-      const intCount = await prisma.customerInteraction.count();
-      await prisma.customerInteraction.create({
-        data: {
-          code: `INT-${String(intCount + 1).padStart(6, '0')}`,
-          customerId: lead.id,
-          employeeId: actor.id,
-          type: 'lead_created',
-          content: noteTrim
-            ? noteTrim
-            : `[Hệ thống] Lead được tạo bởi ${actor.fullName || actor.id} lúc ${new Date().toLocaleString('vi-VN')}`,
-        }
-      });
-    }
+    const intCount = await prisma.customerInteraction.count();
+    await prisma.customerInteraction.create({
+      data: {
+        code: `INT-${String(intCount + 1).padStart(6, '0')}`,
+        customerId: lead.id,
+        employeeId: actor.id,
+        type: 'lead_created',
+        content: noteTrim
+          ? noteTrim
+          : `[Hệ thống] Lead được tạo bởi ${actor.fullName || actor.id} lúc ${new Date().toLocaleString('vi-VN')}`,
+      }
+    });
 
     const dpEntry = await prisma.dataPool.create({
       data: {
@@ -1706,13 +1715,13 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         status: 'AVAILABLE',
         priority: 1,
         poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-        note: `Tạo thủ công bởi ${actor?.fullName || actor?.id || 'Marketing'}`,
+        note: `Tạo thủ công bởi ${actor.fullName || actor.id || 'Marketing'}`,
         processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
       }
     }).catch(() => null);
 
     // Auto-assign: luôn thử — ưu tiên luồng khối (dataFlowShares) + chia đều NV trong đơn vị lá; fallback team_distribution_ratios
-    if (dpEntry && actor?.id) {
+    if (dpEntry) {
       await assignSingleMarketingPoolToSales({
         dpEntryId: dpEntry.id,
         customerId: lead.id,
@@ -1725,18 +1734,16 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       await notifySalesMarketingLeadAssigned([dpEntry.id]);
     }
 
-    if (actor) {
-      await logAudit({
-        ...getAuditUser(req),
-        action: 'Tạo mới',
-        object: 'Lead marketing',
-        objectId: lead.id,
-        result: 'SUCCESS',
-        details: `Tạo lead "${lead.name || lead.phone}" — SĐT: ${lead.phone} (mã KH: ${lead.code}).`,
-        newValues: { phone: lead.phone, name: lead.name },
-        req,
-      });
-    }
+    await logAudit({
+      ...getAuditUser(req),
+      action: 'Tạo mới',
+      object: 'Lead marketing',
+      objectId: lead.id,
+      result: 'SUCCESS',
+      details: `Tạo lead "${lead.name || lead.phone}" — SĐT: ${lead.phone} (mã KH: ${lead.code}).`,
+      newValues: { phone: lead.phone, name: lead.name },
+      req,
+    });
 
     res.status(201).json(lead);
   } catch (error) {

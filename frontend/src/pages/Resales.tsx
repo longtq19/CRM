@@ -69,6 +69,7 @@ const TYPE_TRANSLATIONS: Record<string, string> = {
   REMINDER: 'Nhắc nhở',
   CALLBACK_REMINDER: 'Nhắc gọi lại',
   marketing_duplicate_interaction: 'Trùng số (Marketing)',
+  sales_duplicate_phone_attempt: 'Trùng số (Sales/CSKH)',
 };
 
 interface SpendingRank {

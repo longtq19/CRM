@@ -24,6 +24,7 @@ import {
   findExistingByPhone,
   getDuplicateStaffDisplayForClient,
   notifyDuplicateStakeholders,
+  addDuplicateNote,
 } from '../services/leadDuplicateService';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
 
@@ -507,6 +508,14 @@ export const createCustomer = async (req: Request, res: Response) => {
 
     if (existingCustomer) {
       const actorName = (actor as any).fullName || (actor as any).name || 'N/A';
+      const noteTrimDup = note != null && String(note).trim() ? String(note).trim() : '';
+      await addDuplicateNote(
+        existingCustomer.id,
+        actor.id,
+        actorName,
+        noteTrimDup || '(Không có ghi chú kèm theo form)',
+        'sales_duplicate_phone_attempt'
+      );
       await notifyDuplicateStakeholders({
         existingCustomer,
         normalizedPhone: normalizedForDup!,
@@ -514,7 +523,7 @@ export const createCustomer = async (req: Request, res: Response) => {
         actorName,
         actorPhone: (actor as any).phone,
         sourceLabel: 'Tạo khách hàng (Sales/CSKH)',
-        note: note != null && String(note).trim() ? String(note).trim() : undefined,
+        note: noteTrimDup || undefined,
         customerId: existingCustomer.id,
       });
       const auditUser = getAuditUser(req);
@@ -665,7 +674,24 @@ export const createCustomer = async (req: Request, res: Response) => {
       });
     }
 
-    if (emptyToNull(note)) {
+    if (createdByRole === 'SALES' || createdByRole === 'RESALES') {
+      const intCount = await prisma.customerInteraction.count();
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const actorName = (actor as any).fullName || (actor as any).name || 'N/A';
+      const roleVi = createdByRole === 'SALES' ? 'Kinh doanh' : 'CSKH';
+      const noteLine = emptyToNull(note) ? `\nNội dung nhập / ghi chú: ${String(note).trim()}` : '';
+      await prisma.customerInteraction.create({
+        data: {
+          code: `INT-${String(intCount + 1).padStart(6, '0')}`,
+          customerId: newCustomer.id,
+          employeeId: actor.id,
+          type: 'lead_created',
+          content: `${timeStr} ${dateStr} - ${actorName} (${roleVi})\nTạo mới khách hàng. Mã: ${newCustomer.code}, SĐT: ${newCustomer.phone}.${noteLine}`,
+        },
+      });
+    } else if (emptyToNull(note)) {
       const intCount = await prisma.customerInteraction.count();
       await prisma.customerInteraction.create({
         data: {
