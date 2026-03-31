@@ -371,7 +371,7 @@ const Products = () => {
     const loadingToast = toast.loading('Đang import dữ liệu...');
 
     try {
-      const res: any = await apiClient.postMultipart('/products/import', formData);
+      const res: any = await apiClient.postMultipart(`/products/import?warehouseId=${selectedWhId}`, formData);
       
       toast.dismiss(loadingToast);
       toast.success(`Import thành công: ${res.stats?.success || 0} sản phẩm`);

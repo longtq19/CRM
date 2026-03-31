@@ -202,8 +202,9 @@ export const getProducts = async (req: Request, res: Response) => {
 
     const where: any = {};
 
+    // Filter by warehouse if provided
     if (warehouseId) {
-      where.warehouseId = String(warehouseId);
+      (where as any).warehouseId = String(warehouseId);
     }
 
     if (search) {
@@ -465,7 +466,7 @@ export const createProduct = async (req: Request, res: Response) => {
       where: { 
         code, 
         warehouseId: warehouseId || null 
-      } 
+      } as any
     });
     if (existing) {
       return res.status(400).json({ message: 'Mã sản phẩm đã tồn tại trong kho này' });
@@ -502,7 +503,7 @@ export const createProduct = async (req: Request, res: Response) => {
           lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 50,
           packagingSpec: resolvedPackaging,
           warehouseId: warehouseId || null,
-        },
+        } as any,
       });
 
       // Fetch category code for logic branching
@@ -661,7 +662,7 @@ export const updateProduct = async (req: Request, res: Response) => {
           lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : undefined,
           ...(newPackaging !== undefined ? { packagingSpec: newPackaging } : {}),
           warehouseId: warehouseId || undefined,
-        },
+        } as any,
       });
 
       // Fetch category code for logic branching
@@ -1019,6 +1020,11 @@ export const importProducts = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'File Excel trống' });
     }
 
+    const warehouseId = req.query.warehouseId as string;
+    if (!warehouseId) {
+      return res.status(400).json({ message: 'Vui lòng chọn kho trước khi import' });
+    }
+
     const headerRow = worksheet.getRow(1);
     const headerMap = new Map<string, number>();
     headerRow.eachCell({ includeEmpty: false }, (cell, col) => {
@@ -1134,7 +1140,12 @@ export const importProducts = async (req: Request, res: Response) => {
 
         await prisma.$transaction(async (tx) => {
           const product = await tx.product.upsert({
-            where: { code },
+            where: { 
+              code_warehouseId: {
+                code,
+                warehouseId
+              }
+            } as any,
             update: {
               name,
               vatName,
@@ -1146,8 +1157,9 @@ export const importProducts = async (req: Request, res: Response) => {
               description,
               status,
               weight: finalWeight,
+              warehouseId,
               ...(packagingSpecRow !== undefined ? { packagingSpec: packagingSpecRow } : {}),
-            },
+            } as any,
             create: {
               code,
               name,
@@ -1160,8 +1172,9 @@ export const importProducts = async (req: Request, res: Response) => {
               description,
               status,
               weight: finalWeight,
+              warehouseId,
               packagingSpec: packagingSpecRow !== undefined ? packagingSpecRow : null,
-            },
+            } as any,
           });
 
           if (category.code === 'BIO') {
