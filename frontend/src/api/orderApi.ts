@@ -87,9 +87,9 @@ export const orderApi = {
     return response as Order;
   },
 
-  /** Chia xác nhận hàng loạt đơn chờ xác nhận cho NV vận đơn (quyền ASSIGN_SHIPPING_DAILY_QUOTA). */
+  /** Chia xác nhận hàng loạt đơn chờ xác nhận cho NV vận đơn (quyền ASSIGN_SHIPPING_DAILY_QUOTA). Chỉ hỗ trợ mode even (chia đều). */
   distributePendingConfirm: async (body: {
-    mode: 'even' | 'random';
+    mode: 'even';
     employeeIds?: string[];
   }): Promise<{
     ok: boolean;

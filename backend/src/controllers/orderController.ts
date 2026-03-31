@@ -687,14 +687,19 @@ export const confirmOrder = async (req: Request, res: Response) => {
 /**
  * Xác nhận hàng loạt đơn chờ xác nhận, phân cho NV vận đơn (confirmedById).
  * Phạm vi đơn: cùng `getVisibleEmployeeIds(..., 'ORDER')` như danh sách đơn.
- * Chế độ even: round-robin theo thứ tự (orderDate, id). random: mỗi đơn gán ngẫu nhiên một NV.
+ * Chế độ even: round-robin theo thứ tự (orderDate, id). (Đã bỏ chế độ random.)
  */
 export const distributePendingOrdersConfirm = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const modeRaw = String(req.body?.mode || '').toLowerCase().trim();
-    if (modeRaw !== 'even' && modeRaw !== 'random') {
-      return res.status(400).json({ message: 'Tham số mode phải là "even" (chia đều) hoặc "random" (ngẫu nhiên).' });
+    if (modeRaw === 'random') {
+      return res.status(400).json({
+        message: 'Chế độ chia ngẫu nhiên đã ngừng hỗ trợ. Chỉ dùng chia đều (mode: "even") hoặc xác nhận thủ công từng đơn.',
+      });
+    }
+    if (modeRaw !== 'even') {
+      return res.status(400).json({ message: 'Tham số mode phải là "even" (chia đều theo round-robin).' });
     }
 
     const rawIds = req.body?.employeeIds;
@@ -767,10 +772,7 @@ export const distributePendingOrdersConfirm = async (req: Request, res: Response
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < pendingOrders.length; i++) {
         const row = pendingOrders[i];
-        const empId =
-          modeRaw === 'even'
-            ? employees[i % employees.length].id
-            : employees[Math.floor(Math.random() * employees.length)].id;
+        const empId = employees[i % employees.length].id;
         const u = await tx.order.updateMany({
           where: {
             id: row.id,
@@ -800,7 +802,7 @@ export const distributePendingOrdersConfirm = async (req: Request, res: Response
       .filter((x) => x.count > 0);
 
     const updated = byEmployee.reduce((s, x) => s + x.count, 0);
-    const modeVi = modeRaw === 'even' ? 'chia đều (round-robin)' : 'chia ngẫu nhiên';
+    const modeVi = 'chia đều (round-robin)';
     const phanBo = byEmployee.map((x) => `${x.code} (${x.fullName}): ${x.count} đơn`).join('; ');
 
     await logAudit({

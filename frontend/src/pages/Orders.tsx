@@ -3,7 +3,7 @@ import {
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
   RefreshCw, Calendar, User, Phone, MapPin, ChevronLeft, ChevronRight,
   X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader,
-  Shuffle, BarChart3
+  BarChart3, Settings2, ListChecks
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
 import CreateOrderModal from '../components/CreateOrderModal';
@@ -118,9 +118,9 @@ const Orders = () => {
     }>
   >([]);
   const [quotaSaving, setQuotaSaving] = useState(false);
-  const [distributeLoading, setDistributeLoading] = useState<'even' | 'random' | null>(null);
+  const [distributeLoading, setDistributeLoading] = useState(false);
   const showShippingQuotaTab = canManageShipping || canAssignShippingQuota;
-  const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota'>('list');
+  const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota' | 'split'>('list');
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
@@ -216,15 +216,13 @@ const Orders = () => {
     setFilters(prev => ({ ...prev, page }));
   };
 
-  const handleDistributePendingConfirm = async (mode: 'even' | 'random') => {
+  const handleDistributePendingConfirm = async () => {
     const msg =
-      mode === 'even'
-        ? 'Xác nhận chia đều (round-robin) toàn bộ đơn «Chờ xác nhận» trong phạm vi của bạn cho các NV loại Vận đơn đang hoạt động?'
-        : 'Xác nhận chia ngẫu nhiên toàn bộ đơn «Chờ xác nhận» trong phạm vi của bạn cho các NV loại Vận đơn đang hoạt động?';
+      'Xác nhận chia đều (round-robin) toàn bộ đơn «Chờ xác nhận» trong phạm vi của bạn cho các NV loại Vận đơn đang hoạt động?';
     if (!window.confirm(msg)) return;
-    setDistributeLoading(mode);
+    setDistributeLoading(true);
     try {
-      const res = await orderApi.distributePendingConfirm({ mode });
+      const res = await orderApi.distributePendingConfirm({ mode: 'even' });
       const lines = res.byEmployee.map((x) => `${x.code}: ${x.count}`).join(', ');
       alert(
         res.updated === 0
@@ -237,7 +235,7 @@ const Orders = () => {
       const m = error instanceof Error ? error.message : 'Không thực hiện được chia xác nhận.';
       alert(m);
     } finally {
-      setDistributeLoading(null);
+      setDistributeLoading(false);
     }
   };
 
@@ -405,6 +403,18 @@ const Orders = () => {
           >
             Chỉ tiêu vận đơn
           </button>
+          <button
+            type="button"
+            onClick={() => setOrdersMainTab('split')}
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-colors inline-flex items-center gap-2 ${
+              ordersMainTab === 'split'
+                ? 'border-primary text-primary bg-white'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Settings2 size={16} />
+            Cấu hình chia đơn
+          </button>
         </div>
       )}
 
@@ -463,39 +473,50 @@ const Orders = () => {
         </div>
       )}
 
-      {canAssignShippingQuota && (!showShippingQuotaTab || ordersMainTab === 'list') && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
-          <span className="font-medium text-amber-900">Chia xác nhận đơn chờ (NV vận đơn):</span>
-          <button
-            type="button"
-            disabled={!!distributeLoading}
-            onClick={() => handleDistributePendingConfirm('even')}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-amber-900 hover:bg-amber-100 disabled:opacity-60"
-          >
-            {distributeLoading === 'even' ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <BarChart3 className="h-4 w-4" />
-            )}
-            Chia đều
-          </button>
-          <button
-            type="button"
-            disabled={!!distributeLoading}
-            onClick={() => handleDistributePendingConfirm('random')}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-amber-900 hover:bg-amber-100 disabled:opacity-60"
-          >
-            {distributeLoading === 'random' ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <Shuffle className="h-4 w-4" />
-            )}
-            Chia ngẫu nhiên
-          </button>
-          <span className="text-xs text-amber-800/90">
-            Áp dụng mọi đơn <strong>Chờ xác nhận</strong> trong phạm vi danh sách đơn của bạn; mỗi đơn gán{' '}
-            <code className="rounded bg-white/80 px-1">confirmedById</code> theo NV được phân.
-          </span>
+      {/* Cấu hình chia đơn (vận đơn) — tab riêng */}
+      {showShippingQuotaTab && ordersMainTab === 'split' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <ListChecks className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-gray-800">Chia thủ công</h2>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Mở tab <strong>Danh sách đơn hàng</strong>, lọc đơn trạng thái <strong>Chờ xác nhận</strong>, rồi dùng nút xác nhận
+              từng đơn trên bảng — mỗi đơn được gán người xác nhận (NV vận đơn) theo lựa chọn tại thời điểm xử lý.
+            </p>
+            <button
+              type="button"
+              onClick={() => setOrdersMainTab('list')}
+              className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+            >
+              Đi tới danh sách đơn
+            </button>
+          </div>
+
+          {canAssignShippingQuota && (
+            <div className="bg-white rounded-xl border border-amber-200 p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 className="w-5 h-5 text-amber-800" />
+                <h2 className="text-lg font-semibold text-gray-800">Chia đều (hàng loạt)</h2>
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Áp dụng mọi đơn <strong>Chờ xác nhận</strong> trong phạm vi danh sách đơn của bạn; xoay vòng (
+                round-robin) giữa các NV loại Vận đơn đang hoạt động. Mỗi đơn cập nhật{' '}
+                <code className="rounded bg-gray-100 px-1 text-gray-800">confirmedById</code> theo NV được phân. Cần quyền{' '}
+                <span className="font-medium">ASSIGN_SHIPPING_DAILY_QUOTA</span>.
+              </p>
+              <button
+                type="button"
+                disabled={distributeLoading}
+                onClick={() => void handleDistributePendingConfirm()}
+                className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 hover:bg-amber-100 disabled:opacity-60"
+              >
+                {distributeLoading ? <Loader className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+                Chia đều toàn bộ đơn chờ xác nhận
+              </button>
+            </div>
+          )}
         </div>
       )}
 
