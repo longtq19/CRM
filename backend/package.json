@@ -26,7 +26,8 @@
     "clear:address:db": "ts-node scripts/clear-address-catalog.ts",
     "clear:address:db:prod": "node dist/scripts/clear-address-catalog.js",
     "dedupe:wards-direct": "ts-node scripts/dedupe-direct-wards.ts",
-    "import:kagri-bio-products": "ts-node scripts/import-kagri-bio-products-xlsx.ts"
+    "import:kagri-bio-products": "ts-node scripts/import-kagri-bio-products-xlsx.ts",
+    "restore:warehouses-products-pgdump": "ts-node scripts/restore-warehouses-and-products-from-pgdump.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
