@@ -15,7 +15,10 @@ import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
-import { isPastCampaignEndDateInclusiveVietnam } from '../utils/campaignSchedule';
+import {
+  isBeforeCampaignStartDateVietnam,
+  isCampaignEndedForApi,
+} from '../utils/campaignSchedule';
 
 /** Trường JSON public lead: chỉ SĐT bắt buộc; ghi chú / họ tên / địa chỉ (dòng chữ) là tùy chọn theo chiến dịch. */
 export const PUBLIC_LEAD_FIELD_CODES = ['phone', 'name', 'address', 'note'] as const;
@@ -171,6 +174,13 @@ export const generateApiKey = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Không có quyền cấu hình API cho chiến dịch này' });
     }
 
+    const nowKey = new Date();
+    if (isCampaignEndedForApi(nowKey, campaign)) {
+      return res.status(400).json({
+        message: 'Chiến dịch đã kết thúc; không thể tạo hoặc gia hạn API key.',
+      });
+    }
+
     const { acceptedFields } = req.body;
     const { finalFields } = mergePublicLeadAcceptedFields(acceptedFields);
 
@@ -223,6 +233,13 @@ export const updateCampaignApiIntegration = async (req: Request, res: Response) 
     }
     if (!campaign.apiKey) {
       return res.status(400).json({ message: 'Chiến dịch chưa có API key' });
+    }
+
+    const nowInt = new Date();
+    if (isCampaignEndedForApi(nowInt, campaign)) {
+      return res.status(400).json({
+        message: 'Chiến dịch đã kết thúc; không thể cập nhật cấu hình API.',
+      });
     }
 
     const { finalFields } = mergePublicLeadAcceptedFields(acceptedFields);
@@ -362,20 +379,25 @@ export const receivePublicLead = async (req: Request, res: Response) => {
       });
     }
 
-    // Kiểm tra chiến dịch còn hoạt động không
-    if (campaign.status !== 'ACTIVE' && campaign.status !== 'RUNNING') {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Chiến dịch không còn hoạt động' 
-      });
-    }
-
-    // Kiểm tra thời gian chiến dịch (ngày kết thúc trên form = còn hiệu lực đến hết ngày đó theo giờ VN — không cắt sau 07:00 sáng ngày cuối)
     const now = new Date();
-    if (isPastCampaignEndDateInclusiveVietnam(now, campaign.endDate)) {
+    if (isCampaignEndedForApi(now, campaign)) {
       return res.status(400).json({
         success: false,
         message: 'Chiến dịch đã kết thúc',
+      });
+    }
+
+    if (isBeforeCampaignStartDateVietnam(now, campaign.startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chiến dịch chưa bắt đầu',
+      });
+    }
+
+    if (campaign.status !== 'ACTIVE' && campaign.status !== 'RUNNING') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chiến dịch không còn hoạt động',
       });
     }
 
@@ -729,6 +751,8 @@ export const getCampaignApiInfo = async (req: Request, res: Response) => {
         publicLeadAddressHierarchy: true,
         leadCount: true,
         status: true,
+        startDate: true,
+        endDate: true,
         createdByEmployeeId: true,
       }
     });

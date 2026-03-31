@@ -40,6 +40,10 @@ import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { assignLeadsUsingTeamRatios, type TeamRatioAssignResult } from '../services/teamRatioDistributionService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
+import {
+  isPastCampaignEndDateInclusiveVietnam,
+  isStrictCampaignStartBeforeEnd,
+} from '../utils/campaignSchedule';
 
 const MK_SOURCE_LABELS: Record<string, string> = {
   code: 'Mã nền tảng',
@@ -474,6 +478,25 @@ export const createMarketingCampaign = async (req: Request, res: Response) => {
     }
     if (!sourceId) return res.status(400).json({ message: 'Nền tảng chiến dịch là bắt buộc' });
 
+    const sd = new Date(startDate);
+    const ed = new Date(endDate);
+    if (!isStrictCampaignStartBeforeEnd(sd, ed)) {
+      return res.status(400).json({
+        message: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc (không trùng ngày).',
+      });
+    }
+    const nowCreate = new Date();
+    const st = String(status || 'DRAFT');
+    if (
+      (st === 'ACTIVE' || st === 'PAUSED') &&
+      isPastCampaignEndDateInclusiveVietnam(nowCreate, ed)
+    ) {
+      return res.status(400).json({
+        message:
+          'Ngày kết thúc đã qua theo lịch; không thể đặt trạng thái «Đang chạy» hoặc «Tạm dừng».',
+      });
+    }
+
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : generateCampaignCode();
     const exists = await prisma.marketingCampaign.findUnique({ where: { code: finalCode } });
     if (exists) {
@@ -566,6 +589,25 @@ export const updateMarketingCampaign = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Ngân sách dự kiến là bắt buộc' });
     }
     if (!sourceId) return res.status(400).json({ message: 'Nền tảng chiến dịch là bắt buộc' });
+
+    const sd = new Date(startDate);
+    const ed = new Date(endDate);
+    if (!isStrictCampaignStartBeforeEnd(sd, ed)) {
+      return res.status(400).json({
+        message: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc (không trùng ngày).',
+      });
+    }
+    const nowUpd = new Date();
+    const st = String(status ?? existing.status);
+    if (
+      (st === 'ACTIVE' || st === 'PAUSED') &&
+      isPastCampaignEndDateInclusiveVietnam(nowUpd, ed)
+    ) {
+      return res.status(400).json({
+        message:
+          'Ngày kết thúc đã qua theo lịch; không thể đặt trạng thái «Đang chạy» hoặc «Tạm dừng».',
+      });
+    }
 
     const finalCode = (typeof code === 'string' && code.trim()) ? code.trim() : existing.code;
     if (finalCode !== existing.code) {

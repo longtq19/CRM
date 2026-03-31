@@ -48,6 +48,12 @@ import CustomerTagsManager, { CustomerTagsQuickCell, type TagBadgeModel } from '
 import { ToolbarButton } from '../components/ui/ToolbarButton';
 import { resolveUploadUrl } from '../utils/assetsUrl';
 import { formatAdminGeoLine } from '../utils/addressDisplayFormat';
+import {
+  getEffectiveCampaignStatus,
+  isCampaignEndedForDisplay,
+  isPastCampaignEndDateInclusiveVietnam,
+  isStrictCampaignStartBeforeEnd,
+} from '../utils/campaignSchedule';
 import { formatDate, formatDateTime } from '../utils/format';
 
 type MarketingTab = 'leads' | 'sources' | 'campaigns' | 'cost-effectiveness' | 'employee-ranking';
@@ -769,6 +775,22 @@ const Marketing = () => {
       return;
     }
     if (!campaignForm.sourceId) { alert('Nền tảng chiến dịch là bắt buộc'); return; }
+    const sd = new Date(campaignForm.startDate);
+    const ed = new Date(campaignForm.endDate);
+    if (!isStrictCampaignStartBeforeEnd(sd, ed)) {
+      alert('Ngày bắt đầu phải nhỏ hơn ngày kết thúc (không trùng ngày).');
+      return;
+    }
+    const stForm = campaignForm.status;
+    if (
+      (stForm === 'ACTIVE' || stForm === 'PAUSED') &&
+      isPastCampaignEndDateInclusiveVietnam(new Date(), ed)
+    ) {
+      alert(
+        'Ngày kết thúc đã qua theo lịch; không thể đặt trạng thái «Đang chạy» hoặc «Tạm dừng».',
+      );
+      return;
+    }
     if (editingCampaign && isAdmin() && (!campaignForm.memberIds?.length)) {
       alert('Khi chỉnh sửa, phải chọn ít nhất 1 nhân viên marketing phụ trách.');
       return;
@@ -1842,7 +1864,16 @@ const Marketing = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {campaigns.map((campaign) => (
+            {campaigns.map((campaign) => {
+              const effCampaignStatus = getEffectiveCampaignStatus(
+                campaign.status,
+                campaign.endDate,
+              );
+              const hasApiKeyRow = Boolean((campaign as any).apiKey);
+              const canOpenApiModal =
+                hasApiKeyRow ||
+                (campaign.status === 'ACTIVE' && effCampaignStatus === 'ACTIVE');
+              return (
               <tr key={campaign.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 text-sm text-gray-900">
                   {campaign.code}
@@ -1865,19 +1896,29 @@ const Marketing = () => {
                   <span
                     className={clsx(
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                      campaign.status === 'ACTIVE' &&
+                      effCampaignStatus === 'ACTIVE' &&
                         'bg-green-100 text-green-700',
-                      campaign.status === 'PAUSED' &&
+                      effCampaignStatus === 'PAUSED' &&
                         'bg-yellow-100 text-yellow-700',
-                      campaign.status === 'ENDED' &&
+                      effCampaignStatus === 'ENDED' &&
                         'bg-gray-100 text-gray-700',
-                      campaign.status === 'DRAFT' &&
+                      effCampaignStatus === 'DRAFT' &&
                         'bg-blue-100 text-blue-700',
-                      campaign.status === 'COMPLETED' &&
+                      effCampaignStatus === 'COMPLETED' &&
                         'bg-teal-100 text-teal-700',
                     )}
                   >
-                    {translateStatus(campaign.status, CAMPAIGN_STATUS_MAP)}
+                    {translateStatus(effCampaignStatus, CAMPAIGN_STATUS_MAP)}
+                    {effCampaignStatus === 'ENDED' &&
+                      campaign.status !== 'ENDED' &&
+                      campaign.status !== 'COMPLETED' && (
+                      <span
+                        className="ml-1 text-[10px] font-normal text-gray-500"
+                        title="Theo ngày kết thúc trên lịch, chiến dịch đã hết hạn (trạng thái lưu trong DB có thể khác)"
+                      >
+                        (theo lịch)
+                      </span>
+                    )}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm font-medium text-indigo-600">
@@ -1930,16 +1971,17 @@ const Marketing = () => {
                     {(canViewCampaigns || canUpdateCampaign) && (
                     <button
                       onClick={() => handleOpenApiModal(campaign)}
-                      disabled={campaign.status !== 'ACTIVE' && !(campaign as any).apiKey}
+                      disabled={!canOpenApiModal}
                       className={clsx(
                         'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium',
-                        campaign.status === 'ACTIVE' || (campaign as any).apiKey
+                        canOpenApiModal
                           ? 'border-indigo-200 text-indigo-600 hover:bg-indigo-50'
                           : 'border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
                       )}
-                      title={campaign.status !== 'ACTIVE' && !(campaign as any).apiKey
-                        ? `Chiến dịch đang ở trạng thái "${translateStatus(campaign.status, CAMPAIGN_STATUS_MAP)}", cần chuyển sang "Đang chạy" để sử dụng API`
-                        : 'Tích hợp API'}
+                      title={
+                        !canOpenApiModal
+                          ? 'Chỉ mở khi chiến dịch «Đang chạy» và chưa hết hạn theo ngày kết thúc, hoặc khi đã có API key để xem/thu hồi.'
+                          : 'Tích hợp API'}
                     >
                       <Code size={14} />
                       API
@@ -1968,11 +2010,12 @@ const Marketing = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+            );
+            })}
             {campaigns.length === 0 && (
               <tr>
                 <td
-                  colSpan={10}
+                  colSpan={11}
                   className="px-4 py-6 text-center text-sm text-gray-500"
                 >
                   Chưa có chiến dịch nào
@@ -2262,7 +2305,22 @@ const Marketing = () => {
               </div>
             ) : apiInfo ? (
               <div className="p-6 space-y-6">
-                {apiInfo.status && apiInfo.status !== 'ACTIVE' && (
+                {isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate) && (
+                  <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle size={20} className="text-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-red-800">
+                        Chiến dịch đã kết thúc (theo trạng thái hoặc đã qua ngày kết thúc).
+                      </p>
+                      <p className="text-xs text-red-700 mt-0.5">
+                        Không tạo API key mới và không cập nhật cấu hình API; endpoint public không nhận lead. Có thể thu hồi key nếu cần.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {apiInfo.status &&
+                  apiInfo.status !== 'ACTIVE' &&
+                  !isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate) && (
                   <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                     <AlertTriangle size={20} className="text-amber-500 flex-shrink-0" />
                     <div>
@@ -2318,10 +2376,20 @@ const Marketing = () => {
                     </div>
                     <button
                       onClick={handleGenerateApiKey}
-                      disabled={generatingKey || apiInfo.status !== 'ACTIVE' || !canUpdateCampaign}
+                      disabled={
+                        generatingKey ||
+                        apiInfo.status !== 'ACTIVE' ||
+                        !canUpdateCampaign ||
+                        isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate)
+                      }
                       className={clsx(
                         'w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium text-white',
-                        generatingKey || apiInfo.status !== 'ACTIVE' || !canUpdateCampaign ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'
+                        generatingKey ||
+                          apiInfo.status !== 'ACTIVE' ||
+                          !canUpdateCampaign ||
+                          isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate)
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-primary hover:bg-primary/90'
                       )}
                     >
                       {generatingKey ? <Loader size={16} className="animate-spin" /> : <Key size={16} />}
@@ -2379,10 +2447,16 @@ const Marketing = () => {
                       <button
                         type="button"
                         onClick={() => void handleUpdateApiIntegration()}
-                        disabled={updatingApiIntegration || !canUpdateCampaign}
+                        disabled={
+                          updatingApiIntegration ||
+                          !canUpdateCampaign ||
+                          isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate)
+                        }
                         className={clsx(
                           'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border',
-                          updatingApiIntegration || !canUpdateCampaign
+                          updatingApiIntegration ||
+                            !canUpdateCampaign ||
+                            isCampaignEndedForDisplay(apiInfo.status, apiInfo.endDate)
                             ? 'border-gray-200 text-gray-400 cursor-not-allowed'
                             : 'border-primary text-primary hover:bg-primary/5'
                         )}
