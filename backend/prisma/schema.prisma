@@ -3,8 +3,6 @@ generator client {
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
 }
 
-// Không dùng prisma-erd-generator ở đây: `prisma generate` trong Docker không có Chromium / frontend/public đúng layout.
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -12,12 +10,12 @@ datasource db {
 
 /// Tổ chức (đa tổ chức). Mỗi tổ chức có một nút gốc COMPANY và cây Department/Division bên dưới.
 model Organization {
-  id           String       @id @default(uuid())
-  code         String       @unique
-  name         String
-  sortOrder    Int          @default(0) @map("sort_order")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at")
+  id                          String                       @id @default(uuid())
+  code                        String                       @unique
+  name                        String
+  sortOrder                   Int                          @default(0) @map("sort_order")
+  createdAt                   DateTime                     @default(now()) @map("created_at")
+  updatedAt                   DateTime                     @default(now()) @updatedAt @map("updated_at")
   departments                 Department[]
   divisionFlowRoutingCounters DivisionFlowRoutingCounter[]
 
@@ -26,16 +24,16 @@ model Organization {
 
 /// Bộ phận — danh mục trong module Nhân sự (lọc, hiển thị); không dùng cho luồng vận hành / cây đơn vị.
 model HrDepartmentUnit {
-  id        String   @id @default(uuid())
-  code      String   @unique
+  id        String     @id @default(uuid())
+  code      String     @unique
   name      String
-  sortOrder Int      @default(0) @map("sort_order")
+  sortOrder Int        @default(0) @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
   /// Quản lý bộ phận HR — được duyệt/từ chối đơn nghỉ phép của nhân viên cùng bộ phận (bảng employees.hr_department_unit_id).
-  managerId String?  @map("manager_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  manager   Employee? @relation("HrDepartmentUnitManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managerId String?    @map("manager_id")
   employees Employee[]
+  manager   Employee?  @relation("HrDepartmentUnitManager", fields: [managerId], references: [id])
 
   @@index([managerId])
   @@map("hr_department_units")
@@ -67,56 +65,49 @@ model Position {
 }
 
 model Department {
-  id   String @id @default(uuid())
-  code String
-  name String
-
-  organizationId String       @map("organization_id")
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-
-  type     OrgType  @default(DEPARTMENT)
-  function OrgFunc?
-
-  autoDistributeCustomer   Boolean @default(true) @map("auto_distribute_customer")
+  id                          String                       @id @default(uuid())
+  code                        String
+  name                        String
+  parentId                    String?                      @map("parent_id")
+  createdAt                   DateTime                     @default(now()) @map("created_at")
+  updatedAt                   DateTime                     @updatedAt @map("updated_at")
+  managerId                   String?                      @map("manager_id")
+  displayOrder                Int                          @default(0) @map("display_order")
+  autoDistributeCustomer      Boolean                      @default(true) @map("auto_distribute_customer")
   /// Legacy: không còn đọc/ghi qua API — MKT→Sales luôn phân tự động theo khối khi có NV neo.
-  autoDistributeLead       Boolean @default(true) @map("auto_distribute_lead")
-  customerDistributeMethod String  @default("ROUND_ROBIN") @map("customer_distribute_method")
-  leadDistributeMethod     String  @default("ROUND_ROBIN") @map("lead_distribute_method")
-
-  targetSalesUnitId    String?      @map("target_sales_unit_id")
-  targetCsUnitId       String?      @map("target_cs_unit_id")
-  targetSalesUnit      Department?  @relation("DepartmentToSales", fields: [targetSalesUnitId], references: [id])
-  targetCsUnit         Department?  @relation("DepartmentToCS", fields: [targetCsUnitId], references: [id])
-  sourceMarketingUnits Department[] @relation("DepartmentToSales")
-  sourceSalesUnits     Department[] @relation("DepartmentToCS")
-
-  parentId     String?  @map("parent_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  managerId    String?  @map("manager_id")
-  displayOrder Int      @default(0) @map("display_order")
-
-  manager             Employee?               @relation("DepartmentManager", fields: [managerId], references: [id])
-  parent              Department?             @relation("DepartmentHierarchy", fields: [parentId], references: [id])
-  children            Department[]            @relation("DepartmentHierarchy")
+  autoDistributeLead          Boolean                      @default(true) @map("auto_distribute_lead")
+  customerDistributeMethod    String                       @default("ROUND_ROBIN") @map("customer_distribute_method")
+  function                    OrgFunc?
+  leadDistributeMethod        String                       @default("ROUND_ROBIN") @map("lead_distribute_method")
+  targetCsUnitId              String?                      @map("target_cs_unit_id")
+  targetSalesUnitId           String?                      @map("target_sales_unit_id")
+  type                        OrgType                      @default(DEPARTMENT)
+  organizationId              String                       @map("organization_id")
   /// Luồng phân data trong khối (JSON): marketingToSalesPct, marketingToSalesChildDivisionPct, salesToCsPct, salesToCsChildDivisionPct, csOnlyPct; externalMarketingToSalesPct lưu trên khối nhận (Sales) — chỉ dùng khi type = DIVISION
-  dataFlowShares           Json?       @map("data_flow_shares")
-  externalCsDivisionId     String?     @map("external_cs_division_id")
-  externalCsDivision       Department? @relation("DivisionExternalCsFlow", fields: [externalCsDivisionId], references: [id], onDelete: SetNull)
-  divisionsUsingExternalCs Department[] @relation("DivisionExternalCsFlow")
+  dataFlowShares              Json?                        @map("data_flow_shares")
+  externalCsDivisionId        String?                      @map("external_cs_division_id")
   /// Khối đồng cấp có đơn vị Sales khi khối này không có Sales (tương tự external CS).
-  externalSalesDivisionId     String?     @map("external_sales_division_id")
-  externalSalesDivision       Department? @relation("DivisionExternalSalesFlow", fields: [externalSalesDivisionId], references: [id], onDelete: SetNull)
-  divisionsUsingExternalSales Department[] @relation("DivisionExternalSalesFlow")
-  documentPermissions DocumentPermission[]
-  employees           Employee[]
-  leadAssignmentsFrom LeadAssignment[]        @relation("LeadAssignmentFromDepartment")
-  leadAssignmentsTo   LeadAssignment[]        @relation("LeadAssignmentToDepartment")
-  positions           Position[]
-  distributionRatios  TeamDistributionRatio[]
-  salesTargets        SalesTarget[]
-  /// Bộ đếm phân nhánh luồng data — scope = khối cho (nơi cấu hình tỉ lệ), không phải khối nhận.
+  externalSalesDivisionId     String?                      @map("external_sales_division_id")
+  externalCsDivision          Department?                  @relation("DivisionExternalCsFlow", fields: [externalCsDivisionId], references: [id])
+  divisionsUsingExternalCs    Department[]                 @relation("DivisionExternalCsFlow")
+  externalSalesDivision       Department?                  @relation("DivisionExternalSalesFlow", fields: [externalSalesDivisionId], references: [id])
+  divisionsUsingExternalSales Department[]                 @relation("DivisionExternalSalesFlow")
+  manager                     Employee?                    @relation("DepartmentManager", fields: [managerId], references: [id])
+  organization                Organization                 @relation(fields: [organizationId], references: [id])
+  parent                      Department?                  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children                    Department[]                 @relation("DepartmentHierarchy")
+  targetCsUnit                Department?                  @relation("DepartmentToCS", fields: [targetCsUnitId], references: [id])
+  sourceSalesUnits            Department[]                 @relation("DepartmentToCS")
+  targetSalesUnit             Department?                  @relation("DepartmentToSales", fields: [targetSalesUnitId], references: [id])
+  sourceMarketingUnits        Department[]                 @relation("DepartmentToSales")
   divisionFlowRoutingCounters DivisionFlowRoutingCounter[] @relation("DivisionFlowRoutingScope")
+  documentPermissions         DocumentPermission[]
+  employees                   Employee[]
+  leadAssignmentsFrom         LeadAssignment[]             @relation("LeadAssignmentFromDepartment")
+  leadAssignmentsTo           LeadAssignment[]             @relation("LeadAssignmentToDepartment")
+  positions                   Position[]
+  salesTargets                SalesTarget[]
+  distributionRatios          TeamDistributionRatio[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -128,10 +119,8 @@ model Department {
 model DivisionFlowRoutingCounter {
   id              String       @id @default(uuid())
   organizationId  String       @map("organization_id")
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// Khối nơi lưu `data_flow_shares` quyết định tỉ lệ phân nhánh đi ra (khối cho).
   scopeDivisionId String       @map("scope_division_id")
-  scopeDivision   Department   @relation("DivisionFlowRoutingScope", fields: [scopeDivisionId], references: [id], onDelete: Cascade)
   /// Ví dụ: MKT_SALES_CHILD_DIV, MKT_SALES_LEAF, EXT_MKT_SALES_LEAF, …
   kind            String
   /// Id khối con hoặc đơn vị lá đích tương ứng map trong JSON.
@@ -139,6 +128,8 @@ model DivisionFlowRoutingCounter {
   assignedCount   Int          @default(0) @map("assigned_count")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  scopeDivision   Department   @relation("DivisionFlowRoutingScope", fields: [scopeDivisionId], references: [id], onDelete: Cascade)
 
   @@unique([scopeDivisionId, kind, targetId])
   @@index([organizationId])
@@ -155,9 +146,9 @@ model RoleGroup {
   sortOrder           Int                  @default(0) @map("sort_order")
   documentPermissions DocumentPermission[]
   employees           Employee[]
+  viewScopes          RoleGroupViewScope[]
   menus               Menu[]               @relation("RoleMenu")
   permissions         Permission[]         @relation("RolePermission")
-  viewScopes          RoleGroupViewScope[]
 
   @@map("role_groups")
 }
@@ -170,8 +161,8 @@ model RoleGroup {
 model RoleGroupViewScope {
   id          String    @id @default(uuid())
   roleGroupId String    @map("role_group_id")
-  context     String // HR | CUSTOMER
-  scope       String // SELF_RECURSIVE | DEPARTMENT | DIVISION | COMPANY
+  context     String
+  scope       String
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
   roleGroup   RoleGroup @relation(fields: [roleGroupId], references: [id], onDelete: Cascade)
@@ -232,7 +223,6 @@ model SystemLog {
   @@index([action, timestamp])
   @@index([userId, timestamp])
   @@index([object, timestamp])
-  // Bổ sung: lọc nhật ký theo user/đối tượng/kết quả + tra theo bản ghi nghiệp vụ
   @@index([objectId])
   @@index([userName])
   @@index([result])
@@ -328,102 +318,100 @@ model EmployeeVehicle {
 }
 
 model Employee {
-  id                         String                @id @default(uuid())
-  code                       String                @unique @map("code")
-  fullName                   String                @map("full_name")
-  gender                     String
-  dateOfBirth                DateTime?             @map("date_of_birth")
-  avatarUrl                  String?               @map("avatar_url")
-  phone                      String?
-  phoneHash                  String?               @map("phone_hash")
-  emailCompany               String?               @map("email_company")
-  emailPersonal              String?               @map("email_personal")
-  passwordHash               String?               @map("password_hash")
-  filePath                   String?               @map("file_path")
-  address                    String?               @map("address")
-  employmentTypeId           String                @map("employment_type_id")
-  statusId                   String                @map("status_id")
-  // Đơn vị / chức danh vận hành: nullable — HR tạo hồ sơ, Vận hành gán sau.
-  positionId                 String?               @map("position_id")
-  departmentId               String?               @map("department_id")
-  hrDepartmentUnitId         String                @map("hr_department_unit_id")
-  /// Chức danh nội bộ phục vụ quản trị HR, không tham gia logic vận hành.
-  hrJobTitle                 String?               @map("hr_job_title")
-  roleGroupId                String?               @map("role_group_id")
-  employeeTypeId             String?               @map("employee_type_id")
-  isOnline                   Boolean               @default(false) @map("is_online")
-  lastActiveAt               DateTime?             @map("last_active_at")
-  lastLoginAt                DateTime?             @map("last_login_at")
-  isLocked                   Boolean               @default(false) @map("is_locked")
-  sessionInvalidatedAt       DateTime?             @map("session_invalidated_at")
-  createdAt                  DateTime              @default(now()) @map("created_at")
-  updatedAt                  DateTime              @updatedAt @map("updated_at")
-  id_card_back_image         String?
-  id_card_front_image        String?
-  id_card_issued_date        DateTime?
-  id_card_issued_place       String?
-  id_card_number             String?
-  personalTaxCode            String?               @map("personal_tax_code")
-  salesType                  String?               @map("sales_type")
-  contractReminderDaysBefore Int?                  @map("contract_reminder_days_before")
-  contractReminderRepeatDays Int?                  @map("contract_reminder_repeat_days")
+  id                             String                         @id @default(uuid())
+  code                           String                         @unique @map("code")
+  fullName                       String                         @map("full_name")
+  gender                         String
+  dateOfBirth                    DateTime?                      @map("date_of_birth")
+  avatarUrl                      String?                        @map("avatar_url")
+  phone                          String?
+  phoneHash                      String?                        @map("phone_hash")
+  emailCompany                   String?                        @map("email_company")
+  emailPersonal                  String?                        @map("email_personal")
+  passwordHash                   String?                        @map("password_hash")
+  filePath                       String?                        @map("file_path")
+  address                        String?                        @map("address")
+  employmentTypeId               String                         @map("employment_type_id")
+  statusId                       String                         @map("status_id")
+  positionId                     String?                        @map("position_id")
+  departmentId                   String?                        @map("department_id")
+  roleGroupId                    String?                        @map("role_group_id")
+  employeeTypeId                 String?                        @map("employee_type_id")
+  isOnline                       Boolean                        @default(false) @map("is_online")
+  lastActiveAt                   DateTime?                      @map("last_active_at")
+  lastLoginAt                    DateTime?                      @map("last_login_at")
+  isLocked                       Boolean                        @default(false) @map("is_locked")
+  sessionInvalidatedAt           DateTime?                      @map("session_invalidated_at")
+  createdAt                      DateTime                       @default(now()) @map("created_at")
+  updatedAt                      DateTime                       @updatedAt @map("updated_at")
+  id_card_back_image             String?
+  id_card_front_image            String?
+  id_card_issued_date            DateTime?
+  id_card_issued_place           String?
+  id_card_number                 String?
+  personalTaxCode                String?                        @map("personal_tax_code")
+  salesType                      String?                        @map("sales_type")
+  contractReminderDaysBefore     Int?                           @map("contract_reminder_days_before")
+  contractReminderRepeatDays     Int?                           @map("contract_reminder_repeat_days")
+  probationStartDate             DateTime?                      @map("probation_start_date")
+  probationEndDate               DateTime?                      @map("probation_end_date")
+  probationStatus                ProbationStatus?               @default(NONE) @map("probation_status")
+  notifyOnNewContractUpload      Boolean?                       @default(true) @map("notify_on_new_contract_upload")
+  hrDepartmentUnitId             String                         @map("hr_department_unit_id")
   /// Ngày hiệu lực hợp đồng lao động (tùy chọn, mọi loại HĐ).
-  contractEffectiveDate      DateTime?             @map("contract_effective_date")
+  contractEffectiveDate          DateTime?                      @map("contract_effective_date")
   /// Ngày hết hạn hợp đồng nếu có (tùy chọn).
-  contractEndDate            DateTime?             @map("contract_end_date")
-  probationStartDate         DateTime?             @map("probation_start_date")
-  probationEndDate           DateTime?             @map("probation_end_date")
-  probationStatus            ProbationStatus?      @default(NONE) @map("probation_status")
-  notifyOnNewContractUpload  Boolean?              @default(true) @map("notify_on_new_contract_upload")
-  chatMemberRequestsSent     ChatMemberRequest[]   @relation("ChatMemberRequestRequester")
-  chatMemberRequestsTarget   ChatMemberRequest[]   @relation("ChatMemberRequestTarget")
-  chatMemberships            ChatMember[]
-  sentMessages               ChatMessage[]
-  readMessages               ChatReadStatus[]
-  contracts                  Contract[]
-  hrReminders                HrReminder[]
-  interactions               CustomerInteraction[]
+  contractEndDate                DateTime?                      @map("contract_end_date")
+  /// Chức danh nội bộ phục vụ quản trị HR, không tham gia logic vận hành.
+  hrJobTitle                     String?                        @map("hr_job_title")
+  chatMemberRequestsSent         ChatMemberRequest[]            @relation("ChatMemberRequestRequester")
+  chatMemberRequestsTarget       ChatMemberRequest[]            @relation("ChatMemberRequestTarget")
+  chatMemberships                ChatMember[]
+  sentMessages                   ChatMessage[]
+  readMessages                   ChatReadStatus[]
+  contracts                      Contract[]
+  interactions                   CustomerInteraction[]
   marketingCustomerContributions CustomerMarketingContributor[]
-  customers                  Customer[]
-  marketingCustomers         Customer[]            @relation("MarketingOwnerCustomers")
-  assignedLeads              DataPool[]            @relation("DataPoolAssignee")
-  managedDepartments         Department[]          @relation("DepartmentManager")
-  managedHrDepartmentUnits   HrDepartmentUnit[]    @relation("HrDepartmentUnitManager")
-
-  documentPermissions      DocumentPermission[]
-  ownedDocuments           Document[]                @relation("DocumentOwner")
-  createdDraftInvoices     DraftInvoice[]            @relation("DraftInvoiceCreator")
-  bankAccounts             EmployeeBankAccount[]
-  vehicles                 EmployeeVehicle[]
-  department               Department?               @relation(fields: [departmentId], references: [id])
-  hrDepartmentUnit         HrDepartmentUnit        @relation(fields: [hrDepartmentUnitId], references: [id])
-  employmentType           EmploymentType            @relation(fields: [employmentTypeId], references: [id])
-  position                 Position?                  @relation(fields: [positionId], references: [id])
-  roleGroup                RoleGroup?                @relation(fields: [roleGroupId], references: [id])
-  employeeType             EmployeeType?             @relation(fields: [employeeTypeId], references: [id])
-  status                   EmployeeStatus            @relation(fields: [statusId], references: [id])
-  leadAssignments          LeadAssignment[]          @relation("EmployeeLeadAssignments")
-  leadOpportunities        LeadOpportunity[]         @relation("EmployeeLeadOpportunities")
-  leaveRequestsAsApprover  LeaveRequest[]            @relation("leave_requests_approver_idToemployees")
-  leaveRequestsAsConfirmer LeaveRequest[]            @relation("leave_requests_confirmer_idToemployees")
-  leaveRequests            LeaveRequest[]            @relation("leave_requests_employee_idToemployees")
-  performedMaintenances    MaintenanceLog[]
-  createdMarketingCosts    MarketingCampaignCost[]
-  campaignMemberships      MarketingCampaignMember[] @relation("CampaignMembersEmployee")
-  createdCampaigns         MarketingCampaign[]       @relation("EmployeeCreatedCampaigns")
-  orders                   Order[]
-  ordersShippingDeclined   Order[]                   @relation("OrderShippingDeclinedBy")
-  shippingDailyQuotas      ShippingDailyQuota[]      @relation("ShippingQuotaEmployee")
-  shippingQuotasAssigned   ShippingDailyQuota[]      @relation("ShippingQuotaAssignedBy")
-  approvedPayrolls         Payroll[]                 @relation("PayrollApprover")
-  createdPayrolls          Payroll[]                 @relation("PayrollCreator")
-  payrolls                 Payroll[]
-  userNotifications        UserNotification[]
-  assignedWarranties       WarrantyClaim[]
-  subsidiaries             Subsidiary[]              @relation("EmployeeToSubsidiary")
-  ticketsCreated           SupportTicket[]           @relation("TicketCreator")
-  ticketsAssigned          SupportTicket[]           @relation("TicketAssignee")
-  pushSubscriptions        PushSubscription[]
+  customers                      Customer[]
+  marketingCustomers             Customer[]                     @relation("MarketingOwnerCustomers")
+  assignedLeads                  DataPool[]                     @relation("DataPoolAssignee")
+  managedDepartments             Department[]                   @relation("DepartmentManager")
+  documentPermissions            DocumentPermission[]
+  ownedDocuments                 Document[]                     @relation("DocumentOwner")
+  createdDraftInvoices           DraftInvoice[]                 @relation("DraftInvoiceCreator")
+  bankAccounts                   EmployeeBankAccount[]
+  vehicles                       EmployeeVehicle[]
+  department                     Department?                    @relation(fields: [departmentId], references: [id])
+  employeeType                   EmployeeType?                  @relation(fields: [employeeTypeId], references: [id])
+  employmentType                 EmploymentType                 @relation(fields: [employmentTypeId], references: [id])
+  hrDepartmentUnit               HrDepartmentUnit               @relation(fields: [hrDepartmentUnitId], references: [id])
+  position                       Position?                      @relation(fields: [positionId], references: [id])
+  roleGroup                      RoleGroup?                     @relation(fields: [roleGroupId], references: [id])
+  status                         EmployeeStatus                 @relation(fields: [statusId], references: [id])
+  managedHrDepartmentUnits       HrDepartmentUnit[]             @relation("HrDepartmentUnitManager")
+  hrReminders                    HrReminder[]
+  leadAssignments                LeadAssignment[]               @relation("EmployeeLeadAssignments")
+  leadOpportunities              LeadOpportunity[]              @relation("EmployeeLeadOpportunities")
+  leaveRequestsAsApprover        LeaveRequest[]                 @relation("leave_requests_approver_idToemployees")
+  leaveRequestsAsConfirmer       LeaveRequest[]                 @relation("leave_requests_confirmer_idToemployees")
+  leaveRequests                  LeaveRequest[]                 @relation("leave_requests_employee_idToemployees")
+  performedMaintenances          MaintenanceLog[]
+  createdMarketingCosts          MarketingCampaignCost[]
+  campaignMemberships            MarketingCampaignMember[]      @relation("CampaignMembersEmployee")
+  createdCampaigns               MarketingCampaign[]            @relation("EmployeeCreatedCampaigns")
+  orders                         Order[]
+  ordersShippingDeclined         Order[]                        @relation("OrderShippingDeclinedBy")
+  approvedPayrolls               Payroll[]                      @relation("PayrollApprover")
+  createdPayrolls                Payroll[]                      @relation("PayrollCreator")
+  payrolls                       Payroll[]
+  pushSubscriptions              PushSubscription[]
+  shippingQuotasAssigned         ShippingDailyQuota[]           @relation("ShippingQuotaAssignedBy")
+  shippingDailyQuotas            ShippingDailyQuota[]           @relation("ShippingQuotaEmployee")
+  ticketsAssigned                SupportTicket[]                @relation("TicketAssignee")
+  ticketsCreated                 SupportTicket[]                @relation("TicketCreator")
+  userNotifications              UserNotification[]
+  assignedWarranties             WarrantyClaim[]
+  subsidiaries                   Subsidiary[]                   @relation("EmployeeToSubsidiary")
 
   @@index([code])
   @@index([phone])
@@ -566,83 +554,81 @@ model Document {
 }
 
 model Customer {
-  id                    String                  @id @default(uuid())
-  code                  String                  @unique @default(cuid())
-  name                  String?
-  phone                 String
+  id                            String                         @id @default(uuid())
+  code                          String                         @unique @default(cuid())
+  name                          String?
+  phone                         String
+  email                         String?
+  address                       String?
+  dateOfBirth                   DateTime?                      @map("date_of_birth")
+  gender                        String?
+  provinceId                    String?                        @map("province_id")
+  employeeId                    String?                        @map("employee_id")
+  marketingOwnerId              String?                        @map("marketing_owner_id")
+  attributionExpiredAt          DateTime?                      @map("attribution_expired_at")
+  spendingRankCode              String?                        @map("spending_rank_code")
+  regionRankCode                String?                        @map("region_rank_code")
+  leadSourceId                  String?                        @map("lead_source_id")
+  campaignId                    String?                        @map("campaign_id")
+  leadStatus                    String?                        @map("lead_status")
+  isValidLead                   Boolean                        @default(true) @map("is_valid_lead")
+  invalidReason                 String?                        @map("invalid_reason")
+  duplicateOfCustomerId         String?                        @map("duplicate_of_customer_id")
+  status                        Status                         @default(ACTIVE)
+  totalOrdersValue              Float                          @default(0) @map("total_orders_value")
+  joinedDate                    DateTime                       @default(now()) @map("joined_date")
+  createdAt                     DateTime                       @default(now()) @map("created_at")
+  updatedAt                     DateTime                       @updatedAt @map("updated_at")
+  bankAccount                   String?                        @map("bank_account")
+  bankName                      String?                        @map("bank_name")
+  businessType                  String?                        @map("business_type")
+  createdById                   String?                        @map("created_by_id")
+  createdByRole                 String?                        @map("created_by_role")
+  districtId                    String?                        @map("district_id")
+  farmArea                      Float?                         @map("farm_area")
+  farmAreaUnit                  String?                        @map("farm_area_unit")
+  farmName                      String?                        @map("farm_name")
+  farmingMethod                 String?                        @map("farming_method")
+  farmingYears                  Int?                           @map("farming_years")
+  irrigationType                String?                        @map("irrigation_type")
+  lastOrderAt                   DateTime?                      @map("last_order_at")
+  mainCrops                     String[]                       @map("main_crops")
+  note                          String?
+  salesChannel                  String?                        @map("sales_channel")
+  salesChannelNote              String?                        @map("sales_channel_note")
+  soilType                      String?                        @map("soil_type")
+  taxCode                       String?                        @map("tax_code")
+  totalOrders                   Int                            @default(0) @map("total_orders")
+  wardId                        String?                        @map("ward_id")
+  marketingAttributionExtraDays Int?                           @map("marketing_attribution_extra_days")
+  mainCropsRootCounts           Json?                          @map("main_crops_root_counts")
+  statusId                      String?                        @map("status_id")
   /// SĐT phụ (tối đa 1); gán một lần, không sửa sau khi đã có.
-  phoneSecondary        String?                 @unique @map("phone_secondary")
-  email                 String?
-  address               String?
-  dateOfBirth           DateTime?               @map("date_of_birth")
-  gender                String?
-  provinceId            String?                 @map("province_id")
-  employeeId            String?                 @map("employee_id")
-  marketingOwnerId      String?                 @map("marketing_owner_id")
-  attributionExpiredAt  DateTime?               @map("attribution_expired_at")
-  marketingAttributionExtraDays Int?            @map("marketing_attribution_extra_days")
-  spendingRankCode      String?                 @map("spending_rank_code")
-  regionRankCode        String?                 @map("region_rank_code")
-  leadSourceId          String?                 @map("lead_source_id")
-  campaignId            String?                 @map("campaign_id")
-  leadStatus            String?                 @map("lead_status")
-  isValidLead           Boolean                 @default(true) @map("is_valid_lead")
-  invalidReason         String?                 @map("invalid_reason")
-  duplicateOfCustomerId String?                 @map("duplicate_of_customer_id")
-  status                Status                  @default(ACTIVE)
-  totalOrdersValue      Float                   @default(0) @map("total_orders_value")
-  joinedDate            DateTime                @default(now()) @map("joined_date")
-  createdAt             DateTime                @default(now()) @map("created_at")
-  updatedAt             DateTime                @updatedAt @map("updated_at")
-  bankAccount           String?                 @map("bank_account")
-  bankName              String?                 @map("bank_name")
-  businessType          String?                 @map("business_type")
-  createdById           String?                 @map("created_by_id")
-  createdByRole         String?                 @map("created_by_role")
-  districtId            String?                 @map("district_id")
-  farmArea              Float?                  @map("farm_area")
-  farmAreaUnit          String?                 @map("farm_area_unit")
-  farmName              String?                 @map("farm_name")
-  farmingMethod         String?                 @map("farming_method")
-  farmingYears          Int?                    @map("farming_years")
-  irrigationType        String?                 @map("irrigation_type")
-  lastOrderAt           DateTime?               @map("last_order_at")
-  mainCrops             String[]                @map("main_crops")
-  // Mapping crop -> number of roots for crops that are counted "per root".
-  // Stored as JSONB, e.g. { "Cà phê": 100, "Điều": 50 }
-  mainCropsRootCounts  Json?                   @map("main_crops_root_counts")
-  note                  String?
-  salesChannel          String?                 @map("sales_channel")
-  salesChannelNote      String?                 @map("sales_channel_note")
-  soilType              String?                 @map("soil_type")
-  taxCode               String?                 @map("tax_code")
-  totalOrders           Int                     @default(0) @map("total_orders")
-  wardId                String?                 @map("ward_id")
-  addressRecord         CustomerAddress?
-  aggregate             CustomerAggregate?
-  farms                 CustomerFarm[]
-  interactions          CustomerInteraction[]
-  marketingContributors CustomerMarketingContributor[]
-  tags                  CustomerTagAssignment[]
-  campaign              MarketingCampaign?      @relation(fields: [campaignId], references: [id])
-  district              District?               @relation("CustomerDistrict", fields: [districtId], references: [id])
-  duplicateOfCustomer   Customer?               @relation("CustomerDuplicate", fields: [duplicateOfCustomerId], references: [id])
-  duplicates            Customer[]              @relation("CustomerDuplicate")
-  employee              Employee?               @relation(fields: [employeeId], references: [id])
-  leadSource            MarketingSource?        @relation(fields: [leadSourceId], references: [id])
-  marketingOwner        Employee?               @relation("MarketingOwnerCustomers", fields: [marketingOwnerId], references: [id])
-  province              Province?               @relation(fields: [provinceId], references: [id])
-  regionRank            CustomerRegionRank?     @relation(fields: [regionRankCode], references: [code])
-  spendingRank          CustomerSpendingRank?   @relation(fields: [spendingRankCode], references: [code])
-  statusId              String?                 @map("status_id")
-  customerStatus        CustomerStatus?         @relation(fields: [statusId], references: [id])
-  ward                  Ward?                   @relation("CustomerWard", fields: [wardId], references: [id])
-  dataPool              DataPool?
-  draftInvoices         DraftInvoice[]
-  assignments           LeadAssignment[]
-  opportunities         LeadOpportunity[]
-  orders                Order[]
-  warrantyClaims        WarrantyClaim[]
+  phoneSecondary                String?                        @unique @map("phone_secondary")
+  addressRecord                 CustomerAddress?
+  aggregate                     CustomerAggregate?
+  farms                         CustomerFarm[]
+  interactions                  CustomerInteraction[]
+  marketingContributors         CustomerMarketingContributor[]
+  tags                          CustomerTagAssignment[]
+  campaign                      MarketingCampaign?             @relation(fields: [campaignId], references: [id])
+  district                      District?                      @relation("CustomerDistrict", fields: [districtId], references: [id])
+  duplicateOfCustomer           Customer?                      @relation("CustomerDuplicate", fields: [duplicateOfCustomerId], references: [id])
+  duplicates                    Customer[]                     @relation("CustomerDuplicate")
+  employee                      Employee?                      @relation(fields: [employeeId], references: [id])
+  leadSource                    MarketingSource?               @relation(fields: [leadSourceId], references: [id])
+  marketingOwner                Employee?                      @relation("MarketingOwnerCustomers", fields: [marketingOwnerId], references: [id])
+  province                      Province?                      @relation(fields: [provinceId], references: [id])
+  regionRank                    CustomerRegionRank?            @relation(fields: [regionRankCode], references: [code])
+  spendingRank                  CustomerSpendingRank?          @relation(fields: [spendingRankCode], references: [code])
+  customerStatus                CustomerStatus?                @relation(fields: [statusId], references: [id])
+  ward                          Ward?                          @relation("CustomerWard", fields: [wardId], references: [id])
+  dataPool                      DataPool?
+  draftInvoices                 DraftInvoice[]
+  assignments                   LeadAssignment[]
+  opportunities                 LeadOpportunity[]
+  orders                        Order[]
+  warrantyClaims                WarrantyClaim[]
 
   @@index([employeeId])
   @@index([marketingOwnerId])
@@ -657,7 +643,6 @@ model Customer {
   @@index([createdByRole])
   @@index([joinedDate])
   @@index([status])
-  // Hiệu năng: danh sách sort theo updatedAt; thống kê theo createdAt; phạm vi OR createdById; campaign / lọc cây trồng
   @@index([updatedAt])
   @@index([createdAt])
   @@index([createdById])
@@ -914,53 +899,53 @@ model Ward {
 }
 
 model Order {
-  id                 String             @default(uuid())
-  code               String
-  customerId         String             @map("customer_id")
-  employeeId         String?            @map("employee_id")
-  orderDate          DateTime           @map("order_date")
-  totalAmount        Decimal            @map("total_amount") @db.Decimal(15, 2)
-  discount           Decimal            @default(0) @db.Decimal(15, 2)
-  finalAmount        Decimal            @map("final_amount") @db.Decimal(15, 2)
-  paymentStatus      String             @map("payment_status")
-  orderStatus        String             @map("order_status")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  confirmedAt        DateTime?          @map("confirmed_at")
-  confirmedById      String?            @map("confirmed_by_id")
-  deliveredAt        DateTime?          @map("delivered_at")
-  note               String?
-  receiverAddress    String?            @map("receiver_address")
-  receiverDistrict   String?            @map("receiver_district")
-  receiverName       String?            @map("receiver_name")
-  receiverPhone      String?            @map("receiver_phone")
-  receiverProvince   String?            @map("receiver_province")
-  receiverWard       String?            @map("receiver_ward")
-  receiverProvinceId Int?               @map("receiver_province_id")
-  receiverDistrictId Int?               @map("receiver_district_id")
-  receiverWardId     Int?               @map("receiver_ward_id")
-  shippedAt          DateTime?          @map("shipped_at")
-  shippingFee        Decimal?           @map("shipping_fee") @db.Decimal(15, 2)
-  shippingProvider   String?            @map("shipping_provider")
-  trackingNumber     String?            @map("tracking_number")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
-  codAmount          Decimal?           @map("cod_amount") @db.Decimal(15, 2)
-  shippingCode       String?            @map("shipping_code")
-  shippingStatus     String             @default("PENDING") @map("shipping_status")
-  editHistory        Json?              @map("edit_history")
-  isFirstOrder       Boolean            @default(true) @map("is_first_order")
-  last_edited_at     DateTime?
-  lastEditedById     String?            @map("last_edited_by_id")
-  resalesEmployeeId  String?            @map("resales_employee_id")
-  revenueCountedAt   DateTime?          @map("revenue_counted_at")
-  salesEmployeeId    String?            @map("sales_employee_id")
+  id                   String             @default(uuid())
+  code                 String
+  customerId           String             @map("customer_id")
+  employeeId           String?            @map("employee_id")
+  orderDate            DateTime           @map("order_date")
+  totalAmount          Decimal            @map("total_amount") @db.Decimal(15, 2)
+  discount             Decimal            @default(0) @db.Decimal(15, 2)
+  finalAmount          Decimal            @map("final_amount") @db.Decimal(15, 2)
+  paymentStatus        String             @map("payment_status")
+  orderStatus          String             @map("order_status")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  confirmedAt          DateTime?          @map("confirmed_at")
+  confirmedById        String?            @map("confirmed_by_id")
+  deliveredAt          DateTime?          @map("delivered_at")
+  note                 String?
+  receiverAddress      String?            @map("receiver_address")
+  receiverDistrict     String?            @map("receiver_district")
+  receiverName         String?            @map("receiver_name")
+  receiverPhone        String?            @map("receiver_phone")
+  receiverProvince     String?            @map("receiver_province")
+  receiverWard         String?            @map("receiver_ward")
+  receiverProvinceId   Int?               @map("receiver_province_id")
+  receiverDistrictId   Int?               @map("receiver_district_id")
+  receiverWardId       Int?               @map("receiver_ward_id")
+  shippedAt            DateTime?          @map("shipped_at")
+  shippingFee          Decimal?           @map("shipping_fee") @db.Decimal(15, 2)
+  shippingProvider     String?            @map("shipping_provider")
+  trackingNumber       String?            @map("tracking_number")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  codAmount            Decimal?           @map("cod_amount") @db.Decimal(15, 2)
+  shippingCode         String?            @map("shipping_code")
+  shippingStatus       String             @default("PENDING") @map("shipping_status")
+  editHistory          Json?              @map("edit_history")
+  isFirstOrder         Boolean            @default(true) @map("is_first_order")
+  last_edited_at       DateTime?
+  lastEditedById       String?            @map("last_edited_by_id")
+  resalesEmployeeId    String?            @map("resales_employee_id")
+  revenueCountedAt     DateTime?          @map("revenue_counted_at")
+  salesEmployeeId      String?            @map("sales_employee_id")
   /// NV vận đơn từ chối tiếp nhận (PENDING → CANCELLED / hủy vận chuyển từ chờ xác nhận)
-  shippingDeclinedById String?          @map("shipping_declined_by_id")
-  shippingDeclinedAt   DateTime?        @map("shipping_declined_at")
-  items              OrderItem[]
-  orderShippingLogs  OrderShippingLog[]
-  customer           Customer           @relation(fields: [customerId], references: [id])
-  employee           Employee?          @relation(fields: [employeeId], references: [id])
-  shippingDeclinedBy Employee?        @relation("OrderShippingDeclinedBy", fields: [shippingDeclinedById], references: [id])
+  shippingDeclinedById String?            @map("shipping_declined_by_id")
+  shippingDeclinedAt   DateTime?          @map("shipping_declined_at")
+  items                OrderItem[]
+  orderShippingLogs    OrderShippingLog[]
+  customer             Customer           @relation(fields: [customerId], references: [id])
+  employee             Employee?          @relation(fields: [employeeId], references: [id])
+  shippingDeclinedBy   Employee?          @relation("OrderShippingDeclinedBy", fields: [shippingDeclinedById], references: [id])
 
   @@id([id, orderDate])
   @@unique([code, orderDate])
@@ -970,7 +955,6 @@ model Order {
   @@index([shippingCode])
   @@index([shippingStatus, deliveredAt])
   @@index([employeeId])
-  // Danh sách / thống kê: lọc theo trạng thái + khoảng ngày; nhân viên + ngày; orderStatus
   @@index([shippingStatus, orderDate])
   @@index([employeeId, orderDate])
   @@index([orderStatus])
@@ -987,8 +971,8 @@ model ShippingDailyQuota {
   assignedById String   @map("assigned_by_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
+  assignedBy   Employee @relation("ShippingQuotaAssignedBy", fields: [assignedById], references: [id])
   employee     Employee @relation("ShippingQuotaEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
-  assignedBy   Employee @relation("ShippingQuotaAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
 
   @@unique([employeeId, workDate])
   @@index([workDate])
@@ -1016,23 +1000,23 @@ model OrderItem {
 }
 
 model CustomerInteraction {
-  id           String    @default(uuid())
-  code         String
-  customerId   String    @map("customer_id")
-  employeeId   String    @map("employee_id")
-  type         String
-  content      String
+  id                     String    @default(uuid())
+  code                   String
+  customerId             String    @map("customer_id")
+  employeeId             String    @map("employee_id")
+  type                   String
+  content                String
+  nextActionAt           DateTime? @map("next_action_at")
+  result                 String?
+  createdAt              DateTime  @default(now()) @map("created_at")
   /// USER_NOTE | SYSTEM_CHANGE
-  kind         String    @default("USER_NOTE") @map("kind")
+  kind                   String    @default("USER_NOTE") @map("kind")
   /// Chi tiết tương tác (form mới); có thể validate min ký tự theo min_note_characters.
-  detail       String?   @map("detail") @db.Text
+  detail                 String?   @map("detail")
   /// Trạng thái xử lý Sales snapshot khi tạo bản ghi thủ công.
-  processingStatusAtTime String? @map("processing_status_at_time")
-  nextActionAt DateTime? @map("next_action_at")
-  result       String?
-  createdAt    DateTime  @default(now()) @map("created_at")
-  customer     Customer  @relation(fields: [customerId], references: [id])
-  employee     Employee  @relation(fields: [employeeId], references: [id])
+  processingStatusAtTime String?   @map("processing_status_at_time")
+  customer               Customer  @relation(fields: [customerId], references: [id])
+  employee               Employee  @relation(fields: [employeeId], references: [id])
 
   @@id([id, createdAt])
   @@unique([code, createdAt])
@@ -1132,33 +1116,33 @@ model MarketingSource {
 }
 
 model MarketingCampaign {
-  id                  String                     @id @default(uuid())
-  code                String                     @unique
-  name                String
-  description         String?
-  status              String                     @map("status")
-  startDate           DateTime                   @map("start_date")
-  endDate             DateTime?                  @map("end_date")
+  id                         String                     @id @default(uuid())
+  code                       String                     @unique
+  name                       String
+  description                String?
+  status                     String                     @map("status")
+  startDate                  DateTime                   @map("start_date")
+  endDate                    DateTime?                  @map("end_date")
   /// Ngân sách dự kiến (VND) nhập khi tạo/sửa chiến dịch. Chi phí thực tế không lưu ở đây — tính tổng `amount` trên `marketing_campaign_costs`.
-  totalBudget         Decimal?                   @map("total_budget") @db.Decimal(15, 2)
-  sourceId            String?                    @map("source_id")
-  createdByEmployeeId String                     @map("created_by_employee_id")
-  createdAt           DateTime                   @default(now()) @map("created_at")
-  updatedAt           DateTime                   @updatedAt @map("updated_at")
-  allowedOrigins      String?                    @map("allowed_origins")
-  apiKey              String?                    @unique @map("api_key")
-  leadCount           Int                        @default(0) @map("lead_count")
-  webhookSecret       String?                    @map("webhook_secret")
-  acceptedFields      Json?                      @map("accepted_fields")
+  totalBudget                Decimal?                   @map("total_budget") @db.Decimal(15, 2)
+  sourceId                   String?                    @map("source_id")
+  createdByEmployeeId        String                     @map("created_by_employee_id")
+  createdAt                  DateTime                   @default(now()) @map("created_at")
+  updatedAt                  DateTime                   @updatedAt @map("updated_at")
+  allowedOrigins             String?                    @map("allowed_origins")
+  apiKey                     String?                    @unique @map("api_key")
+  leadCount                  Int                        @default(0) @map("lead_count")
+  webhookSecret              String?                    @map("webhook_secret")
+  acceptedFields             Json?                      @map("accepted_fields")
   /// NONE = không nhận mã tỉnh/huyện/xã; OLD/NEW = ID thuộc danh mục trước/sau sáp nhập (khớp `AddressType` trên `customer_addresses`)
-  publicLeadAddressHierarchy String              @default("NONE") @map("public_lead_address_hierarchy")
-  customers           Customer[]
-  opportunities       LeadOpportunity[]
-  costs               MarketingCampaignCost[]
-  members             MarketingCampaignMember[]
-  products            MarketingCampaignProduct[]
-  createdByEmployee   Employee                   @relation("EmployeeCreatedCampaigns", fields: [createdByEmployeeId], references: [id])
-  source              MarketingSource?           @relation(fields: [sourceId], references: [id])
+  publicLeadAddressHierarchy String                     @default("NONE") @map("public_lead_address_hierarchy")
+  customers                  Customer[]
+  opportunities              LeadOpportunity[]
+  costs                      MarketingCampaignCost[]
+  members                    MarketingCampaignMember[]
+  products                   MarketingCampaignProduct[]
+  createdByEmployee          Employee                   @relation("EmployeeCreatedCampaigns", fields: [createdByEmployeeId], references: [id])
+  source                     MarketingSource?           @relation(fields: [sourceId], references: [id])
 
   @@index([sourceId])
   @@index([createdByEmployeeId])
@@ -1221,7 +1205,6 @@ model MarketingCampaignCost {
   @@index([sourceId])
   @@index([costDate])
   @@index([employeeGroupId])
-  // Truy vấn theo chiến dịch + sort/lọc ngày; lọc aggregate theo loại/nền tảng
   @@index([campaignId, costDate])
   @@index([costType])
   @@index([platform])
@@ -1298,8 +1281,6 @@ model Product {
   minSellPriceNet          Decimal                    @default(0) @map("min_sell_price_net") @db.Decimal(15, 2)
   vatRate                  Float                      @default(0) @map("vat_rate")
   vatName                  String?                    @map("vat_name")
-  weight                   Float                      @default(0) // Khối lượng (g)
-  packagingSpec            String?                    @map("packaging_spec") @db.VarChar(500)
   unit                     String
   thumbnail                String?
   gallery                  String[]
@@ -1307,16 +1288,18 @@ model Product {
   createdAt                DateTime                   @default(now()) @map("created_at")
   updatedAt                DateTime                   @updatedAt @map("updated_at")
   categoryId               String?                    @map("category_id")
-  warehouseId              String?                    @map("warehouse_id")
   lowStockThreshold        Int                        @default(50) @map("low_stock_threshold")
+  packagingSpec            String?                    @map("packaging_spec") @db.VarChar(500)
+  weight                   Float                      @default(0)
+  warehouseId              String?                    @map("warehouse_id")
   batches                  Batch[]
   draftInvoiceItems        DraftInvoiceItem[]
   MarketingCampaignProduct MarketingCampaignProduct[]
   OrderItem                OrderItem[]
   bioDetail                ProductBio?
+  comboItems               ProductComboItem[]         @relation("ComboOwner")
+  usedInCombos             ProductComboItem[]         @relation("ComboComponent")
   techDetail               ProductTech?
-  comboItems               ProductComboItem[]           @relation("ComboOwner")
-  usedInCombos             ProductComboItem[]           @relation("ComboComponent")
   category                 ProductCategory?           @relation(fields: [categoryId], references: [id])
   warehouse                Warehouse?                 @relation(fields: [warehouseId], references: [id])
   serials                  Serial[]
@@ -1328,12 +1311,12 @@ model Product {
 }
 
 model ProductComboItem {
-  id                 String  @id @default(uuid())
-  comboProductId     String  @map("combo_product_id")
-  componentProductId String  @map("component_product_id")
+  id                 String   @id @default(uuid())
+  comboProductId     String   @map("combo_product_id")
+  componentProductId String   @map("component_product_id")
   createdAt          DateTime @default(now()) @map("created_at")
-  comboProduct       Product @relation("ComboOwner", fields: [comboProductId], references: [id], onDelete: Cascade)
-  componentProduct   Product @relation("ComboComponent", fields: [componentProductId], references: [id], onDelete: Restrict)
+  comboProduct       Product  @relation("ComboOwner", fields: [comboProductId], references: [id], onDelete: Cascade)
+  componentProduct   Product  @relation("ComboComponent", fields: [componentProductId], references: [id])
 
   @@unique([comboProductId, componentProductId])
   @@index([componentProductId])
@@ -1373,22 +1356,22 @@ model Warehouse {
   manager            String?
   type               WarehouseType          @default(MAIN)
   status             Status                 @default(ACTIVE)
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
   contactName        String?                @map("contact_name")
   contactPhone       String?                @map("contact_phone")
   detailAddress      String?                @map("detail_address")
   provinceId         String?                @map("province_id")
   districtId         String?                @map("district_id")
   wardId             String?                @map("ward_id")
-  createdAt          DateTime               @default(now()) @map("created_at")
-  updatedAt          DateTime               @updatedAt @map("updated_at")
-  province           Province?              @relation(fields: [provinceId], references: [id])
-  district           District?              @relation(fields: [districtId], references: [id])
-  ward               Ward?                  @relation(fields: [wardId], references: [id])
   transactionsDest   InventoryTransaction[] @relation("DestWarehouse")
   transactionsSource InventoryTransaction[] @relation("SourceWarehouse")
+  products           Product[]
   serials            Serial[]
   stocks             Stock[]
-  products           Product[]
+  district           District?              @relation(fields: [districtId], references: [id])
+  province           Province?              @relation(fields: [provinceId], references: [id])
+  ward               Ward?                  @relation(fields: [wardId], references: [id])
 
   @@map("warehouses")
 }
@@ -1507,42 +1490,41 @@ model MaintenanceLog {
 }
 
 model DataPool {
-  id                  String         @id @default(uuid())
-  customerId          String         @unique @map("customer_id")
-  source              DataPoolSource @default(MARKETING)
-  enteredAt           DateTime       @default(now()) @map("entered_at")
-  assignedAt          DateTime?      @map("assigned_at")
-  assignedToId        String?        @map("assigned_to_id")
-  status              DataPoolStatus @default(AVAILABLE)
-  priority            Int            @default(0)
-  note                String?
-  poolType            String         @default("SALES") @map("pool_type")
-  // 1: chăm sóc khách hàng lần 1; 2: chăm sóc khách hàng lần 2 (đi vòng đời theo tham số vận hành)
-  cskhStage           Int            @default(1) @map("cskh_stage")
-  roundCount          Int            @default(0) @map("round_count")
-  maxRounds           Int            @default(5) @map("max_rounds")
-  previousAssignees   String[]       @default([]) @map("previous_assignees")
-  deadline            DateTime?
-  holdUntil           DateTime?      @map("hold_until")
-  interactionDeadline DateTime?      @map("interaction_deadline")
-  customDeadline      DateTime?      @map("custom_deadline")
+  id                          String         @id @default(uuid())
+  customerId                  String         @unique @map("customer_id")
+  source                      DataPoolSource @default(MARKETING)
+  enteredAt                   DateTime       @default(now()) @map("entered_at")
+  assignedAt                  DateTime?      @map("assigned_at")
+  assignedToId                String?        @map("assigned_to_id")
+  status                      DataPoolStatus @default(AVAILABLE)
+  priority                    Int            @default(0)
+  note                        String?
+  poolType                    String         @default("SALES") @map("pool_type")
+  roundCount                  Int            @default(0) @map("round_count")
+  maxRounds                   Int            @default(5) @map("max_rounds")
+  previousAssignees           String[]       @default([]) @map("previous_assignees")
+  deadline                    DateTime?
+  holdUntil                   DateTime?      @map("hold_until")
+  interactionDeadline         DateTime?      @map("interaction_deadline")
+  customDeadline              DateTime?      @map("custom_deadline")
+  processingStatus            String?        @map("processing_status")
+  createdAt                   DateTime       @default(now()) @map("created_at")
+  updatedAt                   DateTime       @updatedAt @map("updated_at")
+  cskhStage                   Int            @default(1) @map("cskh_stage")
   /// true: Sales đang xử lý sau khi CSKH thu hồi; hết hạn Sales → ưu tiên phân lại CSKH (không tính vòng Sales).
-  awaitingSalesAfterCskh Boolean   @default(false) @map("awaiting_sales_after_cskh")
-  processingStatus    String?        @map("processing_status")
+  awaitingSalesAfterCskh      Boolean        @default(false) @map("awaiting_sales_after_cskh")
   /// SALES_OPEN: kho Sales chưa gán; FLOATING: kho thả nổi (theo pool_push_processing_statuses).
-  poolQueue           String         @default("SALES_OPEN") @map("pool_queue")
+  poolQueue                   String         @default("SALES_OPEN") @map("pool_queue")
   /// Thời điểm hẹn gọi lại khách (Sales/CSKH).
-  callbackAt                DateTime? @map("callback_at")
+  callbackAt                  DateTime?      @map("callback_at")
   /// Bật gửi thông báo nhắc gọi lại cho NV được gán.
-  callbackNotifyEnabled     Boolean   @default(false) @map("callback_notify_enabled")
+  callbackNotifyEnabled       Boolean        @default(false) @map("callback_notify_enabled")
   /// Nhắc trước bao nhiêu phút so với `callbackAt` (0 = đúng giờ hẹn).
-  callbackNotifyMinutesBefore Int?    @map("callback_notify_minutes_before")
+  callbackNotifyMinutesBefore Int?           @map("callback_notify_minutes_before")
   /// Đã gửi nhắc lần tương ứng với lượt hẹn hiện tại (reset khi đổi hẹn/cấu hình nhắc).
-  callbackReminderSentAt    DateTime? @map("callback_reminder_sent_at")
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @updatedAt @map("updated_at")
-  assignedTo          Employee?      @relation("DataPoolAssignee", fields: [assignedToId], references: [id])
-  customer            Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  callbackReminderSentAt      DateTime?      @map("callback_reminder_sent_at")
+  assignedTo                  Employee?      @relation("DataPoolAssignee", fields: [assignedToId], references: [id])
+  customer                    Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([assignedToId])
@@ -1812,7 +1794,6 @@ model DocumentType {
 model SalesTarget {
   id                     String      @id @default(uuid())
   year                   Int
-  departmentId           String?     @map("department_id")
   annualTarget           Decimal     @map("annual_target") @db.Decimal(18, 2)
   q1Target               Decimal?    @map("q1_target") @db.Decimal(18, 2)
   q2Target               Decimal?    @map("q2_target") @db.Decimal(18, 2)
@@ -1823,6 +1804,7 @@ model SalesTarget {
   createdAt              DateTime    @default(now()) @map("created_at")
   updatedAt              DateTime    @updatedAt @map("updated_at")
   revenueCalculationNote String?     @map("revenue_calculation_note")
+  departmentId           String?     @map("department_id")
   department             Department? @relation(fields: [departmentId], references: [id])
 
   @@unique([year, departmentId], name: "year_departmentId")
@@ -1874,30 +1856,30 @@ model InventoryLog {
 }
 
 model LeaveRequest {
-  id                   String             @id @default(uuid())
-  code                 String             @unique
-  employeeId           String             @map("employee_id")
-  leaveType             LeaveType          @default(ANNUAL) @map("leave_type")
-  leaveTypeOtherLabel   String?          @map("leave_type_other_label") @db.VarChar(200) // OTHER: tên loại do NV nhập
-  startDate            DateTime           @map("start_date")
-  endDate              DateTime           @map("end_date")
-  totalDays            Float              @map("total_days")
-  reason               String?
-  status       LeaveRequestStatus @default(PENDING)
-  approverId   String?            @map("approver_id")
-  approvedAt   DateTime?          @map("approved_at")
-  rejectedAt   DateTime?          @map("rejected_at")
-  approverNote String?            @map("approver_note")
-  confirmerId  String?            @map("confirmer_id")
-  confirmedAt  DateTime?          @map("confirmed_at")
-  hrNote       String?            @map("hr_note")
-  lateMinutes  Int?               @default(0) @map("late_minutes")
-  earlyMinutes Int?               @default(0) @map("early_minutes")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
-  approver     Employee?          @relation("leave_requests_approver_idToemployees", fields: [approverId], references: [id])
-  confirmer    Employee?          @relation("leave_requests_confirmer_idToemployees", fields: [confirmerId], references: [id])
-  employee     Employee           @relation("leave_requests_employee_idToemployees", fields: [employeeId], references: [id])
+  id                  String             @id @default(uuid())
+  code                String             @unique
+  employeeId          String             @map("employee_id")
+  leaveType           LeaveType          @default(ANNUAL) @map("leave_type")
+  startDate           DateTime           @map("start_date")
+  endDate             DateTime           @map("end_date")
+  totalDays           Float              @map("total_days")
+  reason              String?
+  status              LeaveRequestStatus @default(PENDING)
+  approverId          String?            @map("approver_id")
+  approvedAt          DateTime?          @map("approved_at")
+  rejectedAt          DateTime?          @map("rejected_at")
+  approverNote        String?            @map("approver_note")
+  confirmerId         String?            @map("confirmer_id")
+  confirmedAt         DateTime?          @map("confirmed_at")
+  hrNote              String?            @map("hr_note")
+  lateMinutes         Int?               @default(0) @map("late_minutes")
+  earlyMinutes        Int?               @default(0) @map("early_minutes")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  leaveTypeOtherLabel String?            @map("leave_type_other_label") @db.VarChar(200)
+  approver            Employee?          @relation("leave_requests_approver_idToemployees", fields: [approverId], references: [id])
+  confirmer           Employee?          @relation("leave_requests_confirmer_idToemployees", fields: [confirmerId], references: [id])
+  employee            Employee           @relation("leave_requests_employee_idToemployees", fields: [employeeId], references: [id])
 
   @@index([approverId])
   @@index([employeeId])
@@ -1987,7 +1969,6 @@ model ReturnedOrder {
 model HrReminder {
   id          String   @id @default(uuid())
   employeeId  String   @map("employee_id")
-  employee    Employee @relation(fields: [employeeId], references: [id])
   contractId  String?  @map("contract_id")
   type        String
   dueDate     DateTime @map("due_date")
@@ -1996,6 +1977,7 @@ model HrReminder {
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  employee    Employee @relation(fields: [employeeId], references: [id])
 
   @@map("hr_reminders")
 }
@@ -2011,6 +1993,71 @@ model TeamDistributionRatio {
   department        Department @relation(fields: [departmentId], references: [id])
 
   @@map("team_distribution_ratios")
+}
+
+model SupportTicket {
+  id           String                    @id @default(uuid())
+  code         String                    @unique
+  title        String
+  description  String
+  status       SupportTicketStatus       @default(NEW)
+  createdById  String                    @map("created_by_id")
+  assignedToId String?                   @map("assigned_to_id")
+  resolvedAt   DateTime?                 @map("resolved_at")
+  adminNote    String?                   @map("admin_note")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+  attachments  SupportTicketAttachment[]
+  assignedTo   Employee?                 @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  createdBy    Employee                  @relation("TicketCreator", fields: [createdById], references: [id])
+
+  @@index([createdById])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model SupportTicketAttachment {
+  id        String        @id @default(uuid())
+  ticketId  String        @map("ticket_id")
+  fileName  String        @map("file_name")
+  filePath  String        @map("file_path")
+  fileSize  Int           @map("file_size")
+  fileType  String        @map("file_type")
+  createdAt DateTime      @default(now()) @map("created_at")
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_ticket_attachments")
+}
+
+model CustomerStatus {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  description String?
+  color       String     @default("#3B82F6")
+  sortOrder   Int        @default(0) @map("sort_order")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  customers   Customer[]
+
+  @@map("customer_statuses")
+}
+
+model LeadProcessingStatus {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  description  String?
+  color        String   @default("#9CA3AF")
+  sortOrder    Int      @default(0) @map("sort_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  isPushToPool Boolean  @default(false) @map("is_push_to_pool")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("lead_processing_statuses")
 }
 
 enum AddressType {
@@ -2152,58 +2199,6 @@ enum SupportTicketStatus {
   RESOLVED
 }
 
-model SupportTicket {
-  id           String              @id @default(uuid())
-  code         String              @unique
-  title        String
-  description  String
-  status       SupportTicketStatus @default(NEW)
-  createdById  String              @map("created_by_id")
-  assignedToId String?             @map("assigned_to_id")
-  resolvedAt   DateTime?           @map("resolved_at")
-  adminNote    String?             @map("admin_note")
-  createdAt    DateTime            @default(now()) @map("created_at")
-  updatedAt    DateTime            @updatedAt @map("updated_at")
-
-  createdBy   Employee                  @relation("TicketCreator", fields: [createdById], references: [id])
-  assignedTo  Employee?                 @relation("TicketAssignee", fields: [assignedToId], references: [id])
-  attachments SupportTicketAttachment[]
-
-  @@index([createdById])
-  @@index([status])
-  @@map("support_tickets")
-}
-
-model SupportTicketAttachment {
-  id        String   @id @default(uuid())
-  ticketId  String   @map("ticket_id")
-  fileName  String   @map("file_name")
-  filePath  String   @map("file_path")
-  fileSize  Int      @map("file_size")
-  fileType  String   @map("file_type")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-
-  @@index([ticketId])
-  @@map("support_ticket_attachments")
-}
-
-model CustomerStatus {
-  id          String     @id @default(uuid())
-  code        String     @unique
-  name        String
-  description String?
-  color       String     @default("#3B82F6")
-  sortOrder   Int        @default(0) @map("sort_order")
-  isActive    Boolean    @default(true) @map("is_active")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  customers   Customer[]
-
-  @@map("customer_statuses")
-}
-
 enum OrgType {
   COMPANY
   DIVISION
@@ -2219,19 +2214,4 @@ enum OrgFunc {
   REV_DATA_BEFORE_20250701
   /// Ghi nhận doanh thu từ data trong khoảng 01/07/2025–31/01/2026
   REV_DATA_RANGE_20250701_20260131
-}
-
-model LeadProcessingStatus {
-  id           String   @id @default(uuid())
-  code         String   @unique
-  name         String
-  description  String?
-  color        String   @default("#9CA3AF")
-  sortOrder    Int      @default(0) @map("sort_order")
-  isActive     Boolean  @default(true) @map("is_active")
-  isPushToPool Boolean  @default(false) @map("is_push_to_pool")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  @@map("lead_processing_statuses")
 }

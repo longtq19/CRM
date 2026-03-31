@@ -478,7 +478,7 @@ export const getWards = async (req: Request, res: Response) => {
       where.provinceId = String(provinceId);
     }
     if (directOnly && provinceId && !districtId) {
-      // Fetch all wards in province, then merge by name for a flat 'Ward -> Province' list
+      where.districtId = null;
     }
     if (search) {
       where.name = { contains: String(search), mode: 'insensitive' };
