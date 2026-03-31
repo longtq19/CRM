@@ -197,10 +197,14 @@ export const uploadProductImage = async (req: Request, res: Response) => {
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { search, type, status } = req.query;
+    const { search, type, status, warehouseId } = req.query;
     const { page, limit, skip } = getPaginationParams(req.query);
 
     const where: any = {};
+
+    if (warehouseId) {
+      where.warehouseId = String(warehouseId);
+    }
 
     if (search) {
       where.OR = [
@@ -346,6 +350,7 @@ export const getProductOptions = async (req: Request, res: Response) => {
   try {
     const search = String(req.query?.search || '').trim();
     const excludeProductId = String(req.query?.excludeProductId || '').trim();
+    const warehouseId = String(req.query?.warehouseId || '').trim();
     const where: any = {};
 
     if (search) {
@@ -353,6 +358,10 @@ export const getProductOptions = async (req: Request, res: Response) => {
         { code: { contains: search, mode: 'insensitive' } },
         { name: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    if (warehouseId) {
+      where.warehouseId = warehouseId;
     }
 
     if (excludeProductId) {
@@ -431,6 +440,7 @@ export const createProduct = async (req: Request, res: Response) => {
       lowStockThreshold,
       packagingSpec: packagingSpecBody,
       comboProductIds,
+      warehouseId,
     } = req.body;
 
     const packagingSpec =
@@ -450,10 +460,15 @@ export const createProduct = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Vui lòng nhập khối lượng hợp lệ lớn hơn 0' });
     }
 
-    // Check if code exists
-    const existing = await prisma.product.findUnique({ where: { code } });
+    // Check if code exists for this warehouse
+    const existing = await prisma.product.findFirst({ 
+      where: { 
+        code, 
+        warehouseId: warehouseId || null 
+      } 
+    });
     if (existing) {
-      return res.status(400).json({ message: 'Mã sản phẩm đã tồn tại' });
+      return res.status(400).json({ message: 'Mã sản phẩm đã tồn tại trong kho này' });
     }
 
     // Resolve Category
@@ -486,6 +501,7 @@ export const createProduct = async (req: Request, res: Response) => {
           weight: finalWeight,
           lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : 50,
           packagingSpec: resolvedPackaging,
+          warehouseId: warehouseId || null,
         },
       });
 
@@ -587,6 +603,7 @@ export const updateProduct = async (req: Request, res: Response) => {
       lowStockThreshold,
       packagingSpec: packagingSpecBody,
       comboProductIds,
+      warehouseId,
     } = req.body;
 
     let newPackaging: string | null | undefined = undefined;
@@ -643,6 +660,7 @@ export const updateProduct = async (req: Request, res: Response) => {
           ...(finalWeight !== undefined ? { weight: finalWeight } : {}),
           lowStockThreshold: lowStockThreshold !== undefined ? Number(lowStockThreshold) : undefined,
           ...(newPackaging !== undefined ? { packagingSpec: newPackaging } : {}),
+          warehouseId: warehouseId || undefined,
         },
       });
 

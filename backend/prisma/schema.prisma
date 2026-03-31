@@ -1291,7 +1291,7 @@ model ProductCategory {
 
 model Product {
   id                       String                     @id @default(uuid())
-  code                     String                     @unique
+  code                     String
   name                     String
   description              String?
   listPriceNet             Decimal                    @map("list_price_net") @db.Decimal(15, 2)
@@ -1307,6 +1307,7 @@ model Product {
   createdAt                DateTime                   @default(now()) @map("created_at")
   updatedAt                DateTime                   @updatedAt @map("updated_at")
   categoryId               String?                    @map("category_id")
+  warehouseId              String?                    @map("warehouse_id")
   lowStockThreshold        Int                        @default(50) @map("low_stock_threshold")
   batches                  Batch[]
   draftInvoiceItems        DraftInvoiceItem[]
@@ -1317,10 +1318,12 @@ model Product {
   comboItems               ProductComboItem[]           @relation("ComboOwner")
   usedInCombos             ProductComboItem[]           @relation("ComboComponent")
   category                 ProductCategory?           @relation(fields: [categoryId], references: [id])
+  warehouse                Warehouse?                 @relation(fields: [warehouseId], references: [id])
   serials                  Serial[]
   stocks                   Stock[]
   transactionItems         TransactionItem[]
 
+  @@unique([code, warehouseId])
   @@map("products")
 }
 
@@ -1385,6 +1388,7 @@ model Warehouse {
   transactionsSource InventoryTransaction[] @relation("SourceWarehouse")
   serials            Serial[]
   stocks             Stock[]
+  products           Product[]
 
   @@map("warehouses")
 }
