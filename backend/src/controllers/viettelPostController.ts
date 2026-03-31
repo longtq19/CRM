@@ -913,6 +913,19 @@ export const printVTPOrder = async (req: Request, res: Response) => {
     };
 
     const data = await callVTPApi('/order/printing-code', 'POST', payload);
+    
+    // Theo tài liệu VTP V2: Nếu thành công (status 200), mã in nằm trong trường 'message', trường 'data' là null.
+    // Cần tự dựng link in từ mã này.
+    if (data.status === 200 && data.message && typeof data.message === 'string' && data.message.length > 10) {
+      const printUrl = `https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=1&bill=${encodeURIComponent(data.message)}&showPostage=1`;
+      return res.json({
+        ...data,
+        data: {
+          PRINT_URL: printUrl
+        }
+      });
+    }
+
     res.json(data);
   } catch (error) {
     console.error('VTP Print error:', error);
