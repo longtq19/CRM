@@ -366,7 +366,7 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 
 **Quyền xem API:** `VIEW_FLOATING_POOL` (thay mã cũ `VIEW_DATA_POOL`, migration `20260328200000_rbac_floating_pool_orders_permissions`). Một số route cho phép `VIEW_SALES` để tương thích đọc kho `SALES_OPEN` (xem `dataPoolRoutes.ts`).
 
-**Marketing → Sales:** sau khi tạo bản ghi `SALES_OPEN`, nếu `department.autoDistributeLead`, hệ thống ưu tiên **cân bằng tỉ lệ** (`teamRatioDistributionService.assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` khi không đủ cấu hình. **Lưu ý kỹ thuật:** phần dư sau khi chia theo % phải chỉ gán vào các đơn vị **còn có nhân viên đang làm việc** (trước đây vòng xử lý dư luôn lấy team đầu danh sách nên nếu team đó không có NV, số có thể vẫn `AVAILABLE` dù team khác còn NV).
+**Marketing → Sales:** sau khi tạo bản ghi `SALES_OPEN`, nếu `department.autoDistributeLead`, hệ thống ưu tiên **cân bằng tỉ lệ** (`teamRatioDistributionService.assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` khi không đủ cấu hình. **Phân xong:** gửi `user_notifications` (loại `NEW_LEAD`) + socket `new_lead` + Web Push tới **NV Sales được gán** (`notifySalesLeadFromMarketing.ts`). Nếu `autoDistributeLead` tắt, lead ở `AVAILABLE` (không gọi phân tỉ lệ). **Lưu ý kỹ thuật:** phần dư sau khi chia theo % phải chỉ gán vào các đơn vị **còn có nhân viên đang làm việc** (trước đây vòng xử lý dư luôn lấy team đầu danh sách nên nếu team đó không có NV, số có thể vẫn `AVAILABLE` dù team khác còn NV).
 
 **Cron nhắc thu hồi:** `backend/src/cron/leadDistribution.ts` — hàm `deadlineReminder` tạo `userNotification` khi `deadline` lead rơi vào **ngày mai** (nhắc trước khi thu hồi tự động).
 
@@ -465,7 +465,7 @@ Các nhánh nghiệp vụ:
 - `pushLeadsToDataPool` tạo các `dataPool` mới:
   - `status=AVAILABLE`, `priority=1`, `source=MARKETING`
   - bỏ qua nếu customer đã có trong pool.
-  - Khi `autoDistributeLead` bật, phân NV Sales bằng **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback round-robin cũ nếu không cấu hình; có ghi nhật ký nghiệp vụ (`logAudit`) khi áp dụng.
+  - **Chỉ khi** `department.autoDistributeLead` của **NV Marketing thao tác** bật: phân NV Sales bằng **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` (anchor = NV Marketing) nếu còn lead `AVAILABLE`; sau đó thông báo realtime cho NV Sales được gán (như trên). Nếu tắt auto phân, lead nằm ở kho chưa phân — không gọi phân tỉ lệ. Có `logAudit`; response có `autoDistributeApplied`, `ratioAssigned` (số lead đã `ASSIGNED`).
 
 ### 4.7. Public API nhận lead từ website (API Key)
 
@@ -884,7 +884,7 @@ Các luồng đã áp dụng org-aware routing:
 - **autoDistribute** (`dataPoolController`): với mỗi lead, `pickNextSalesEmployeeId` (anchor = `marketingOwnerId`) — có tôn trọng `external_sales_division_id` (trên khối gửi) và `externalMarketingToSalesPct` (lưu trên **khối Sales đích**) khi khối Marketing không có Sales
 - **claimFromFloatingPool**: ưu tiên lead cùng division với NV đang nhận
 - **distributeFromFloatingPool**: resolve NV từ `targetDepartmentId` qua org routing, fallback NV bất kỳ trong dept
-- **createMarketingLead** + **pushLeadsToDataPool**: tự động phân cho Sales nếu dept có `autoDistributeLead = true` — dùng `pickNextSalesEmployeeId` (anchor = NV Marketing thao tác)
+- **createMarketingLead** + **pushLeadsToDataPool**: tự động phân cho Sales nếu dept có `autoDistributeLead = true` — ưu tiên `assignLeadsUsingTeamRatios`, fallback `pickNextSalesEmployeeId` (anchor = NV Marketing); thông báo `NEW_LEAD` + socket + push cho NV Sales được gán
 - **autoDistributeCustomerToResales** (`orderController`): resolve CSKH đích từ Sales dept, fallback logic cũ
 - **leadRoutingService** (`pickNextSalesEmployeeId`/`pickNextResalesEmployeeId`): config-first — kiểm tra `targetSalesUnitId`/`targetCsUnitId` trước; `external_*` trên khối gốc NV, rồi khối anh em, rồi **`external_*` trên từng khối cha (DIVISION)** cho khớp `orgRoutingService`
 - **Cron jobs** (`leadDistribution.ts`): sử dụng `leadRoutingService` đã có config-first

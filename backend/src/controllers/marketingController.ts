@@ -30,8 +30,9 @@ import {
   CUSTOMER_EXPORT_FILENAME_PREFIX,
 } from '../constants/customerExcelColumns';
 import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
-import { assignLeadsUsingTeamRatios } from '../services/teamRatioDistributionService';
+import { assignLeadsUsingTeamRatios, type TeamRatioAssignResult } from '../services/teamRatioDistributionService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
+import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 
 const MK_SOURCE_LABELS: Record<string, string> = {
   code: 'Mã nền tảng',
@@ -1594,6 +1595,10 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       }
     }
 
+    if (dpEntry) {
+      await notifySalesMarketingLeadAssigned([dpEntry.id]);
+    }
+
     if (actor) {
       await logAudit({
         ...getAuditUser(req),
@@ -2004,67 +2009,87 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
     });
     const newPoolIds = createdPoolRows.map((p) => p.id);
 
-    const ratioResult = await assignLeadsUsingTeamRatios(newPoolIds);
-
     const actor = (req as any).user;
-    if (actor?.id) {
-      const actorEmp = await prisma.employee.findUnique({ where: { id: actor.id }, select: { departmentId: true } });
-      const dept = actorEmp?.departmentId
-        ? await prisma.department.findUnique({ where: { id: actorEmp.departmentId }, select: { autoDistributeLead: true } })
-        : null;
-      const needOrgFallback =
-        dept?.autoDistributeLead &&
-        (!ratioResult.ok || (ratioResult.ok && ratioResult.assigned < newPoolIds.length));
-      if (needOrgFallback) {
-        const salesKeepDaysCfg = await prisma.systemConfig.findUnique({ where: { key: 'data_pool_auto_recall_days' } }).catch(() => null);
-        const salesKeepDays = salesKeepDaysCfg ? parseInt(salesKeepDaysCfg.value, 10) : 3;
-        const maxRoundsCfg = await prisma.systemConfig.findUnique({ where: { key: 'max_repartition_rounds' } }).catch(() => null);
-        const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
-        const now = new Date();
-        const remainingPools = await prisma.dataPool.findMany({
-          where: { customerId: { in: newIds }, status: 'AVAILABLE', poolQueue: DATA_POOL_QUEUE.SALES_OPEN },
-        });
-        for (const pool of remainingPools) {
-          const pickId = await pickNextSalesEmployeeId({
-            seed: `${pool.id}:${pool.customerId}`,
-            excludeIds: [],
-            anchorEmployeeId: actor.id,
+    const actorEmp = actor?.id
+      ? await prisma.employee.findUnique({ where: { id: actor.id }, select: { departmentId: true } })
+      : null;
+    const dept = actorEmp?.departmentId
+      ? await prisma.department.findUnique({ where: { id: actorEmp.departmentId }, select: { autoDistributeLead: true } })
+      : null;
+
+    let ratioResult: TeamRatioAssignResult = { ok: true, assigned: 0 };
+
+    if (dept?.autoDistributeLead && newPoolIds.length > 0) {
+      ratioResult = await assignLeadsUsingTeamRatios(newPoolIds);
+      if (actor?.id) {
+        const needOrgFallback =
+          !ratioResult.ok || (ratioResult.ok && ratioResult.assigned < newPoolIds.length);
+        if (needOrgFallback) {
+          const salesKeepDaysCfg = await prisma.systemConfig.findUnique({ where: { key: 'data_pool_auto_recall_days' } }).catch(() => null);
+          const salesKeepDays = salesKeepDaysCfg ? parseInt(salesKeepDaysCfg.value, 10) : 3;
+          const maxRoundsCfg = await prisma.systemConfig.findUnique({ where: { key: 'max_repartition_rounds' } }).catch(() => null);
+          const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
+          const now = new Date();
+          const remainingPools = await prisma.dataPool.findMany({
+            where: { customerId: { in: newIds }, status: 'AVAILABLE', poolQueue: DATA_POOL_QUEUE.SALES_OPEN },
           });
-          if (!pickId) continue;
-          await prisma.dataPool.update({
-            where: { id: pool.id },
-            data: {
-              status: 'ASSIGNED',
-              poolType: 'SALES',
-              poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-              assignedToId: pickId,
-              assignedAt: now,
-              deadline: new Date(now.getTime() + salesKeepDays * 24 * 60 * 60 * 1000),
-              maxRounds: Number.isFinite(maxRounds) ? maxRounds : 5,
-            },
-          });
-          await prisma.customer.update({ where: { id: pool.customerId }, data: { employeeId: pickId } });
-          await prisma.leadDistributionHistory.create({
-            data: { customerId: pool.customerId, employeeId: pickId, method: 'AUTO' },
-          });
+          for (const pool of remainingPools) {
+            const pickId = await pickNextSalesEmployeeId({
+              seed: `${pool.id}:${pool.customerId}`,
+              excludeIds: [],
+              anchorEmployeeId: actor.id,
+            });
+            if (!pickId) continue;
+            await prisma.dataPool.update({
+              where: { id: pool.id },
+              data: {
+                status: 'ASSIGNED',
+                poolType: 'SALES',
+                poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
+                assignedToId: pickId,
+                assignedAt: now,
+                deadline: new Date(now.getTime() + salesKeepDays * 24 * 60 * 60 * 1000),
+                maxRounds: Number.isFinite(maxRounds) ? maxRounds : 5,
+              },
+            });
+            await prisma.customer.update({ where: { id: pool.customerId }, data: { employeeId: pickId } });
+            await prisma.leadDistributionHistory.create({
+              data: { customerId: pool.customerId, employeeId: pickId, method: 'AUTO' },
+            });
+          }
         }
       }
     }
+
+    await notifySalesMarketingLeadAssigned(newPoolIds);
+
+    const assignedCount = await prisma.dataPool.count({
+      where: { id: { in: newPoolIds }, status: 'ASSIGNED' },
+    });
+
+    const autoPart = dept?.autoDistributeLead
+      ? ratioResult.ok
+        ? `${assignedCount} lead đã gán (tỉ lệ + fallback)`
+        : `${ratioResult.message} — sau fallback: ${assignedCount} lead đã gán`
+      : 'tắt — đơn vị không bật auto phân';
 
     await logAudit({
       ...getAuditUser(req),
       action: 'PUSH_TO_DATA_POOL',
       object: 'DATA_POOL',
       result: 'SUCCESS',
-      details: `Đẩy ${newIds.length} khách từ Marketing vào kho Sales (chưa phân); phân tỉ lệ: ${ratioResult.ok ? `${ratioResult.assigned} lead` : ratioResult.message}`,
+      details: `Đẩy ${newIds.length} khách từ Marketing vào kho Sales; phân tự động: ${autoPart}`,
       req,
     });
 
     res.json({
-      message: `Đã chuyển ${newIds.length} khách hàng vào kho Sales (chưa phân)`,
+      message: dept?.autoDistributeLead
+        ? `Đã chuyển ${newIds.length} khách vào kho; ${assignedCount} lead đã phân cho NV Sales.`
+        : `Đã chuyển ${newIds.length} khách vào kho Sales (chưa phân — bật auto phân đơn vị Marketing để gán ngay).`,
       added: newIds.length,
       skipped: alreadyInPool.size,
-      ratioAssigned: ratioResult.ok ? ratioResult.assigned : 0,
+      ratioAssigned: assignedCount,
+      autoDistributeApplied: Boolean(dept?.autoDistributeLead),
     });
   } catch (error) {
     console.error('Push leads to data pool error:', error);

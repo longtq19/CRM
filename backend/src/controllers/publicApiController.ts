@@ -13,6 +13,7 @@ import {
 } from '../services/leadDuplicateService';
 import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
+import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 
 /** Trường JSON public lead: chỉ SĐT bắt buộc; ghi chú / họ tên / địa chỉ (dòng chữ) là tùy chọn theo chiến dịch. */
 export const PUBLIC_LEAD_FIELD_CODES = ['phone', 'name', 'address', 'note'] as const;
@@ -564,6 +565,8 @@ export const receivePublicLead = async (req: Request, res: Response) => {
         }
       }
     }
+
+    await notifySalesMarketingLeadAssigned([dpEntry.id]);
 
     // Cập nhật số lượng lead của chiến dịch
     await prisma.marketingCampaign.update({
