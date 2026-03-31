@@ -244,7 +244,7 @@ export function CustomerImpactHistoryModal({
               </div>
               <div>
                 <label className="text-xs text-gray-600">
-                  Chi tiết tương tác *
+                  Chi tiết tương tác {effectivePoolPushStatuses.includes(formStatus) ? '' : '*'}
                   {effectivePoolPushStatuses.includes(formStatus)
                     ? ' (trạng thái đẩy kho thả nổi — không bắt buộc tối thiểu ký tự)'
                     : ` (tối thiểu ${minNoteChars} ký tự)`}

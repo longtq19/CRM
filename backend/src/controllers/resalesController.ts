@@ -7,6 +7,7 @@ import { userCanAccessCustomerForResalesModule } from '../utils/customerRowAcces
 import { isTechnicalAdminRoleCode } from '../constants/rbac';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
 import { parsePoolPushStatusesJson } from '../constants/operationParams';
+import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 
 
 /**
@@ -364,10 +365,42 @@ export const addCareInteraction = async (req: Request, res: Response) => {
     });
 
     if (syncProcessingToDataPool && processingStatus) {
-      await prisma.dataPool.updateMany({
-        where: { customerId, poolType: 'CSKH' },
-        data: { processingStatus: String(processingStatus).trim() },
-      });
+      if (skipMinNoteForPool) {
+        // Find existing DP
+        const dp = await prisma.dataPool.findFirst({
+          where: { customerId, poolType: 'CSKH' },
+        });
+        if (dp) {
+          if (dp.assignedToId) {
+            await prisma.leadDistributionHistory.updateMany({
+              where: { customerId, employeeId: dp.assignedToId, revokedAt: null },
+              data: { revokedAt: new Date(), revokeReason: `Trạng thái ${processingStatus} → kho thả nổi (Interaction History)` },
+            });
+          }
+          await prisma.dataPool.update({
+            where: { id: dp.id },
+            data: {
+              status: 'AVAILABLE',
+              assignedToId: null,
+              assignedAt: null,
+              poolQueue: DATA_POOL_QUEUE.FLOATING,
+              deadline: null,
+              holdUntil: null,
+              interactionDeadline: null,
+              processingStatus: String(processingStatus).trim(),
+            },
+          });
+          await prisma.customer.update({
+            where: { id: customerId },
+            data: { employeeId: null },
+          });
+        }
+      } else {
+        await prisma.dataPool.updateMany({
+          where: { customerId, poolType: 'CSKH' },
+          data: { processingStatus: String(processingStatus).trim() },
+        });
+      }
     }
 
     // Reset CSKH interaction deadline based on the last care interaction content.

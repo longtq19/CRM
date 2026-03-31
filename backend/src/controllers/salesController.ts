@@ -7,6 +7,7 @@ import { isTechnicalAdminRoleCode } from '../constants/rbac';
 import { userCanAccessCustomerForSalesModule } from '../utils/customerRowAccess';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
 import { parsePoolPushStatusesJson } from '../constants/operationParams';
+import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 
 /**
  * Lấy danh sách Lead của tôi (Sales/Telesales). Quản lý có thể lọc theo nhân viên (employeeId).
@@ -605,10 +606,38 @@ export const addInteraction = async (req: Request, res: Response) => {
         where: { customerId, poolType: 'SALES' },
       });
       if (dp) {
-        await prisma.dataPool.update({
-          where: { id: dp.id },
-          data: { processingStatus: String(processingStatus).trim() },
-        });
+        if (skipMinNoteForPool) {
+          // Push to floating pool
+          if (dp.assignedToId) {
+            await prisma.leadDistributionHistory.updateMany({
+              where: { customerId, employeeId: dp.assignedToId, revokedAt: null },
+              data: { revokedAt: new Date(), revokeReason: `Trạng thái ${processingStatus} → kho thả nổi (Interaction History)` },
+            });
+          }
+          await prisma.dataPool.update({
+            where: { id: dp.id },
+            data: {
+              status: 'AVAILABLE',
+              assignedToId: null,
+              assignedAt: null,
+              poolQueue: DATA_POOL_QUEUE.FLOATING,
+              deadline: null,
+              holdUntil: null,
+              interactionDeadline: null,
+              processingStatus: String(processingStatus).trim(),
+            },
+          });
+          await prisma.customer.update({
+            where: { id: customerId },
+            data: { employeeId: null },
+          });
+        } else {
+          // Only update status
+          await prisma.dataPool.update({
+            where: { id: dp.id },
+            data: { processingStatus: String(processingStatus).trim() },
+          });
+        }
       }
     }
 
