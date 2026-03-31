@@ -92,6 +92,7 @@ interface Campaign {
   id: string;
   code: string;
   name: string;
+  source?: { id: string; name: string } | null;
 }
 
 interface Employee {
@@ -192,8 +193,26 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
   useEffect(() => {
     if (selectedCampaignId && activeSubTab === 'costs') {
       loadCosts();
+      // Auto-populate platform for new costs
+      if (!editingCost) {
+        const camp = campaigns.find(c => c.id === selectedCampaignId);
+        if (camp?.source?.name) {
+          // Normalize source name to one of our PLATFORMS values if possible, 
+          // or just use the name directly if it's a custom one.
+          const sourceName = camp.source.name.toLowerCase();
+          const matchedPlatform = PLATFORMS.find(p => p.value === sourceName || p.label.toLowerCase() === sourceName);
+          
+          if (matchedPlatform) {
+            setCostForm(prev => ({ ...prev, platform: matchedPlatform.value }));
+            setUseCustomPlatform(false);
+          } else {
+            setCostForm(prev => ({ ...prev, platform: camp.source!.name }));
+            setUseCustomPlatform(true);
+          }
+        }
+      }
     }
-  }, [selectedCampaignId, activeSubTab]);
+  }, [selectedCampaignId, activeSubTab, campaigns]);
 
   useEffect(() => {
     loadMarketingEmployees();
