@@ -5,6 +5,7 @@ import {
   createOrder,
   updateOrder,
   confirmOrder,
+  distributePendingOrdersConfirm,
   pushToViettelPost,
   cancelViettelPostOrder,
   getShippingStatus,
@@ -25,6 +26,13 @@ router.get('/stats', checkPermission('VIEW_ORDERS'), getOrderStats);
 
 // Danh sách đơn hàng
 router.get('/', checkPermission('VIEW_ORDERS'), getOrders);
+
+// Chia xác nhận hàng loạt đơn chờ xác nhận cho NV vận đơn (phải đặt trước /:id/:orderDate)
+router.post(
+  '/distribute-pending-confirm',
+  checkPermission('ASSIGN_SHIPPING_DAILY_QUOTA'),
+  distributePendingOrdersConfirm
+);
 
 // Chi tiết đơn hàng
 router.get('/:id/:orderDate', checkPermission('VIEW_ORDERS'), getOrderById);

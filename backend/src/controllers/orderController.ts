@@ -6,6 +6,7 @@ import { getPaginationParams } from '../utils/pagination';
 import { viettelPostService } from '../services/viettelPostService';
 import { updateCustomerRank } from './customerRankController';
 import { getSubordinateIds, getVisibleEmployeeIds } from '../utils/viewScopeHelper';
+import { prismaEmployeeTypeLogisticsWhere } from '../utils/logisticsEmployeeType';
 import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/leadDuplicateService';
 import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
@@ -656,6 +657,143 @@ export const confirmOrder = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Confirm order error:', error);
     res.status(500).json({ message: 'Lỗi khi xác nhận đơn hàng' });
+  }
+};
+
+/**
+ * Xác nhận hàng loạt đơn chờ xác nhận, phân cho NV vận đơn (confirmedById).
+ * Phạm vi đơn: cùng `getVisibleEmployeeIds(..., 'ORDER')` như danh sách đơn.
+ * Chế độ even: round-robin theo thứ tự (orderDate, id). random: mỗi đơn gán ngẫu nhiên một NV.
+ */
+export const distributePendingOrdersConfirm = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const modeRaw = String(req.body?.mode || '').toLowerCase().trim();
+    if (modeRaw !== 'even' && modeRaw !== 'random') {
+      return res.status(400).json({ message: 'Tham số mode phải là "even" (chia đều) hoặc "random" (ngẫu nhiên).' });
+    }
+
+    const rawIds = req.body?.employeeIds;
+    let filterSet: Set<string> | null = null;
+    if (rawIds !== undefined && rawIds !== null) {
+      if (!Array.isArray(rawIds)) {
+        return res.status(400).json({ message: 'employeeIds phải là mảng ID nhân viên (hoặc bỏ qua để dùng tất cả NV vận đơn).' });
+      }
+      if (rawIds.length === 0) {
+        return res.status(400).json({
+          message: 'Danh sách employeeIds không được rỗng. Bỏ trường này để dùng tất cả NV loại Vận đơn đang hoạt động.',
+        });
+      }
+      filterSet = new Set(rawIds.map((x: unknown) => String(x)));
+    }
+
+    const scopeUser = {
+      id: user.id,
+      roleGroupId: user.roleGroupId,
+      departmentId: user.departmentId,
+      permissions: user.permissions,
+      roleGroupCode: user.roleGroupCode,
+    };
+    const visibleOrderIds = await getVisibleEmployeeIds(scopeUser, 'ORDER');
+
+    let employees = await prisma.employee.findMany({
+      where: {
+        status: { isActive: true },
+        employeeType: prismaEmployeeTypeLogisticsWhere(),
+      },
+      select: { id: true, fullName: true, code: true },
+      orderBy: { fullName: 'asc' },
+    });
+    if (filterSet) {
+      employees = employees.filter((e) => filterSet!.has(e.id));
+    }
+    if (employees.length === 0) {
+      return res.status(400).json({
+        message:
+          'Không có nhân viên loại «Vận đơn» đang hoạt động phù hợp (hoặc employeeIds không khớp NV loại Vận đơn).',
+      });
+    }
+
+    const orderWhere: Record<string, unknown> = {
+      shippingStatus: 'PENDING',
+    };
+    if (visibleOrderIds) {
+      orderWhere.employeeId = { in: visibleOrderIds };
+    }
+
+    const pendingOrders = await prisma.order.findMany({
+      where: orderWhere,
+      select: { id: true, orderDate: true, code: true },
+      orderBy: [{ orderDate: 'asc' }, { id: 'asc' }],
+    });
+
+    if (pendingOrders.length === 0) {
+      return res.json({
+        ok: true,
+        mode: modeRaw,
+        updated: 0,
+        byEmployee: [] as Array<{ employeeId: string; code: string; fullName: string; count: number }>,
+      });
+    }
+
+    const now = new Date();
+    const counts = new Map<string, number>();
+    for (const e of employees) counts.set(e.id, 0);
+
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < pendingOrders.length; i++) {
+        const row = pendingOrders[i];
+        const empId =
+          modeRaw === 'even'
+            ? employees[i % employees.length].id
+            : employees[Math.floor(Math.random() * employees.length)].id;
+        const u = await tx.order.updateMany({
+          where: {
+            id: row.id,
+            orderDate: row.orderDate,
+            shippingStatus: 'PENDING',
+          },
+          data: {
+            shippingStatus: 'CONFIRMED',
+            orderStatus: 'CONFIRMED',
+            confirmedById: empId,
+            confirmedAt: now,
+          },
+        });
+        if (u.count > 0) {
+          counts.set(empId, (counts.get(empId) || 0) + 1);
+        }
+      }
+    });
+
+    const byEmployee = employees
+      .map((e) => ({
+        employeeId: e.id,
+        code: e.code,
+        fullName: e.fullName,
+        count: counts.get(e.id) || 0,
+      }))
+      .filter((x) => x.count > 0);
+
+    const updated = byEmployee.reduce((s, x) => s + x.count, 0);
+    const modeVi = modeRaw === 'even' ? 'chia đều (round-robin)' : 'chia ngẫu nhiên';
+    const phanBo = byEmployee.map((x) => `${x.code} (${x.fullName}): ${x.count} đơn`).join('; ');
+
+    await logAudit({
+      ...getAuditUser(req),
+      action: 'Cập nhật',
+      object: 'Đơn hàng (chia xác nhận hàng loạt)',
+      objectId: `bulk-${Date.now()}`,
+      result: 'SUCCESS',
+      details: `Chế độ ${modeVi}. Đã xác nhận ${updated} đơn chờ xác nhận trong phạm vi quản lý. Phân bổ: ${phanBo || 'không có đơn được cập nhật'}.`,
+      newValues: { mode: modeRaw, updated, byEmployee },
+      req,
+    });
+
+    res.json({ ok: true, mode: modeRaw, updated, byEmployee });
+  } catch (error) {
+    console.error('distributePendingOrdersConfirm', error);
+    res.status(500).json({ message: 'Lỗi khi chia xác nhận đơn hàng' });
   }
 };
 

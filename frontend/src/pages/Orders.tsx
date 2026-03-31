@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
   RefreshCw, Calendar, User, Phone, MapPin, ChevronLeft, ChevronRight,
-  X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader
+  X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader,
+  Shuffle, BarChart3
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
 import CreateOrderModal from '../components/CreateOrderModal';
@@ -117,6 +118,7 @@ const Orders = () => {
     }>
   >([]);
   const [quotaSaving, setQuotaSaving] = useState(false);
+  const [distributeLoading, setDistributeLoading] = useState<'even' | 'random' | null>(null);
   const showShippingQuotaTab = canManageShipping || canAssignShippingQuota;
   const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota'>('list');
 
@@ -212,6 +214,31 @@ const Orders = () => {
 
   const handlePageChange = (page: number) => {
     setFilters(prev => ({ ...prev, page }));
+  };
+
+  const handleDistributePendingConfirm = async (mode: 'even' | 'random') => {
+    const msg =
+      mode === 'even'
+        ? 'Xác nhận chia đều (round-robin) toàn bộ đơn «Chờ xác nhận» trong phạm vi của bạn cho các NV loại Vận đơn đang hoạt động?'
+        : 'Xác nhận chia ngẫu nhiên toàn bộ đơn «Chờ xác nhận» trong phạm vi của bạn cho các NV loại Vận đơn đang hoạt động?';
+    if (!window.confirm(msg)) return;
+    setDistributeLoading(mode);
+    try {
+      const res = await orderApi.distributePendingConfirm({ mode });
+      const lines = res.byEmployee.map((x) => `${x.code}: ${x.count}`).join(', ');
+      alert(
+        res.updated === 0
+          ? 'Không có đơn «Chờ xác nhận» nào trong phạm vi (hoặc không còn đơn phù hợp).'
+          : `Đã xác nhận ${res.updated} đơn. Phân bổ: ${lines || '—'}`
+      );
+      await fetchOrders();
+      await fetchStats();
+    } catch (error: unknown) {
+      const m = error instanceof Error ? error.message : 'Không thực hiện được chia xác nhận.';
+      alert(m);
+    } finally {
+      setDistributeLoading(null);
+    }
   };
 
   const handleSaveShippingQuotas = async () => {
@@ -429,6 +456,42 @@ const Orders = () => {
             </div>
             <div className="text-lg font-bold text-primary">{formatCurrency(stats.totalRevenue)}</div>
           </div>
+        </div>
+      )}
+
+      {canAssignShippingQuota && (!showShippingQuotaTab || ordersMainTab === 'list') && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <span className="font-medium text-amber-900">Chia xác nhận đơn chờ (NV vận đơn):</span>
+          <button
+            type="button"
+            disabled={!!distributeLoading}
+            onClick={() => handleDistributePendingConfirm('even')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+          >
+            {distributeLoading === 'even' ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <BarChart3 className="h-4 w-4" />
+            )}
+            Chia đều
+          </button>
+          <button
+            type="button"
+            disabled={!!distributeLoading}
+            onClick={() => handleDistributePendingConfirm('random')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+          >
+            {distributeLoading === 'random' ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <Shuffle className="h-4 w-4" />
+            )}
+            Chia ngẫu nhiên
+          </button>
+          <span className="text-xs text-amber-800/90">
+            Áp dụng mọi đơn <strong>Chờ xác nhận</strong> trong phạm vi danh sách đơn của bạn; mỗi đơn gán{' '}
+            <code className="rounded bg-white/80 px-1">confirmedById</code> theo NV được phân.
+          </span>
         </div>
       )}
 

@@ -86,6 +86,24 @@ export const orderApi = {
     return response as Order;
   },
 
+  /** Chia xác nhận hàng loạt đơn chờ xác nhận cho NV vận đơn (quyền ASSIGN_SHIPPING_DAILY_QUOTA). */
+  distributePendingConfirm: async (body: {
+    mode: 'even' | 'random';
+    employeeIds?: string[];
+  }): Promise<{
+    ok: boolean;
+    mode: string;
+    updated: number;
+    byEmployee: Array<{ employeeId: string; code: string; fullName: string; count: number }>;
+  }> => {
+    return apiClient.post('/orders/distribute-pending-confirm', body) as Promise<{
+      ok: boolean;
+      mode: string;
+      updated: number;
+      byEmployee: Array<{ employeeId: string; code: string; fullName: string; count: number }>;
+    }>;
+  },
+
   pushToViettelPost: async (id: string, orderDate: string): Promise<{ message: string; trackingNumber: string; order: Order }> => {
     const response = await apiClient.post(`/orders/${id}/${orderDate}/push-viettel-post`, {});
     return response as { message: string; trackingNumber: string; order: Order };

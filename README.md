@@ -538,6 +538,7 @@ Luồng tạo & vận chuyển:
    - `POST /api/orders/:id/:orderDate/confirm`
    - chỉ khi `shippingStatus=PENDING`
    - đổi `shippingStatus=CONFIRMED`, `orderStatus=CONFIRMED`
+   - **Chia xác nhận hàng loạt (NV vận đơn):** `POST /api/orders/distribute-pending-confirm` — quyền **`ASSIGN_SHIPPING_DAILY_QUOTA`**. Body: `{ "mode": "even" | "random" }` (tùy chọn `employeeIds: string[]` — chỉ phân trong tập NV loại Vận đơn đang hoạt động khớp danh sách). Lấy mọi đơn `shippingStatus=PENDING` trong **cùng phạm vi** `employeeId` người tạo đơn như `GET /api/orders` (`getVisibleEmployeeIds(..., 'ORDER')`). Với `even`: gán **round-robin** theo thứ tự `(orderDate, id)`. Với `random`: mỗi đơn gán **ngẫu nhiên** một NV trong danh sách. Mỗi đơn cập nhật như xác nhận đơn lẻ: `confirmedById` = NV được phân, `confirmedAt` = thời điểm xử lý. Ghi `logAudit` (tiếng Việt). **FE:** trang Đơn hàng — tab **Danh sách đơn hàng**, khối nút **Chia đều** / **Chia ngẫu nhiên** (khi có quyền gán chỉ tiêu vận đơn).
 3. Đẩy sang Viettel Post:
    - `POST /api/orders/:id/:orderDate/push-viettel-post`
    - điều kiện:
@@ -571,7 +572,7 @@ Luồng tạo & vận chuyển:
    - `GET /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: chỉ tiêu + tiến độ theo từng NV cho một `workDate`.
    - `PUT /api/shipping/daily-quotas` — **`ASSIGN_SHIPPING_DAILY_QUOTA`**: upsert/xóa (gửi `targetCount: 0` xóa bản ghi ngày đó); ghi `logAudit` (chi tiết tiếng Việt).
    - Controller: `backend/src/controllers/shippingQuotaController.ts`; route mount: `backend/src/routes/shippingQuotaRoutes.ts` → `/api/shipping`.
-   - **FE:** trang **Đơn hàng** (`/orders`) — **tab «Danh sách đơn hàng»** (thống kê, lọc, bảng đơn); **tab «Chỉ tiêu vận đơn»** (chọn ngày, tiến độ của tôi nếu có `MANAGE_SHIPPING`, bảng gán nếu có `ASSIGN_SHIPPING_DAILY_QUOTA`).
+   - **FE:** trang **Đơn hàng** (`/orders`) — **tab «Danh sách đơn hàng»** (thống kê, lọc, bảng đơn, **chia xác nhận hàng loạt** nếu có `ASSIGN_SHIPPING_DAILY_QUOTA`); **tab «Chỉ tiêu vận đơn»** (chọn ngày, tiến độ của tôi nếu có `MANAGE_SHIPPING`, bảng gán nếu có `ASSIGN_SHIPPING_DAILY_QUOTA`).
 6. Hàng hoàn:
    - `POST /api/orders/:id/:orderDate/process-return`
    - tạo `returnedOrder` và nếu có `restockedQty/damagedQty` thì ghi `inventoryLog`.
