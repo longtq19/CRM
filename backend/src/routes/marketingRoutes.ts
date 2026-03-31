@@ -31,9 +31,10 @@ import {
 
 const router = Router();
 
-/** Chi phí / hiệu quả / xếp hạng NV Marketing: NV Tiếp thị có VIEW hoặc UPDATE chiến dịch phải gọi được API; phạm vi từng chiến dịch do controller (`canAccessMarketingCampaignByCreator`, …). Không chỉ `MANAGE_CUSTOMERS` (Kinh doanh). */
+/** Chi phí / hiệu quả / xếp hạng NV Marketing: NV Tiếp thị có VIEW/CREATE/UPDATE chiến dịch phải gọi được API; phạm vi từng chiến dịch do controller (`canAccessMarketingCampaignByCreator`, …). Không chỉ `MANAGE_CUSTOMERS` (Kinh doanh). */
 const CAMPAIGN_COSTS_AND_MARKETING_REPORTS = [
   'VIEW_MARKETING_CAMPAIGNS',
+  'CREATE_MARKETING_CAMPAIGN',
   'UPDATE_MARKETING_CAMPAIGN',
   'MANAGE_CUSTOMERS',
 ] as const;

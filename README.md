@@ -461,7 +461,7 @@ Các nhánh nghiệp vụ:
     - **Cùng chiến dịch** (trùng trong phạm vi marketing đã thiết kế): trả **cảnh báo** (`sameCampaignWarning` / tương đương), không tạo khách trùng không cần thiết.
     - **Chiến dịch khác:** ghi nhận với `note` bắt buộc, tạo tương tác loại `marketing_duplicate_interaction`, gửi thông báo tới **NV phụ trách Sales** (`customer.employeeId`).
 - Chi phí campaign:
-  - **Quyền route (một trong):** `VIEW_MARKETING_CAMPAIGNS` | `UPDATE_MARKETING_CAMPAIGN` | `MANAGE_CUSTOMERS` — để NV Tiếp thị (có xem/sửa chiến dịch) nhập chi phí mà không cần quyền Kinh doanh. **Phạm vi từng chiến dịch** (ai được xem/sửa/xóa chi phí): trong controller — người tạo chiến dịch hoặc marketing admin (`MANAGE_MARKETING_GROUPS` / quản trị kỹ thuật), cùng logic tab chiến dịch.
+  - **Quyền route (một trong):** `VIEW_MARKETING_CAMPAIGNS` | `CREATE_MARKETING_CAMPAIGN` | `UPDATE_MARKETING_CAMPAIGN` | `MANAGE_CUSTOMERS` — để NV Tiếp thị (có xem/tạo/sửa chiến dịch) nhập chi phí mà không cần quyền Kinh doanh. **Phạm vi từng chiến dịch** (ai được xem/sửa/xóa chi phí): trong controller — người tạo chiến dịch hoặc marketing admin (`MANAGE_MARKETING_GROUPS` / quản trị kỹ thuật), cùng logic tab chiến dịch.
   - `GET/POST/PUT/DELETE` …/costs và `PUT/DELETE` `/api/marketing/costs/:costId` — **bắt buộc** gắn chi phí với chiến dịch qua URL; **`sourceId` và `platform` trên bản ghi chi phí luôn lấy từ nền tảng của chiến dịch** (1–1; không gửi/đổi từ client). Chiến dịch không có `sourceId` thì không thêm/cập nhật chi phí. Metric, mô tả, chứng từ tùy chọn (FE `MarketingCostEffectiveness` hiển thị nền tảng chỉ đọc).
   - có phân bổ chi phí cho người/nhóm theo payload.
 - Báo cáo/hiệu quả:
