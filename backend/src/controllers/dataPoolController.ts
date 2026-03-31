@@ -39,7 +39,7 @@ function assertFloatingDistributePermission(req: Request, res: Response): boolea
 }
 
 /**
- * Láº¥y danh sÃ¡ch kho sá»‘ chung
+ * Lấy danh sách kho số chung
  */
 export const getDataPool = async (req: Request, res: Response) => {
   try {
@@ -241,12 +241,12 @@ export const getDataPool = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get data pool error:', error);
-    res.status(500).json({ message: 'Lá»—i khi láº¥y danh sÃ¡ch kho sá»‘ chung' });
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách kho số chung' });
   }
 };
 
 /**
- * Sales tá»± nháº­n khÃ¡ch tá»« kho sá»‘ chung
+ * Sales tự nhận khách từ kho số chung
  */
 export const claimLead = async (req: Request, res: Response) => {
   try {
@@ -259,7 +259,7 @@ export const claimLead = async (req: Request, res: Response) => {
     const maxRoundsCfg = await prisma.systemConfig.findUnique({ where: { key: 'max_repartition_rounds' } }).catch(() => null);
     const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
 
-    // Láº¥y lead cÃ³ sáºµn
+    // Lấy lead có sẵn
     const availableLeads = await prisma.dataPool.findMany({
       where: { status: 'AVAILABLE', poolType: 'SALES', poolQueue: DATA_POOL_QUEUE.SALES_OPEN },
       orderBy: [
@@ -273,10 +273,10 @@ export const claimLead = async (req: Request, res: Response) => {
     });
 
     if (availableLeads.length === 0) {
-      return res.status(404).json({ message: 'KhÃ´ng cÃ²n lead nÃ o trong kho sá»‘ chung' });
+      return res.status(404).json({ message: 'Không còn lead nào trong kho số chung' });
     }
 
-    // Cáº­p nháº­t tráº¡ng thÃ¡i
+    // Cập nhật trạng thái
     const leadIds = availableLeads.map(l => l.id);
     await prisma.dataPool.updateMany({
       where: { id: { in: leadIds } },
@@ -292,14 +292,14 @@ export const claimLead = async (req: Request, res: Response) => {
       }
     });
 
-    // Cáº­p nháº­t customer.employeeId
+    // Cập nhật customer.employeeId
     const customerIds = availableLeads.map(l => l.customerId);
     await prisma.customer.updateMany({
       where: { id: { in: customerIds } },
       data: { employeeId: user.id }
     });
 
-    // Ghi lá»‹ch sá»­
+    // Ghi lịch sử
     for (const lead of availableLeads) {
       await prisma.leadDistributionHistory.create({
         data: {
@@ -320,17 +320,17 @@ export const claimLead = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: `ÄÃ£ nháº­n ${availableLeads.length} khÃ¡ch hÃ ng`,
+      message: `Đã nhận ${availableLeads.length} khách hàng`,
       leads: availableLeads
     });
   } catch (error) {
     console.error('Claim lead error:', error);
-    res.status(500).json({ message: 'Lá»—i khi nháº­n khÃ¡ch' });
+    res.status(500).json({ message: 'Lỗi khi nhận khách' });
   }
 };
 
 /**
- * Admin phÃ¢n sá»‘ thá»§ cÃ´ng
+ * Admin phân số thủ công
  */
 export const assignLeads = async (req: Request, res: Response) => {
   try {
@@ -338,21 +338,21 @@ export const assignLeads = async (req: Request, res: Response) => {
     const { leadIds, employeeId } = req.body;
 
     if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
-      return res.status(400).json({ message: 'Vui lÃ²ng chá»n lead cáº§n phÃ¢n' });
+      return res.status(400).json({ message: 'Vui lòng chọn lead cần phân' });
     }
 
     if (!employeeId) {
-      return res.status(400).json({ message: 'Vui lÃ²ng chá»n nhÃ¢n viÃªn' });
+      return res.status(400).json({ message: 'Vui lòng chọn nhân viên' });
     }
 
-    // Kiá»ƒm tra nhÃ¢n viÃªn tá»“n táº¡i
+    // Kiểm tra nhân viên tồn tại
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
       select: { id: true, fullName: true }
     });
 
     if (!employee) {
-      return res.status(404).json({ message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn' });
+      return res.status(404).json({ message: 'Không tìm thấy nhân viên' });
     }
 
     const now = new Date();
@@ -372,10 +372,10 @@ export const assignLeads = async (req: Request, res: Response) => {
     });
 
     if (leads.length === 0) {
-      return res.status(400).json({ message: 'KhÃ´ng cÃ³ lead nÃ o cÃ³ thá»ƒ phÃ¢n' });
+      return res.status(400).json({ message: 'Không có lead nào có thể phân' });
     }
 
-    // Cáº­p nháº­t
+    // Cập nhật
     await prisma.dataPool.updateMany({
       where: { id: { in: leads.map(l => l.id) } },
       data: {
@@ -390,13 +390,13 @@ export const assignLeads = async (req: Request, res: Response) => {
       }
     });
 
-    // Cáº­p nháº­t customer.employeeId
+    // Cập nhật customer.employeeId
     await prisma.customer.updateMany({
       where: { id: { in: leads.map(l => l.customerId) } },
       data: { employeeId }
     });
 
-    // Ghi lá»‹ch sá»­
+    // Ghi lịch sử
     for (const lead of leads) {
       await prisma.leadDistributionHistory.create({
         data: {
@@ -417,11 +417,11 @@ export const assignLeads = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: `ÄÃ£ phÃ¢n ${leads.length} khÃ¡ch hÃ ng cho ${employee.fullName}`
+      message: `Đã phân ${leads.length} khách hàng cho ${employee.fullName}`
     });
   } catch (error) {
     console.error('Assign leads error:', error);
-    res.status(500).json({ message: 'Lá»—i khi phÃ¢n sá»‘' });
+    res.status(500).json({ message: 'Lỗi khi phân số' });
   }
 };
 
@@ -502,7 +502,7 @@ export const autoDistribute = async (req: Request, res: Response) => {
 };
 
 /**
- * Thu há»“i lead quÃ¡ háº¡n
+ * Thu hồi lead quá hạn
  */
 export const recallLeads = async (req: Request, res: Response) => {
   try {
@@ -656,7 +656,7 @@ export const recallLeads = async (req: Request, res: Response) => {
 };
 
 /**
- * ThÃªm khÃ¡ch hÃ ng vÃ o kho sá»‘ chung
+ * Thêm khách hàng vào kho số chung
  */
 export const addToDataPool = async (req: Request, res: Response) => {
   try {
@@ -664,10 +664,10 @@ export const addToDataPool = async (req: Request, res: Response) => {
     const { customerIds, source = 'MANUAL', priority = 0 } = req.body;
 
     if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
-      return res.status(400).json({ message: 'Vui lÃ²ng chá»n khÃ¡ch hÃ ng' });
+      return res.status(400).json({ message: 'Vui lòng chọn khách hàng' });
     }
 
-    // Kiá»ƒm tra khÃ¡ch hÃ ng Ä‘Ã£ cÃ³ trong pool chÆ°a
+    // Kiểm tra khách hàng đã có trong pool chưa
     const existingInPool = await prisma.dataPool.findMany({
       where: { customerId: { in: customerIds } },
       select: { customerId: true }
@@ -677,10 +677,10 @@ export const addToDataPool = async (req: Request, res: Response) => {
     const newCustomerIds = customerIds.filter((id: string) => !existingIds.includes(id));
 
     if (newCustomerIds.length === 0) {
-      return res.status(400).json({ message: 'Táº¥t cáº£ khÃ¡ch hÃ ng Ä‘Ã£ cÃ³ trong kho sá»‘ chung' });
+      return res.status(400).json({ message: 'Tất cả khách hàng đã có trong kho số chung' });
     }
 
-    // ThÃªm vÃ o pool
+    // Thêm vào pool
     await prisma.dataPool.createMany({
       data: newCustomerIds.map((customerId: string) => ({
         customerId,
@@ -691,7 +691,7 @@ export const addToDataPool = async (req: Request, res: Response) => {
       }))
     });
 
-    // XÃ³a employeeId cá»§a customer
+    // Xóa employeeId của customer
     await prisma.customer.updateMany({
       where: { id: { in: newCustomerIds } },
       data: { employeeId: null }
@@ -707,18 +707,18 @@ export const addToDataPool = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: `ÄÃ£ thÃªm ${newCustomerIds.length} khÃ¡ch hÃ ng vÃ o kho sá»‘ chung`,
+      message: `Đã thêm ${newCustomerIds.length} khách hàng vào kho số chung`,
       added: newCustomerIds.length,
       skipped: existingIds.length
     });
   } catch (error) {
     console.error('Add to data pool error:', error);
-    res.status(500).json({ message: 'Lá»—i khi thÃªm vÃ o kho sá»‘ chung' });
+    res.status(500).json({ message: 'Lỗi khi thêm vào kho số chung' });
   }
 };
 
 /**
- * Láº¥y cáº¥u hÃ¬nh phÃ¢n sá»‘ (Ä‘á»c tá»« SystemConfig)
+ * Lấy cấu hình phân số (đọc từ SystemConfig)
  */
 export const getDistributionConfig = async (req: Request, res: Response) => {
   try {
@@ -735,12 +735,12 @@ export const getDistributionConfig = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get distribution config error:', error);
-    res.status(500).json({ message: 'Lá»—i khi láº¥y cáº¥u hÃ¬nh' });
+    res.status(500).json({ message: 'Lỗi khi lấy cấu hình' });
   }
 };
 
 /**
- * Cáº­p nháº­t cáº¥u hÃ¬nh phÃ¢n sá»‘ (ghi vÃ o SystemConfig)
+ * Cập nhật cấu hình phân số (ghi vào SystemConfig)
  */
 export const updateDistributionConfig = async (req: Request, res: Response) => {
   try {
@@ -752,14 +752,14 @@ export const updateDistributionConfig = async (req: Request, res: Response) => {
       await prisma.systemConfig.upsert({
         where: { key: 'lead_assign_method' },
         update: { value: method.toLowerCase(), updatedBy: userId },
-        create: { key: 'lead_assign_method', value: method.toLowerCase(), dataType: 'ENUM', category: 'lead_distribution', name: 'PhÆ°Æ¡ng phÃ¡p phÃ¢n bá»• lead', sortOrder: 2 },
+        create: { key: 'lead_assign_method', value: method.toLowerCase(), dataType: 'ENUM', category: 'lead_distribution', name: 'Phương pháp phân bổ lead', sortOrder: 2 },
       });
     }
     if (autoRecallDays !== undefined) {
       await prisma.systemConfig.upsert({
         where: { key: 'data_pool_auto_recall_days' },
         update: { value: String(autoRecallDays), updatedBy: userId },
-        create: { key: 'data_pool_auto_recall_days', value: String(autoRecallDays), dataType: 'INTEGER', category: 'lead_distribution', name: 'Sá»‘ ngÃ y tá»± Ä‘á»™ng thu há»“i lead', sortOrder: 3 },
+        create: { key: 'data_pool_auto_recall_days', value: String(autoRecallDays), dataType: 'INTEGER', category: 'lead_distribution', name: 'Số ngày tự động thu hồi lead', sortOrder: 3 },
       });
     }
 
@@ -776,7 +776,7 @@ export const updateDistributionConfig = async (req: Request, res: Response) => {
     res.json(result);
   } catch (error) {
     console.error('Update distribution config error:', error);
-    res.status(500).json({ message: 'Lá»—i khi cáº­p nháº­t cáº¥u hÃ¬nh' });
+    res.status(500).json({ message: 'Lỗi khi cập nhật cấu hình' });
   }
 };
 
@@ -794,7 +794,7 @@ async function getDistributionConfigValues() {
 }
 
 /**
- * Thá»‘ng kÃª kho sá»‘ chung
+ * Thống kê kho số chung
  */
 export const getDataPoolStats = async (req: Request, res: Response) => {
   try {
@@ -904,19 +904,19 @@ export const getDataPoolStats = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Get data pool stats error:', error);
-    res.status(500).json({ message: 'Lá»—i khi láº¥y thá»‘ng kÃª' });
+    res.status(500).json({ message: 'Lỗi khi lấy thống kê' });
   }
 };
 
 /**
- * Marketing push: phÃ¢n sá»‘ ngay láº­p tá»©c theo tá»· lá»‡ team
+ * Marketing push: phân số ngay lập tức theo tỷ lệ team
  */
 export const immediateDistribute = async (req: Request, res: Response) => {
   try {
     const { dataPoolIds } = req.body;
 
     if (!dataPoolIds || !Array.isArray(dataPoolIds) || dataPoolIds.length === 0) {
-      return res.status(400).json({ message: 'Vui lÃ²ng chá»n lead cáº§n phÃ¢n' });
+      return res.status(400).json({ message: 'Vui lòng chọn lead cần phân' });
     }
 
     const result = await assignLeadsUsingTeamRatios(dataPoolIds);
@@ -934,17 +934,17 @@ export const immediateDistribute = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: `ÄÃ£ phÃ¢n ${result.assigned} lead`,
+      message: `Đã phân ${result.assigned} lead`,
       count: result.assigned
     });
   } catch (error) {
     console.error('Immediate distribute error:', error);
-    res.status(500).json({ message: 'Lá»—i khi phÃ¢n sá»‘ ngay láº­p tá»©c' });
+    res.status(500).json({ message: 'Lỗi khi phân số ngay lập tức' });
   }
 };
 
 /**
- * Cáº­p nháº­t tá»· lá»‡ phÃ¢n bá»• team (admin)
+ * Cập nhật tỷ lệ phân bổ team (admin)
  */
 export const updateDistributionRatios = async (req: Request, res: Response) => {
   try {
@@ -952,12 +952,12 @@ export const updateDistributionRatios = async (req: Request, res: Response) => {
     const { ratios } = req.body;
 
     if (!ratios || !Array.isArray(ratios)) {
-      return res.status(400).json({ message: 'Vui lÃ²ng gá»­i ratios: [{departmentId, ratio}]' });
+      return res.status(400).json({ message: 'Vui lòng gửi ratios: [{departmentId, ratio}]' });
     }
 
     const total = ratios.reduce((sum: number, r: { departmentId: string; ratio: number }) => sum + (r.ratio || 0), 0);
     if (Math.abs(total - 100) > 0.01) {
-      return res.status(400).json({ message: 'Tá»•ng tá»· lá»‡ pháº£i báº±ng 100' });
+      return res.status(400).json({ message: 'Tổng tỷ lệ phải bằng 100' });
     }
 
     for (const r of ratios) {
@@ -1002,12 +1002,12 @@ export const updateDistributionRatios = async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error) {
     console.error('Update distribution ratios error:', error);
-    res.status(500).json({ message: 'Lá»—i khi cáº­p nháº­t tá»· lá»‡ phÃ¢n bá»•' });
+    res.status(500).json({ message: 'Lỗi khi cập nhật tỷ lệ phân bổ' });
   }
 };
 
 /**
- * Láº¥y tá»· lá»‡ phÃ¢n bá»• team hiá»‡n táº¡i
+ * Lấy tỷ lệ phân bổ team hiện tại
  */
 export const getDistributionRatios = async (req: Request, res: Response) => {
   try {
@@ -1018,7 +1018,7 @@ export const getDistributionRatios = async (req: Request, res: Response) => {
     res.json(ratios);
   } catch (error) {
     console.error('Get distribution ratios error:', error);
-    res.status(500).json({ message: 'Lá»—i khi láº¥y tá»· lá»‡ phÃ¢n bá»•' });
+    res.status(500).json({ message: 'Lỗi khi lấy tỷ lệ phân bổ' });
   }
 };
 
