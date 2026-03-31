@@ -65,6 +65,9 @@ export function mergeWardsByNormalizedNameForResponse<T extends { id: string; na
       continue;
     }
     const sorted = [...list].sort((a, b) => {
+      const av = (a as { vtpDistrictId?: number | null }).vtpDistrictId != null ? 1 : 0;
+      const bv = (b as { vtpDistrictId?: number | null }).vtpDistrictId != null ? 1 : 0;
+      if (bv !== av) return bv - av;
       const na = parseInt(a.id, 10);
       const nb = parseInt(b.id, 10);
       if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;

@@ -161,21 +161,28 @@ async function syncNewAdministrativeDivisions(stats: {
     const provinceId = w.PROVINCE_ID;
     if (provinceId == null || provinceId === '') continue;
     const wName = storageAdministrativeName(String(w.WARDS_NAME || ''));
+    const vtpDistRaw = w.DISTRICT_ID;
+    const vtpDistrictId =
+      vtpDistRaw != null && vtpDistRaw !== '' && !Number.isNaN(Number(vtpDistRaw))
+        ? Number(vtpDistRaw)
+        : null;
     await prisma.ward.upsert({
       where: { id: String(w.WARDS_ID) },
       update: {
         name: wName,
         code: String(w.WARDS_ID),
         provinceId: String(provinceId),
-        districtId: null
+        districtId: null,
+        vtpDistrictId,
       },
       create: {
         id: String(w.WARDS_ID),
         name: wName,
         code: String(w.WARDS_ID),
         provinceId: String(provinceId),
-        districtId: null
-      }
+        districtId: null,
+        vtpDistrictId,
+      },
     });
     stats.wards++;
   }

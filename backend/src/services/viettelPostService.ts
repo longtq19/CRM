@@ -32,6 +32,8 @@ interface CreateOrderParams {
   productPrice: number;
   moneyCollection: number;
   note?: string;
+  /** Mã dịch vụ VTP (VD: VCN, LCOD). Nếu không truyền: ưu tiên `VTP_ORDER_SERVICE` trong env, sau đó gọi getPriceAll để chọn dịch vụ khả dụng (nhiều hợp đồng không còn VCN). */
+  orderService?: string;
 }
 
 interface TrackingInfo {
@@ -84,6 +86,27 @@ class ViettelPostService {
   async createOrder(params: CreateOrderParams): Promise<{ trackingNumber: string; orderId: string }> {
     const token = await this.getToken();
 
+    let orderService = params.orderService?.trim() || process.env.VTP_ORDER_SERVICE?.trim();
+    if (!orderService) {
+      try {
+        const list = await this.getPriceAllList({
+          senderProvince: params.senderProvince,
+          senderDistrict: params.senderDistrict,
+          senderWard: params.senderWard,
+          receiverProvince: params.receiverProvince,
+          receiverDistrict: params.receiverDistrict,
+          receiverWard: params.receiverWard,
+          productWeight: params.productWeight,
+          productPrice: params.productPrice,
+          moneyCollection: params.moneyCollection,
+        });
+        const vcn = list.find((s: any) => s.MA_DV_CHINH === 'VCN');
+        orderService = vcn?.MA_DV_CHINH || list[0]?.MA_DV_CHINH || 'VCN';
+      } catch {
+        orderService = 'VCN';
+      }
+    }
+
     const orderData = {
       ORDER_NUMBER: params.orderId,
       GROUPADDRESS_ID: 0,
@@ -110,7 +133,7 @@ class ViettelPostService {
       PRODUCT_WEIGHT: params.productWeight,
       PRODUCT_TYPE: 'HH',
       ORDER_PAYMENT: 3, // Người nhận trả phí
-      ORDER_SERVICE: 'VCN', // Chuyển phát nhanh
+      ORDER_SERVICE: orderService,
       ORDER_SERVICE_ADD: '',
       ORDER_VOUCHER: '',
       ORDER_NOTE: params.note || '',
@@ -300,11 +323,15 @@ class ViettelPostService {
         productPrice: params.productPrice,
         moneyCollection: params.moneyCollection,
       });
-      const vcn = list.find((s: any) => s.MA_DV_CHINH === 'VCN');
-      if (vcn) {
+      const preferred = params.serviceType?.trim();
+      const pick =
+        (preferred && list.find((s: any) => s.MA_DV_CHINH === preferred)) ||
+        list.find((s: any) => s.MA_DV_CHINH === 'VCN') ||
+        list[0];
+      if (pick) {
         return {
-          fee: vcn.GIA_CUOC || 0,
-          deliveryTime: vcn.THOI_GIAN || '2-3 ngày',
+          fee: pick.GIA_CUOC || 0,
+          deliveryTime: pick.THOI_GIAN || '2-3 ngày',
         };
       }
       return { fee: 0, deliveryTime: 'Không xác định' };

@@ -7,6 +7,7 @@ import { viettelPostService } from '../services/viettelPostService';
 import { updateCustomerRank } from './customerRankController';
 import { getSubordinateIds, getVisibleEmployeeIds } from '../utils/viewScopeHelper';
 import { prismaEmployeeTypeLogisticsWhere } from '../utils/logisticsEmployeeType';
+import { resolveReceiverVtpDistrictId } from '../utils/orderVtpAddress';
 import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/leadDuplicateService';
 import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
@@ -292,7 +293,8 @@ export const getOrders = async (req: Request, res: Response) => {
                 }
               }
             }
-          }
+          },
+          warehouse: { select: { id: true, code: true, name: true } }
         }
       })
     ]);
@@ -339,7 +341,8 @@ export const getOrderById = async (req: Request, res: Response) => {
           include: {
             product: true
           }
-        }
+        },
+        warehouse: { select: { id: true, code: true, name: true, detailAddress: true, provinceId: true, districtId: true, wardId: true } }
       }
     });
 
@@ -433,6 +436,13 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
+    if (warehouseId) {
+      const wh = await prisma.warehouse.findUnique({ where: { id: String(warehouseId) } });
+      if (!wh) {
+        return res.status(400).json({ message: 'Không tìm thấy kho gửi hàng đã chọn.' });
+      }
+    }
+
     // Tính tổng tiền
     let totalAmount = 0;
     const orderItems = [];
@@ -460,6 +470,15 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const finalAmount = totalAmount - Number(discount);
 
+    const receiverDistrictIdNum =
+      receiverDistrictId != null && receiverDistrictId !== ''
+        ? Number(receiverDistrictId)
+        : NaN;
+    const receiverWardIdNum =
+      receiverWardId != null && receiverWardId !== ''
+        ? Number(receiverWardId)
+        : NaN;
+
     // Tạo mã đơn hàng
     const count = await prisma.order.count();
     const code = `DH-${String(count + 1).padStart(6, '0')}`;
@@ -486,8 +505,13 @@ export const createOrder = async (req: Request, res: Response) => {
         receiverDistrict,
         receiverWard,
         receiverProvinceId: receiverProvinceId ? Number(receiverProvinceId) : null,
-        receiverDistrictId: receiverDistrictId ? Number(receiverDistrictId) : null,
-        receiverWardId: receiverWardId ? Number(receiverWardId) : null,
+        receiverDistrictId:
+          receiverDistrictIdNum != null && !Number.isNaN(receiverDistrictIdNum)
+            ? receiverDistrictIdNum
+            : null,
+        receiverWardId:
+          receiverWardIdNum != null && !Number.isNaN(receiverWardIdNum) ? receiverWardIdNum : null,
+        warehouseId: warehouseId ? String(warehouseId) : null,
         items: {
           create: orderItems.map((item, index) => ({
             code: `${code}-${index + 1}`,
@@ -852,8 +876,8 @@ export const pushToViettelPost = async (req: Request, res: Response) => {
       totalWeight = sumOrderWeightGramsFromItems(order.items);
     }
 
-    // Sender: lấy từ warehouse nếu có warehouseId, fallback env vars
-    const reqWarehouseId = req.body?.warehouseId;
+    // Sender: lấy từ warehouse nếu có warehouseId (body hoặc đơn đã lưu), fallback env vars
+    const reqWarehouseId = req.body?.warehouseId ?? order.warehouseId;
     let senderName = process.env.VTP_SENDER_NAME || 'KAGRI BIO';
     let senderPhone = process.env.VTP_SENDER_PHONE || process.env.VTP_USERNAME || '0352737467';
     let senderAddress = process.env.VTP_SENDER_ADDRESS || 'Số 103, ngõ 95, Đạo Xuyên, Bát Tràng';
@@ -877,11 +901,16 @@ export const pushToViettelPost = async (req: Request, res: Response) => {
     }
 
     const rProvinceId = order.receiverProvinceId ?? NaN;
-    const rDistrictId = order.receiverDistrictId ?? NaN;
     const rWardId = order.receiverWardId ?? NaN;
+    const rDistrictResolved = await resolveReceiverVtpDistrictId({
+      receiverDistrictId: order.receiverDistrictId,
+      receiverWardId: order.receiverWardId,
+    });
+    const rDistrictId = rDistrictResolved ?? NaN;
     if (isNaN(rProvinceId) || isNaN(rDistrictId) || isNaN(rWardId)) {
       return res.status(400).json({
-        message: 'Đơn hàng này chưa có ID địa chỉ VTP. Vui lòng tạo đơn mới với địa chỉ đầy đủ (chọn Tỉnh/Quận/Phường) rồi đẩy VTP.'
+        message:
+          'Đơn hàng này chưa đủ mã địa chỉ Viettel Post (tỉnh/huyện/xã). Với địa chỉ sau sáp nhập, chạy đồng bộ địa chỉ VTP (POST /api/vtp/sync-address) để có vtp_district_id trên xã, hoặc tạo đơn lại với địa chỉ đầy đủ.',
       });
     }
     try {

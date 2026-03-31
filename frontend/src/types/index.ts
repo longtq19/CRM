@@ -62,6 +62,32 @@ export interface Customer {
   managerId?: string;
   joinedDate: string;
   interests?: string[];
+  /** Địa chỉ hành chính chi tiết (API danh sách khách có thể trả kèm) */
+  province?: { id: string; name: string; code?: string };
+  district?: { id: string; name: string; code?: string } | null;
+  ward?: {
+    id: string;
+    name: string;
+    code?: string;
+    districtId?: string | null;
+    vtpDistrictId?: number | null;
+  } | null;
+  addressRecord?: {
+    type: 'NEW' | 'OLD';
+    detail: string;
+    provinceId: string;
+    districtId?: string | null;
+    wardId: string;
+    province?: { id: string; name: string; code?: string };
+    district?: { id: string; name: string; code?: string } | null;
+    ward?: {
+      id: string;
+      name: string;
+      code?: string;
+      districtId?: string | null;
+      vtpDistrictId?: number | null;
+    };
+  } | null;
   customerStatus?: {
     id: string;
     code: string;
@@ -473,6 +499,11 @@ export interface Order {
   receiverProvince?: string;
   receiverDistrict?: string;
   receiverWard?: string;
+  receiverProvinceId?: number | null;
+  receiverDistrictId?: number | null;
+  receiverWardId?: number | null;
+  warehouseId?: string | null;
+  warehouse?: { id: string; code: string; name: string } | null;
   
   note?: string;
   

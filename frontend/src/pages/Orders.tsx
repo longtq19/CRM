@@ -293,7 +293,11 @@ const Orders = () => {
     if (!window.confirm('Đẩy đơn hàng sang Viettel Post?')) return;
     try {
       setActionLoading(order.id);
-      const result = await orderApi.pushToViettelPost(order.id, order.orderDate);
+      const result = await orderApi.pushToViettelPost(
+        order.id,
+        order.orderDate,
+        order.warehouseId ? { warehouseId: order.warehouseId } : undefined
+      );
       alert(`${result.message}\nMã vận đơn: ${result.trackingNumber}`);
       fetchOrders();
       fetchStats();

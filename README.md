@@ -544,7 +544,8 @@ Luồng tạo & vận chuyển:
    - điều kiện:
      - shippingStatus phải là `CONFIRMED`
      - receiver cần đủ thông tin + đặc biệt cần `receiverProvinceId/receiverDistrictId/receiverWardId`
-   - backend gọi `viettelPostService.createOrder(...)` — **khối lượng** gửi VTP là **tổng gram** = Σ(`product.weight` × số lượng); sản phẩm không có `weight` dùng 500g/đơn vị (đồng bộ với màn tạo đơn).
+   - backend gọi `viettelPostService.createOrder(...)` — **khối lượng** gửi VTP là **tổng gram** = Σ(`product.weight` × số lượng); sản phẩm không có `weight` dùng 500g/đơn vị (đồng bộ với màn tạo đơn). **Mã dịch vụ VTP (`ORDER_SERVICE`):** ưu tiên biến môi trường `VTP_ORDER_SERVICE` (nếu đặt); nếu không — gọi **`/order/getPriceAll`** cùng tuyến/khối lượng và chọn **VCN** nếu có trong danh sách, **nếu không** thì dùng **dịch vụ đầu tiên** trả về (nhiều hợp đồng TMĐT chỉ còn LCOD/NCOD/…, không còn VCN; gửi cố định VCN sẽ lỗi *Price does not apply to this itinerary*). Địa chỉ **sau sáp nhập** (2 cấp): mã **quận/huyện** VTP lấy từ `wards.vtp_district_id` khi đồng bộ `source=new` (`POST /api/vtp/sync-address`). Đơn lưu `warehouse_id` (kho gửi) để đồng bộ địa chỉ gửi với kho đã chọn khi đẩy VTP.
+   - **Kiểm thử tạo đơn thật (CLI):** trong `backend/` chạy `npm run test:vtp-order` (cần `VTP_TOKEN` hoặc `VTP_USERNAME`+`VTP_PASSWORD`). Mặc định script dùng **gửi** từ `VTP_SENDER_*` và **nhận** mẫu liên tỉnh Hà Nội → TP.HCM (mã trong script); ghi đè bằng `VTP_TEST_RECEIVER_PROVINCE` / `VTP_TEST_RECEIVER_DISTRICT` / `VTP_TEST_RECEIVER_WARD`, hoặc `VTP_TEST_USE_DB_RECEIVER=1` để lấy xã từ DB (cần đã sync địa chỉ VTP).
    - cập nhật order:
      - `shippingStatus=SHIPPING`
      - `trackingNumber/shippingCode`
@@ -951,7 +952,7 @@ Nhánh VTP address:
 Nhánh VTP shipping:
 
 - `GET /api/vtp/services`
-- `POST /api/vtp/calculate-fee` — gọi VTP **`/order/getPriceAll`** (danh sách dịch vụ + `GIA_CUOC`); body gồm tổng **`productWeight`** (gram), `senderProvince/District` (+ `senderWard` hoặc env `VTP_SENDER_WARD`), `receiverProvince/District` (+ `receiverWard` nếu có); **mặc định không gửi kích thước** (length/width/height). Dùng `viettelPostService.getPriceAllList` + token từ `VTP_TOKEN` hoặc đăng nhập `VTP_USERNAME`/`VTP_PASSWORD`. Kiểm tra nhanh (cần credential VTP): trong `backend/` chạy `node scripts/test-vtp-getPriceAll.js` (tùy chỉnh `VTP_TEST_*` nếu ID tỉnh/huyện/xã không khớp danh mục tài khoản).
+- `POST /api/vtp/calculate-fee` — gọi VTP **`/order/getPriceAll`** (danh sách dịch vụ + `GIA_CUOC`); body gồm tổng **`productWeight`** (gram), `senderProvince/District` (+ `senderWard` hoặc env `VTP_SENDER_WARD`), `receiverProvince/District` (+ `receiverWard` nếu có); **mặc định không gửi kích thước** (length/width/height). Dùng `viettelPostService.getPriceAllList` + token từ `VTP_TOKEN` hoặc đăng nhập `VTP_USERNAME`/`VTP_PASSWORD`. Kiểm tra nhanh (cần credential VTP): trong `backend/` chạy `node scripts/test-vtp-getPriceAll.js` (tùy chỉnh `VTP_TEST_*` nếu ID tỉnh/huyện/xã không khớp danh mục tài khoản). Tính cước trong `viettelPostService.calculateFee`: ưu tiên **`serviceType`** nếu khớp một dòng trong `getPriceAll`, nếu không thì **VCN**, nếu không có thì **dòng đầu** (đồng bộ với `createOrder` khi không đặt `VTP_ORDER_SERVICE`).
 - `POST /api/vtp/create-order` (MANAGE_ORDERS)
 - `GET /api/vtp/track/:orderCode`
 - `POST /api/vtp/cancel-order` (MANAGE_ORDERS)
@@ -1136,6 +1137,7 @@ Nghiệp vụ:
        - `VTP_API_URL`, `VTP_USERNAME`, `VTP_PASSWORD`, `VTP_TOKEN`
        - `VTP_WEBHOOK_SECRET` (comment nếu chưa dùng, nhưng code đã hỗ trợ validate token nếu có)
        - `VTP_SENDER_*`
+       - `VTP_ORDER_SERVICE` (tùy chọn — cố định mã dịch vụ khi tạo đơn; để trống thì tự chọn theo `getPriceAll`)
 3. Chạy dev:
    - `npm run dev`
 4. Seed (nếu cần):

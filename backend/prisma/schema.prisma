@@ -886,6 +886,8 @@ model Ward {
   id                String            @id @default(uuid())
   code              String            @unique
   name              String
+  /// Mã quận/huyện theo Viettel Post (bắt buộc khi gọi getPrice/createOrder; với xã sau sáp nhập lấy từ API listWardsNew)
+  vtpDistrictId     Int?              @map("vtp_district_id")
   provinceId        String            @map("province_id")
   districtId        String?           @map("district_id")
   customerAddresses CustomerAddress[]
@@ -941,11 +943,13 @@ model Order {
   /// NV vận đơn từ chối tiếp nhận (PENDING → CANCELLED / hủy vận chuyển từ chờ xác nhận)
   shippingDeclinedById String?            @map("shipping_declined_by_id")
   shippingDeclinedAt   DateTime?          @map("shipping_declined_at")
+  warehouseId          String?            @map("warehouse_id")
   items                OrderItem[]
   orderShippingLogs    OrderShippingLog[]
   customer             Customer           @relation(fields: [customerId], references: [id])
   employee             Employee?          @relation(fields: [employeeId], references: [id])
   shippingDeclinedBy   Employee?          @relation("OrderShippingDeclinedBy", fields: [shippingDeclinedById], references: [id])
+  warehouse            Warehouse?         @relation(fields: [warehouseId], references: [id])
 
   @@id([id, orderDate])
   @@unique([code, orderDate])
@@ -959,6 +963,7 @@ model Order {
   @@index([employeeId, orderDate])
   @@index([orderStatus])
   @@index([shippingDeclinedById])
+  @@index([warehouseId])
   @@map("orders")
 }
 
@@ -1369,6 +1374,7 @@ model Warehouse {
   products           Product[]
   serials            Serial[]
   stocks             Stock[]
+  orders             Order[]
   district           District?              @relation(fields: [districtId], references: [id])
   province           Province?              @relation(fields: [provinceId], references: [id])
   ward               Ward?                  @relation(fields: [wardId], references: [id])

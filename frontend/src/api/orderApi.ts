@@ -39,6 +39,7 @@ export interface CreateOrderData {
   receiverProvinceId?: number;
   receiverDistrictId?: number;
   receiverWardId?: number;
+  /** Kho gửi — dùng khi đẩy Viettel Post (ưu tiên địa chỉ kho) */
   warehouseId?: string;
 }
 
@@ -104,8 +105,12 @@ export const orderApi = {
     }>;
   },
 
-  pushToViettelPost: async (id: string, orderDate: string): Promise<{ message: string; trackingNumber: string; order: Order }> => {
-    const response = await apiClient.post(`/orders/${id}/${orderDate}/push-viettel-post`, {});
+  pushToViettelPost: async (
+    id: string,
+    orderDate: string,
+    body?: { warehouseId?: string }
+  ): Promise<{ message: string; trackingNumber: string; order: Order }> => {
+    const response = await apiClient.post(`/orders/${id}/${orderDate}/push-viettel-post`, body || {});
     return response as { message: string; trackingNumber: string; order: Order };
   },
 

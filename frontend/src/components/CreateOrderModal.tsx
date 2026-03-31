@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   X, Search, Package, User, MapPin, Truck, Calculator,
   Plus, Minus, Check, RefreshCw, AlertCircle, ChevronRight,
@@ -28,6 +28,18 @@ interface District {
 interface Ward {
   WARDS_ID: number;
   WARDS_NAME: string;
+}
+
+interface WarehouseLite {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface DbWardRow {
+  id: string;
+  name: string;
+  vtpDistrictId?: number | null;
 }
 
 interface ShippingService {
@@ -92,7 +104,10 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   const [orderAddressType, setOrderAddressType] = useState<'OLD' | 'NEW'>('OLD');
   const [dbProvinces, setDbProvinces] = useState<Array<{id: string; name: string}>>([]);
   const [dbProvincesNew, setDbProvincesNew] = useState<Array<{id: string; name: string}>>([]);
-  const [dbWards, setDbWards] = useState<Array<{id: string; name: string}>>([]);
+  const [dbWards, setDbWards] = useState<DbWardRow[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseLite[]>([]);
+  const [warehouseId, setWarehouseId] = useState<string>('');
+  const addressPrefillDoneRef = useRef<string | null>(null);
 
   const [receiverInfo, setReceiverInfo] = useState({
     receiverName: '',
@@ -304,9 +319,137 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     }
   }, [receiverInfo.receiverDistrictId, receiverInfo.receiverProvinceId, orderAddressType]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.get('/inventory/warehouses');
+        if (!cancelled && Array.isArray(res)) setWarehouses(res as WarehouseLite[]);
+      } catch {
+        if (!cancelled) setWarehouses([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    addressPrefillDoneRef.current = null;
+  }, [selectedCustomer?.id]);
+
+  /** Tự điền địa chỉ khi vào bước 3 (một lần mỗi khách); vẫn chỉnh sửa được. */
+  useEffect(() => {
+    if (step !== 3 || !selectedCustomer) return;
+    if (addressPrefillDoneRef.current === selectedCustomer.id) return;
+    addressPrefillDoneRef.current = selectedCustomer.id;
+
+    const c = selectedCustomer;
+    const addrLine = c.addressRecord?.detail || c.address || '';
+    setReceiverInfo((prev) => ({
+      ...prev,
+      receiverName: c.name,
+      receiverPhone: c.phone,
+      receiverAddress: addrLine || prev.receiverAddress,
+    }));
+
+    void (async () => {
+      let provincesNew: Array<{ id: string; name: string }> = dbProvincesNew;
+      if (!provincesNew.length) {
+        try {
+          const res = await apiClient.get('/address/provinces?directOnly=1');
+          provincesNew = Array.isArray(res) ? res : [];
+          setDbProvincesNew(provincesNew);
+        } catch {
+          provincesNew = [];
+        }
+      }
+
+      const ar = c.addressRecord;
+      if (ar?.type === 'NEW' && ar.provinceId && ar.wardId) {
+        setOrderAddressType('NEW');
+        const prov = provincesNew.find((p) => p.id === ar.provinceId);
+        setReceiverInfo((prev) => ({
+          ...prev,
+          receiverProvinceId: ar.provinceId,
+          receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : prev.receiverProvinceName,
+          receiverDistrictId: ar.ward?.vtpDistrictId != null ? String(ar.ward.vtpDistrictId) : '',
+          receiverDistrictName: '',
+          receiverWardId: ar.wardId,
+          receiverWardName: ar.ward?.name ? administrativeTitleCase(ar.ward.name) : '',
+        }));
+        return;
+      }
+      if (!ar && c.province?.id && c.ward?.id) {
+        const isNew = c.ward?.districtId == null || c.ward?.districtId === '';
+        if (isNew) {
+          setOrderAddressType('NEW');
+          const prov = provincesNew.find((p) => p.id === c.province.id);
+          setReceiverInfo((prev) => ({
+            ...prev,
+            receiverProvinceId: c.province!.id,
+            receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : '',
+            receiverDistrictId: c.ward?.vtpDistrictId != null ? String(c.ward.vtpDistrictId) : '',
+            receiverDistrictName: '',
+            receiverWardId: c.ward!.id,
+            receiverWardName: c.ward?.name ? administrativeTitleCase(c.ward.name) : '',
+          }));
+          return;
+        }
+      }
+      if (ar?.type === 'OLD' && ar.provinceId && ar.districtId && ar.wardId) {
+        setOrderAddressType('OLD');
+        const pCode = String(ar.province?.code || ar.provinceId);
+        setReceiverInfo((prev) => ({
+          ...prev,
+          receiverProvinceId: pCode,
+          receiverProvinceName: ar.province?.name ? administrativeTitleCase(ar.province.name) : '',
+        }));
+        try {
+          setLoadingAddress(true);
+          const dres: any = await apiClient.get(`/vtp/districts?provinceId=${encodeURIComponent(pCode)}`);
+          const rows = dres?.success && dres?.data ? dres.data : [];
+          setDistricts(rows);
+          const dId = String(ar.district?.code || ar.districtId);
+          const dRow = rows.find((d: { DISTRICT_ID: number }) => String(d.DISTRICT_ID) === dId);
+          setReceiverInfo((prev) => ({
+            ...prev,
+            receiverDistrictId: dId,
+            receiverDistrictName: dRow?.DISTRICT_NAME
+              ? administrativeTitleCase(String(dRow.DISTRICT_NAME))
+              : ar.district?.name
+                ? administrativeTitleCase(ar.district.name)
+                : '',
+          }));
+          const wres: any = await apiClient.get(`/vtp/wards?districtId=${encodeURIComponent(dId)}`);
+          const wRows = wres?.success && wres?.data ? wres.data : [];
+          setWards(wRows);
+          const wId = String(ar.ward?.code || ar.wardId);
+          const wRow = wRows.find((w: { WARDS_ID: number }) => String(w.WARDS_ID) === wId);
+          setReceiverInfo((prev) => ({
+            ...prev,
+            receiverWardId: wId,
+            receiverWardName: wRow?.WARDS_NAME
+              ? administrativeTitleCase(String(wRow.WARDS_NAME))
+              : ar.ward?.name
+                ? administrativeTitleCase(ar.ward.name)
+                : '',
+          }));
+        } catch (e) {
+          console.error('Prefill OLD address', e);
+        } finally {
+          setLoadingAddress(false);
+        }
+      }
+    })();
+  }, [step, selectedCustomer?.id]);
+
   // Calculate shipping fee when address is complete
   const calculateShipping = useCallback(async () => {
-    if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverDistrictId) {
+    if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverWardId) {
+      return;
+    }
+    if (orderAddressType === 'OLD' && !receiverInfo.receiverDistrictId) {
       return;
     }
 
@@ -315,14 +458,19 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setError(null);
 
       const codAmount = totalAmount;
+      const rProv = parseInt(String(receiverInfo.receiverProvinceId), 10);
+      const rDistRaw = receiverInfo.receiverDistrictId
+        ? parseInt(String(receiverInfo.receiverDistrictId), 10)
+        : NaN;
+      const rWardRaw = receiverInfo.receiverWardId ? parseInt(String(receiverInfo.receiverWardId), 10) : NaN;
 
       const response: any = await apiClient.post('/vtp/calculate-fee', {
         senderProvince: senderInfo.provinceId,
         senderDistrict: senderInfo.districtId,
         senderWard: senderInfo.wardId,
-        receiverProvince: parseInt(receiverInfo.receiverProvinceId, 10),
-        receiverDistrict: parseInt(receiverInfo.receiverDistrictId, 10),
-        receiverWard: parseInt(receiverInfo.receiverWardId, 10),
+        receiverProvince: rProv,
+        receiverDistrict: Number.isFinite(rDistRaw) ? rDistRaw : undefined,
+        receiverWard: Number.isFinite(rWardRaw) ? rWardRaw : undefined,
         productWeight: totalWeightGrams,
         productPrice: codAmount,
         moneyCollection: codAmount // COD
@@ -346,6 +494,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     receiverInfo.receiverProvinceId,
     receiverInfo.receiverDistrictId,
     receiverInfo.receiverWardId,
+    orderAddressType,
     totalWeightGrams,
     totalAmount,
   ]);
@@ -398,14 +547,15 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     ));
   };
 
-  // Use customer info
-  const useCustomerInfo = () => {
+  /** Chỉ điền họ tên, SĐT, địa chỉ dòng — không ghi đè tỉnh/huyện/xã đã chọn. */
+  const useCustomerTextOnly = () => {
     if (selectedCustomer) {
-      setReceiverInfo(prev => ({
+      const line = selectedCustomer.addressRecord?.detail || selectedCustomer.address || '';
+      setReceiverInfo((prev) => ({
         ...prev,
         receiverName: selectedCustomer.name,
         receiverPhone: selectedCustomer.phone,
-        receiverAddress: selectedCustomer.address || ''
+        receiverAddress: line || prev.receiverAddress,
       }));
     }
   };
@@ -471,8 +621,12 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setError('Vui lòng nhập đầy đủ thông tin người nhận');
       return;
     }
-    if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverDistrictId || !receiverInfo.receiverWardId) {
-      setError('Vui lòng chọn đầy đủ địa chỉ (Tỉnh/Quận/Phường)');
+    if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverWardId) {
+      setError('Vui lòng chọn đủ địa chỉ (tỉnh, phường/xã).');
+      return;
+    }
+    if (orderAddressType === 'OLD' && !receiverInfo.receiverDistrictId) {
+      setError('Vui lòng chọn đầy đủ địa chỉ (Tỉnh/Quận/Phường).');
       return;
     }
 
@@ -489,11 +643,17 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
         receiverPhone: receiverInfo.receiverPhone,
         receiverAddress: receiverInfo.receiverAddress,
         receiverProvince: receiverInfo.receiverProvinceName,
-        receiverDistrict: receiverInfo.receiverDistrictName,
+        receiverDistrict:
+          orderAddressType === 'NEW'
+            ? receiverInfo.receiverDistrictName || '—'
+            : receiverInfo.receiverDistrictName,
         receiverWard: receiverInfo.receiverWardName,
         receiverProvinceId: Number(receiverInfo.receiverProvinceId) || undefined,
-        receiverDistrictId: Number(receiverInfo.receiverDistrictId) || undefined,
+        receiverDistrictId: receiverInfo.receiverDistrictId
+          ? Number(receiverInfo.receiverDistrictId)
+          : undefined,
         receiverWardId: Number(receiverInfo.receiverWardId) || undefined,
+        warehouseId: warehouseId || undefined,
       };
       await orderApi.createOrder(data);
       onSuccess();
@@ -509,9 +669,17 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     switch (step) {
       case 1: return !!selectedCustomer;
       case 2: return orderItems.length > 0;
-      case 3: return receiverInfo.receiverName && receiverInfo.receiverPhone && 
-               receiverInfo.receiverAddress && receiverInfo.receiverProvinceId && 
-               receiverInfo.receiverDistrictId && receiverInfo.receiverWardId;
+      case 3: {
+        const base =
+          !!receiverInfo.receiverName &&
+          !!receiverInfo.receiverPhone &&
+          !!receiverInfo.receiverAddress &&
+          !!receiverInfo.receiverProvinceId &&
+          !!receiverInfo.receiverWardId;
+        if (!base) return false;
+        if (orderAddressType === 'OLD') return !!receiverInfo.receiverDistrictId;
+        return true;
+      }
       default: return true;
     }
   };
@@ -931,13 +1099,36 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                 </h3>
                 {selectedCustomer && (
                   <button
-                    onClick={useCustomerInfo}
+                    type="button"
+                    onClick={useCustomerTextOnly}
                     className="text-sm text-primary hover:underline flex items-center gap-1"
                   >
                     <User size={14} />
-                    Dùng thông tin khách hàng
+                    Điền lại họ tên, SĐT, địa chỉ từ khách
                   </button>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Building2 size={18} className="text-primary" />
+                  Kho gửi hàng (Viettel Post)
+                </label>
+                <select
+                  value={warehouseId}
+                  onChange={(e) => setWarehouseId(e.target.value)}
+                  className="w-full max-w-lg rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">— Mặc định (cấu hình hệ thống / biến môi trường) —</option>
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.code} — {w.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Khi đẩy đơn lên Viettel Post, ưu tiên địa chỉ kho đã chọn (nếu kho có đủ tỉnh/huyện/xã).
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1084,9 +1275,19 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                     <select
                       value={receiverInfo.receiverWardId}
                       onChange={(e) => {
-                        const w = dbWards.find(w => w.id === e.target.value);
+                        const w = dbWards.find((x) => x.id === e.target.value);
                         const wn = w?.name ? administrativeTitleCase(w.name) : '';
-                        setReceiverInfo(prev => ({...prev, receiverWardId: e.target.value, receiverWardName: wn}));
+                        const vtpD = w?.vtpDistrictId;
+                        setReceiverInfo((prev) => ({
+                          ...prev,
+                          receiverWardId: e.target.value,
+                          receiverWardName: wn,
+                          receiverDistrictId:
+                            vtpD != null && vtpD !== undefined ? String(vtpD) : prev.receiverDistrictId,
+                          receiverDistrictName: '',
+                        }));
+                        setShippingServices([]);
+                        setSelectedService(null);
                       }}
                       disabled={!receiverInfo.receiverProvinceId || loadingAddress}
                       className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-gray-100"
@@ -1195,7 +1396,9 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                 </div>
               )}
 
-              {!loadingServices && shippingServices.length === 0 && receiverInfo.receiverDistrictId && (
+              {!loadingServices &&
+                shippingServices.length === 0 &&
+                (orderAddressType === 'OLD' ? receiverInfo.receiverDistrictId : receiverInfo.receiverWardId) && (
                 <div className="text-center py-8 text-gray-500">
                   <Truck size={48} className="mx-auto mb-2 text-gray-300" />
                   <p>Nhấn "Tính phí" để xem các dịch vụ vận chuyển</p>

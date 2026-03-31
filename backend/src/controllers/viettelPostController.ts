@@ -8,6 +8,7 @@ import {
   mergeWardsByNormalizedNameForResponse,
   storageAdministrativeName
 } from '../utils/addressDisplayNormalize';
+import { resolveReceiverVtpDistrictId } from '../utils/orderVtpAddress';
 
 /** Thư mục JSON địa chỉ (backend/data/addresses) */
 const getAddressDataDir = () => path.join(process.cwd(), 'data', 'addresses');
@@ -726,13 +727,27 @@ export const calculateShippingFee = async (req: Request, res: Response) => {
       moneyCollection,
     } = req.body;
 
-    if (
-      senderProvince == null ||
-      senderDistrict == null ||
-      receiverProvince == null ||
-      receiverDistrict == null
-    ) {
-      return res.status(400).json({ success: false, message: 'Thiếu ID tỉnh/huyện gửi hoặc nhận' });
+    if (senderProvince == null || senderDistrict == null || receiverProvince == null) {
+      return res.status(400).json({ success: false, message: 'Thiếu ID tỉnh/huyện gửi hoặc tỉnh nhận' });
+    }
+
+    let receiverDistrictNum =
+      receiverDistrict != null && receiverDistrict !== '' ? parseInt(String(receiverDistrict), 10) : NaN;
+    const receiverWardNum =
+      receiverWard != null && receiverWard !== '' ? parseInt(String(receiverWard), 10) : NaN;
+    if (Number.isNaN(receiverDistrictNum) && Number.isFinite(receiverWardNum)) {
+      const resolved = await resolveReceiverVtpDistrictId({
+        receiverDistrictId: null,
+        receiverWardId: receiverWardNum,
+      });
+      if (resolved != null) receiverDistrictNum = resolved;
+    }
+    if (Number.isNaN(receiverDistrictNum)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Thiếu mã quận/huyện nhận (Viettel Post). Với địa chỉ sau sáp nhập, chọn đủ Tỉnh và Phường/Xã — hệ thống lấy mã huyện từ danh mục xã; nếu vẫn lỗi, đồng bộ địa chỉ từ VTP (POST /api/vtp/sync-address).',
+      });
     }
 
     const defaultSenderWard = parseInt(process.env.VTP_SENDER_WARD || '175', 10);
@@ -748,7 +763,7 @@ export const calculateShippingFee = async (req: Request, res: Response) => {
       senderDistrict: Number(senderDistrict),
       senderWard: Number.isFinite(sWard) ? sWard : undefined,
       receiverProvince: Number(receiverProvince),
-      receiverDistrict: Number(receiverDistrict),
+      receiverDistrict: receiverDistrictNum,
       receiverWard: Number.isFinite(rWard) ? rWard : undefined,
       productWeight: Number(productWeight) || 500,
       productPrice: Number(productPrice) || 0,

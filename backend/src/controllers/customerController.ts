@@ -217,9 +217,16 @@ export const getCustomers = async (req: Request, res: Response) => {
               avatarUrl: true
             }
           },
-          province: { select: { id: true, name: true } },
-          district: { select: { id: true, name: true } },
-          ward: { select: { id: true, name: true } },
+          province: { select: { id: true, name: true, code: true } },
+          district: { select: { id: true, name: true, code: true } },
+          ward: { select: { id: true, name: true, code: true, vtpDistrictId: true, districtId: true } },
+          addressRecord: {
+            include: {
+              province: { select: { id: true, name: true, code: true } },
+              district: { select: { id: true, name: true, code: true } },
+              ward: { select: { id: true, name: true, code: true, vtpDistrictId: true, districtId: true } },
+            },
+          },
           leadSource: { select: { id: true, name: true } },
           campaign: { select: { id: true, name: true } },
           spendingRank: { select: { code: true, name: true, color: true } },

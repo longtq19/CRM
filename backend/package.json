@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:smoke": "ts-node scripts/smoke-db.ts",
+    "test:vtp-order": "ts-node scripts/test-vtp-create-order.ts",
     "db:migrate": "prisma migrate deploy",
     "migrate:resolve-p3009": "ts-node scripts/resolve-p3009-migration.ts",
     "restore:kagri-org": "ts-node scripts/restore-kagri-org.ts",
