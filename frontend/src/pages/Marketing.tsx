@@ -238,9 +238,8 @@ const Marketing = () => {
   const canCreateMarketingPlatform = hasPermission('CREATE_MARKETING_PLATFORM');
   const canUpdateMarketingPlatform = hasPermission('UPDATE_MARKETING_PLATFORM');
   const canDeleteMarketingPlatform = hasPermission('DELETE_MARKETING_PLATFORM');
-  /** Tải danh sách nền tảng cho dropdown lead/import khi có quyền Marketing khác. */
-  const shouldLoadMarketingSources =
-    canViewMarketingPlatforms || hasPermission('MANAGE_CUSTOMERS');
+  /** Danh mục nền tảng chung công ty — luôn tải khi vào module (API GET cho mọi NV đã đăng nhập). */
+  const shouldLoadMarketingSources = true;
   /** Chiến dịch: R/C/U/D tách quyền catalog; xem danh sách có thể qua VIEW hoặc MANAGE_CUSTOMERS (tương thích). */
   const canViewCampaigns =
     hasPermission('VIEW_MARKETING_CAMPAIGNS') || hasPermission('MANAGE_CUSTOMERS');
@@ -1570,7 +1569,12 @@ const Marketing = () => {
   const renderSourcesTab = () => (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Nền tảng</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Nền tảng</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Danh mục dùng chung cho toàn công ty (một danh sách); chỉnh sửa theo quyền được gán.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button
             onClick={loadSources}

@@ -173,7 +173,7 @@ export const DICTIONARY: Record<string, string> = {
   'UPDATE_MARKETING_CAMPAIGN': 'Sửa chiến dịch marketing',
   'DELETE_MARKETING_CAMPAIGN': 'Xóa chiến dịch marketing',
   'MANAGE_MARKETING_GROUPS': 'Quản lý nhóm Marketing',
-  'VIEW_MARKETING_PLATFORMS': 'Xem danh mục nền tảng (Marketing)',
+  'VIEW_MARKETING_PLATFORMS': 'Xem tab quản trị danh mục nền tảng (Marketing)',
   'CREATE_MARKETING_PLATFORM': 'Tạo nền tảng marketing',
   'UPDATE_MARKETING_PLATFORM': 'Sửa nền tảng marketing',
   'DELETE_MARKETING_PLATFORM': 'Xóa nền tảng marketing',

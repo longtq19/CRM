@@ -1114,6 +1114,7 @@ model CustomerRankSetting {
   @@map("customer_rank_settings")
 }
 
+/// Danh mục nền tảng quảng cáo — **một bảng dùng chung toàn công ty** (không phân tổ chức/đơn vị); mọi NV đọc qua `GET /marketing/sources` khi đã đăng nhập.
 model MarketingSource {
   id          String                  @id @default(uuid())
   code        String                  @unique

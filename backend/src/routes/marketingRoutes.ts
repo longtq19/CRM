@@ -31,19 +31,8 @@ import {
 
 const router = Router();
 
-// Sources — nền tảng (marketing_sources): GET — VIEW hoặc một trong CRUD hoặc MANAGE_CUSTOMERS (dropdown); POST/PUT/DELETE — từng quyền
-router.get(
-  '/marketing/sources',
-  authMiddleware,
-  checkPermission([
-    'VIEW_MARKETING_PLATFORMS',
-    'CREATE_MARKETING_PLATFORM',
-    'UPDATE_MARKETING_PLATFORM',
-    'DELETE_MARKETING_PLATFORM',
-    'MANAGE_CUSTOMERS',
-  ]),
-  getMarketingSources
-);
+// Sources — nền tảng (marketing_sources): danh mục chung công ty — GET chỉ cần đăng nhập; POST/PUT/DELETE theo quyền CRUD
+router.get('/marketing/sources', authMiddleware, getMarketingSources);
 router.post(
   '/marketing/sources',
   authMiddleware,

@@ -435,8 +435,9 @@ Module ở `backend/src/routes/marketingRoutes.ts` + `backend/src/controllers/ma
 Các nhánh nghiệp vụ:
 
 - **Nền tảng** (sources — bảng `marketing_sources`; nhãn UI: «Nền tảng»):
+  - **Phạm vi dữ liệu:** một danh mục **dùng chung toàn công ty** (không phân đơn vị/tổ chức trên bản ghi). Mọi nhân viên **đã đăng nhập** có thể **`GET /api/marketing/sources`** để đọc danh sách (dropdown, tham chiếu). Tab «Nền tảng» trên module Marketing và thao tác **tạo/sửa/xóa** vẫn theo quyền catalog (`VIEW_MARKETING_PLATFORMS` mở tab xem bảng; `CREATE` / `UPDATE` / `DELETE_MARKETING_PLATFORM` cho POST/PUT/DELETE).
   - `GET/POST/PUT/DELETE /api/marketing/sources`
-  - Quyền: `GET` một trong `VIEW_MARKETING_PLATFORMS` | `CREATE_MARKETING_PLATFORM` | `UPDATE_MARKETING_PLATFORM` | `DELETE_MARKETING_PLATFORM` | `MANAGE_CUSTOMERS` (GET cho dropdown lead/chiến dịch/import khi chỉ có quyền Marketing khách); **`POST`** `CREATE_MARKETING_PLATFORM` | **`PUT`** `UPDATE_MARKETING_PLATFORM` | **`DELETE`** `DELETE_MARKETING_PLATFORM` — gán trong **Hệ thống → Nhóm quyền** (quản trị hệ thống bypass theo quy ước dự án). Khi deploy, `syncDefaultMenus` migrate nhóm đang có `MANAGE_MARKETING_PLATFORMS` (cũ) sang bốn quyền trên rồi xóa mã legacy khỏi catalog.
+  - Quyền: **`GET`** chỉ cần **JWT hợp lệ**; **`POST`** `CREATE_MARKETING_PLATFORM` | **`PUT`** `UPDATE_MARKETING_PLATFORM` | **`DELETE`** `DELETE_MARKETING_PLATFORM` — gán trong **Hệ thống → Nhóm quyền** (quản trị hệ thống bypass theo quy ước dự án). Khi deploy, `syncDefaultMenus` migrate nhóm đang có `MANAGE_MARKETING_PLATFORMS` (cũ) sang bốn quyền trên rồi xóa mã legacy khỏi catalog.
   - Chặn xóa nếu nền tảng đang dùng bởi campaign.
 - Chiến dịch (CRUD tách quyền; **không** dùng `MANAGE_MARKETING_CATALOG` — đã loại; đồng bộ startup gán quyền mới cho nhóm từng có legacy + `VIEW` cho mọi nhóm có `MANAGE_CUSTOMERS`):
   - `GET /api/marketing/campaigns` — **`VIEW_MARKETING_CAMPAIGNS`** hoặc **`MANAGE_CUSTOMERS`** (tương thích đọc danh sách / dropdown Kinh doanh).

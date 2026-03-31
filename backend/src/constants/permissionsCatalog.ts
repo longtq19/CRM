@@ -211,8 +211,9 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
   },
   {
     code: 'VIEW_MARKETING_PLATFORMS',
-    name: 'Xem danh mục nền tảng (Marketing)',
-    description: 'Xem danh sách nền tảng quảng cáo (GET marketing_sources); không bao gồm tạo/sửa/xóa.',
+    name: 'Xem tab quản trị danh mục nền tảng (Marketing)',
+    description:
+      'Mở tab «Nền tảng» trên module Marketing (bảng quản trị). Danh sách đọc API `GET /marketing/sources` dùng chung cho mọi NV đã đăng nhập — không cần quyền này để đọc danh sách; tạo/sửa/xóa dùng quyền riêng.',
   },
   {
     code: 'CREATE_MARKETING_PLATFORM',

@@ -139,6 +139,7 @@ function mkCostPlain(c: any) {
   };
 }
 
+/** Danh sách nền tảng: một danh mục dùng chung toàn công ty (không phân đơn vị/NV); mọi nhân viên đã đăng nhập có thể GET. */
 export const getMarketingSources = async (req: Request, res: Response) => {
   try {
     const { search, isActive } = req.query;
