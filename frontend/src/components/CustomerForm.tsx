@@ -141,10 +141,11 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     address: true,
     farming: false,
     business: false,
-    marketing: false,
-    salesChannel: true,
+    attribution: true,
     tags: true,
   });
+
+  const [attributionMode, setAttributionMode] = useState<'MARKETING' | 'SALES_CHANNEL'>('SALES_CHANNEL');
 
   const [form, setForm] = useState<CustomerFormData>({
     phone: '',
@@ -193,8 +194,9 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
 
   useEffect(() => {
     if (customerId) return;
+    // Tải danh sách nhân viên marketing. Lọc server-side if possible, plus client-side check.
     apiClient
-      .get('/hr/employees?limit=500')
+      .get('/hr/employees?limit=1000')
       .then((res: any) => {
         const list = Array.isArray(res) ? res : res?.data || [];
         const filtered = list.filter((emp: any) => {
@@ -213,7 +215,9 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
           }))
         );
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to load marketing employees', err);
+      });
   }, [customerId]);
 
   useEffect(() => {
@@ -385,11 +389,17 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
         setUseCustomChannel(true);
       }
       
+      if (customer.marketingOwnerId) {
+        setAttributionMode('MARKETING');
+      } else if (customer.salesChannel) {
+        setAttributionMode('SALES_CHANNEL');
+      }
+
       setExpandedSections(prev => ({
         ...prev,
         farming: !!(customer.farmName || customer.farmArea || customer.mainCrops?.length),
         business: !!(customer.taxCode || customer.bankAccount),
-        salesChannel: !!customer.salesChannel,
+        attribution: !!(customer.marketingOwnerId || customer.salesChannel),
       }));
     } catch (error) {
       console.error('Load customer error:', error);
@@ -408,8 +418,8 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     }
 
     if (!form.marketingOwnerId && !form.salesChannel) {
-      alert('Bắt buộc nhập MỘT TRONG HAI nhóm: Gán Marketing HOẶC Kênh tiếp cận.');
-      setExpandedSections(prev => ({ ...prev, marketing: true, salesChannel: true }));
+      alert('Vui lòng chọn và nhập đầy đủ thông tin: Gán Marketing HOẶC Kênh tiếp cận.');
+      setExpandedSections(prev => ({ ...prev, attribution: true }));
       return;
     }
     if (form.marketingOwnerId && form.salesChannel) {
@@ -417,16 +427,6 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
       return;
     }
 
-    if (
-      !customerId &&
-      form.marketingOwnerId &&
-      marketingCampaigns.length > 0 &&
-      !form.campaignId
-    ) {
-      alert('Vui lòng chọn chiến dịch marketing (hoặc bỏ chọn nhân viên Marketing).');
-      setExpandedSections(prev => ({ ...prev, marketing: true }));
-      return;
-    }
 
     if (!form.businessType) {
       alert('Vui lòng chọn loại hình kinh doanh');
@@ -1168,151 +1168,127 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
               )}
             </div>
 
-            {/* Gán Marketing (chỉ khi tạo mới từ Sales) */}
+            {/* Phân nhóm khách hàng (Chỉ khi tạo mới từ Sales) */}
             {!customerId && (
               <div className="border-b">
-                <SectionHeader title="Gán Marketing" icon={Megaphone} section="marketing" />
-                {expandedSections.marketing && (
-                  <div className="pb-4 grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <p className="text-sm text-gray-500 mb-2">
-                        Tùy chọn: gán số cho nhân viên Marketing và chiến dịch. Nền tảng (nếu có) lấy theo chiến dịch đã chọn.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nhân viên Marketing
-                      </label>
-                      <select
-                        value={form.marketingOwnerId}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setForm({
-                            ...form,
-                            marketingOwnerId: val,
-                            campaignId: '',
-                            leadSourceId: '',
-                            // Clear Sales Channel if Marketing Employee is selected
-                            salesChannel: val ? '' : form.salesChannel,
-                          });
-                        }}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="">— Không gán —</option>
-                        {marketingEmployees.map((emp: any) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.fullName} {emp.phone ? `- ${emp.phone}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    {/* Sales không chọn trường chiến dịch - ẩn đi */}
-                    {false && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Chiến dịch
-                        </label>
-                        <select
-                          value={form.campaignId}
-                          disabled={!form.marketingOwnerId}
-                          onChange={(e) => {
-                            const cid = e.target.value;
-                            const c = marketingCampaigns.find((x) => x.id === cid);
-                            setForm({
-                              ...form,
-                              campaignId: cid,
-                              leadSourceId: c?.sourceId || '',
-                            });
+                <SectionHeader title="Nguồn khách hàng" icon={Megaphone} section="attribution" required />
+                {expandedSections.attribution && (
+                  <div className="pb-4 space-y-4">
+                    <div className="flex items-center gap-6 p-3 bg-blue-50 rounded-lg">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="attributionType"
+                          checked={attributionMode === 'MARKETING'}
+                          onChange={() => {
+                            setAttributionMode('MARKETING');
+                            setForm({ ...form, salesChannel: '', salesChannelNote: '' });
                           }}
-                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
-                        >
-                          <option value="">
-                            {form.marketingOwnerId
-                              ? marketingCampaigns.length
-                                ? 'Chọn chiến dịch'
-                                : 'Đang tải / không có chiến dịch'
-                              : 'Chọn NV Marketing trước'}
-                          </option>
-                          {marketingCampaigns.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-blue-900">Gán Marketing</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="attributionType"
+                          checked={attributionMode === 'SALES_CHANNEL'}
+                          onChange={() => {
+                            setAttributionMode('SALES_CHANNEL');
+                            setForm({ ...form, marketingOwnerId: '', campaignId: '', leadSourceId: '' });
+                          }}
+                          className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-blue-900">Kênh tiếp cận</span>
+                      </label>
+                    </div>
+
+                    {attributionMode === 'MARKETING' ? (
+                      <div className="grid grid-cols-1 gap-4 p-3 border rounded-lg border-blue-100">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nhân viên Marketing <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={form.marketingOwnerId}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm({
+                                ...form,
+                                marketingOwnerId: val,
+                                campaignId: '',
+                                leadSourceId: '',
+                              });
+                            }}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">— Chọn NV Marketing —</option>
+                            {marketingEmployees.map((emp: any) => (
+                              <option key={emp.id} value={emp.id}>
+                                {emp.fullName} {emp.phone ? `- ${emp.phone}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-4 p-3 border rounded-lg border-blue-100">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Kênh tiếp cận khách hàng <span className="text-red-500">*</span>
+                          </label>
+                          {useCustomChannel ? (
+                            <div className="flex gap-1">
+                              <input
+                                type="text"
+                                value={form.salesChannel}
+                                onChange={(e) => setForm({ ...form, salesChannel: e.target.value })}
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                                placeholder="Nhập rõ kênh tiếp cận..."
+                              />
+                              <button type="button" onClick={() => { setUseCustomChannel(false); setForm({ ...form, salesChannel: '' }); }}
+                                className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">✕</button>
+                            </div>
+                          ) : (
+                            <select
+                              value={form.salesChannel}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '__custom__') {
+                                  setUseCustomChannel(true);
+                                  setForm({ ...form, salesChannel: '' });
+                                } else {
+                                  setForm({ ...form, salesChannel: val });
+                                }
+                              }}
+                              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                            >
+                              <option value="">Chọn kênh tiếp cận</option>
+                              {SALES_CHANNELS.map(c => (
+                                <option key={c.value} value={c.value}>{c.label}</option>
+                              ))}
+                              <option value="__custom__">Nhập tùy chỉnh...</option>
+                            </select>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Chi tiết kênh tiếp cận
+                          </label>
+                          <input
+                            type="text"
+                            value={form.salesChannelNote}
+                            onChange={(e) => setForm({ ...form, salesChannelNote: e.target.value })}
+                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+                            placeholder="VD: Nguyễn Văn A giới thiệu..."
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
               </div>
             )}
-
-            {/* Kênh tiếp cận (Sales) */}
-            <div className="border-b">
-              <SectionHeader title="Kênh tiếp cận" icon={Tag} section="salesChannel" required />
-              {expandedSections.salesChannel && (
-                <div className="pb-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Kênh tiếp cận khách hàng <span className="text-red-500">*</span>
-                      </label>
-                      {useCustomChannel ? (
-                        <div className="flex gap-1">
-                          <input
-                            type="text"
-                            value={form.salesChannel}
-                            onChange={(e) => setForm({ ...form, salesChannel: e.target.value })}
-                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                            placeholder="Nhập rõ kênh tiếp cận (bắt buộc)..."
-                          />
-                          <button type="button" onClick={() => { setUseCustomChannel(false); setForm({ ...form, salesChannel: '' }); }}
-                            className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">✕</button>
-                        </div>
-                      ) : (
-                        <select
-                          value={form.salesChannel}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '__custom__') {
-                              setUseCustomChannel(true);
-                              setForm({ ...form, salesChannel: '' });
-                            } else {
-                              setForm({ 
-                                ...form, 
-                                salesChannel: val,
-                                // Clear Marketing Assignment if Sales Channel is selected
-                                marketingOwnerId: val ? '' : form.marketingOwnerId,
-                                campaignId: val ? '' : form.campaignId,
-                                leadSourceId: val ? '' : form.leadSourceId,
-                              });
-                            }
-                          }}
-                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                        >
-                          <option value="">Chọn kênh tiếp cận</option>
-                          {SALES_CHANNELS.map(c => (
-                            <option key={c.value} value={c.value}>{c.label}</option>
-                          ))}
-                          <option value="__custom__">Không có trong danh sách (nhập tùy chỉnh)...</option>
-                        </select>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ghi chú kênh tiếp cận
-                      </label>
-                      <input
-                        type="text"
-                        value={form.salesChannelNote}
-                        onChange={(e) => setForm({ ...form, salesChannelNote: e.target.value })}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
-                        placeholder="VD: Anh Nguyễn Văn B giới thiệu..."
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Tags */}
             <div className="border-b">
