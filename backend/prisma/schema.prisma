@@ -78,6 +78,7 @@ model Department {
   function OrgFunc?
 
   autoDistributeCustomer   Boolean @default(true) @map("auto_distribute_customer")
+  /// Legacy: không còn đọc/ghi qua API — MKT→Sales luôn phân tự động theo khối khi có NV neo.
   autoDistributeLead       Boolean @default(true) @map("auto_distribute_lead")
   customerDistributeMethod String  @default("ROUND_ROBIN") @map("customer_distribute_method")
   leadDistributeMethod     String  @default("ROUND_ROBIN") @map("lead_distribute_method")

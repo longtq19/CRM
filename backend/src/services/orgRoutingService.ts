@@ -25,7 +25,6 @@ export interface DeptRow {
   externalCsDivisionId: string | null;
   externalSalesDivisionId: string | null;
   dataFlowShares: unknown | null;
-  autoDistributeLead: boolean;
   autoDistributeCustomer: boolean;
   leadDistributeMethod: string;
   customerDistributeMethod: string;
@@ -42,7 +41,6 @@ const DEPT_SELECT = {
   externalCsDivisionId: true,
   externalSalesDivisionId: true,
   dataFlowShares: true,
-  autoDistributeLead: true,
   autoDistributeCustomer: true,
   leadDistributeMethod: true,
   customerDistributeMethod: true,

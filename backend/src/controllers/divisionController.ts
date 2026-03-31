@@ -117,7 +117,7 @@ export const updateDivision = async (req: Request, res: Response) => {
     
     const allowedFields = [
       'name', 'type', 'function',
-      'autoDistributeLead', 'leadDistributeMethod',
+      'leadDistributeMethod',
       'autoDistributeCustomer', 'customerDistributeMethod',
       'targetSalesUnitId', 'targetCsUnitId',
       'managerId', 'displayOrder'

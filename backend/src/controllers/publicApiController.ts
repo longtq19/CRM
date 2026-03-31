@@ -11,10 +11,7 @@ import {
   getDuplicateNotificationTargets,
   normalizePhone
 } from '../services/leadDuplicateService';
-import {
-  assignSingleMarketingPoolToSales,
-  shouldTryAutoAssignMarketingSales,
-} from '../services/marketingLeadAutoAssignService';
+import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoAssignService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
@@ -576,7 +573,7 @@ export const receivePublicLead = async (req: Request, res: Response) => {
     });
 
     const ownerId = campaign.createdByEmployeeId;
-    if (ownerId && (await shouldTryAutoAssignMarketingSales(ownerId))) {
+    if (ownerId) {
       await assignSingleMarketingPoolToSales({
         dpEntryId: dpEntry.id,
         customerId: customer.id,

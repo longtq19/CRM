@@ -36,10 +36,7 @@ import {
   CUSTOMER_IMPORT_TEMPLATE_FILENAME,
   CUSTOMER_EXPORT_FILENAME_PREFIX,
 } from '../constants/customerExcelColumns';
-import {
-  assignSingleMarketingPoolToSales,
-  shouldTryAutoAssignMarketingSales,
-} from '../services/marketingLeadAutoAssignService';
+import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoAssignService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import {
@@ -1664,8 +1661,8 @@ export const createMarketingLead = async (req: Request, res: Response) => {
       }
     }).catch(() => null);
 
-    // Auto-assign: ưu tiên luồng khối (dataFlowShares) + chia đều NV trong đơn vị lá; fallback team_distribution_ratios
-    if (dpEntry && actor?.id && (await shouldTryAutoAssignMarketingSales(actor.id))) {
+    // Auto-assign: luôn thử — ưu tiên luồng khối (dataFlowShares) + chia đều NV trong đơn vị lá; fallback team_distribution_ratios
+    if (dpEntry && actor?.id) {
       await assignSingleMarketingPoolToSales({
         dpEntryId: dpEntry.id,
         customerId: lead.id,
@@ -2118,11 +2115,10 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
     const newPoolIds = createdPoolRows.map((p) => p.id);
 
     const actor = (req as any).user;
-    const autoEnabled =
-      actor?.id && newPoolIds.length > 0 ? await shouldTryAutoAssignMarketingSales(actor.id) : false;
+    const autoAttempted = Boolean(actor?.id && newPoolIds.length > 0);
     const pushNow = new Date();
 
-    if (autoEnabled && actor?.id) {
+    if (autoAttempted && actor?.id) {
       for (const poolId of newPoolIds) {
         const pool = await prisma.dataPool.findUnique({
           where: { id: poolId },
@@ -2144,9 +2140,9 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
       where: { id: { in: newPoolIds }, status: 'ASSIGNED' },
     });
 
-    const autoPart = autoEnabled
+    const autoPart = autoAttempted
       ? `${assignedCount}/${newPoolIds.length} lead đã gán (luồng khối trước, fallback tỉ lệ team)`
-      : 'tắt — đơn vị không bật auto phân hoặc không xác định NV';
+      : 'không neo NV (thiếu actor JWT) — lead chưa phân tự động';
 
     await logAudit({
       ...getAuditUser(req),
@@ -2158,13 +2154,13 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: autoEnabled
+      message: autoAttempted
         ? `Đã chuyển ${newIds.length} khách vào kho; ${assignedCount} lead đã phân cho NV Sales.`
-        : `Đã chuyển ${newIds.length} khách vào kho Sales (chưa phân — bật auto phân đơn vị Marketing để gán ngay).`,
+        : `Đã chuyển ${newIds.length} khách vào kho Sales (chưa phân tự động — không xác định NV neo).`,
       added: newIds.length,
       skipped: alreadyInPool.size,
       ratioAssigned: assignedCount,
-      autoDistributeApplied: Boolean(autoEnabled),
+      autoDistributeApplied: autoAttempted,
     });
   } catch (error) {
     console.error('Push leads to data pool error:', error);

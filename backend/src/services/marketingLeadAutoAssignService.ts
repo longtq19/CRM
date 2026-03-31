@@ -1,20 +1,12 @@
 /**
  * Tự phân lead Marketing → NV Sales: **ưu tiên luồng khối** (`dataFlowShares` / pickNextSalesEmployeeId),
  * sau đó mới `team_distribution_ratios` (bảng tỉ lệ team — khác cấu hình khối).
+ * Không dùng cờ DB `auto_distribute_lead` — luôn thử phân khi có NV neo (owner/actor).
  */
 import { prisma } from '../config/database';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { pickNextSalesEmployeeId } from './leadRoutingService';
 import { assignLeadsUsingTeamRatios } from './teamRatioDistributionService';
-
-/**
- * Luôn `true`: tỉ lệ MKT→Sales nằm ở **khối** (`data_flow_shares` trên Vận hành), không phụ thuộc cờ `auto_distribute_lead`
- * trên đơn vị Marketing (cờ đó từng chặn cả lead website dù đã cấu hình khối).
- */
-export async function shouldTryAutoAssignMarketingSales(_anchorEmployeeId?: string): Promise<boolean> {
-  void _anchorEmployeeId;
-  return true;
-}
 
 async function applyPoolAssignment(
   dpEntryId: string,
