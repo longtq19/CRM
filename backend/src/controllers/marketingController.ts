@@ -766,9 +766,8 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
         }
       }
       for (const d of dupRows) {
-        if (!duplicateNoteByCustomer.has(d.customerId)) {
-          duplicateNoteByCustomer.set(d.customerId, d.content);
-        }
+        const prev = duplicateNoteByCustomer.get(d.customerId);
+        duplicateNoteByCustomer.set(d.customerId, prev ? prev + '\n' + d.content : d.content);
       }
     }
 
@@ -1217,7 +1216,7 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
         if (existing) {
           results.duplicates++;
           const rowNote = getVal('note') || `Import dòng ${i}`;
-          await addDuplicateNote(existing.id, actor.id, rowNote, 'marketing_duplicate_interaction');
+          await addDuplicateNote(existing.id, actor.id, actor.fullName || actor.name || 'Unknown', rowNote, 'marketing_duplicate_interaction');
           await upsertMarketingContributor(existing.id, actor.id);
           logDuplicateAction(actor.id, actor.fullName || actor.name || 'Unknown', actor.phone, 'duplicate_lead_detected', existing.id, `Import Excel: SĐT trùng ${trimmedPhone}. ${rowNote}`);
           const targets = getDuplicateNotificationTargets(existing);

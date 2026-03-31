@@ -258,18 +258,25 @@ export async function classifyDuplicate(
 export async function addDuplicateNote(
   customerId: string,
   employeeId: string,
+  actorName: string,
   note: string,
   actionType: string
 ): Promise<void> {
   const count = await prisma.customerInteraction.count();
   const code = `INT-${String(count + 1).padStart(6, '0')}`;
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const formattedHeader = `${timeStr} ${dateStr} - ${actorName}`;
+  const content = note ? `${formattedHeader}: ${note}` : formattedHeader;
+
   await prisma.customerInteraction.create({
     data: {
       code,
       customerId,
       employeeId,
       type: actionType,
-      content: note || '(Marketing nhập trùng - đã ghi nhận)'
+      content,
     }
   });
 }
@@ -353,6 +360,7 @@ export async function checkDuplicateAndHandle(input: CheckDuplicateInput): Promi
   await addDuplicateNote(
     existing.id,
     actorId,
+    actorName,
     note || '',
     'marketing_duplicate_interaction'
   );
