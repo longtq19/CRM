@@ -588,6 +588,8 @@ Webhook Viettel Post:
         - tới room vận đơn: `shipping:staff`
     - luôn trả HTTP 200 khi xử lý xong để VTP không retry vô hạn.
 
+**Kho vận (Inventory, FE `/inventory`):** modal **Nhập kho** (`frontend/src/pages/Inventory/ImportModal.tsx`) — thêm dòng sản phẩm bằng ô **Tìm tên hoặc mã** (gọi `GET /api/products?search=…&warehouseId=…`); **không** hiển thị danh sách sản phẩm dạng lưới trước khi người dùng nhập từ khóa tìm kiếm.
+
 ### 4.9. Accounting (Kế toán)
 
 Module ở `backend/src/routes/accountingRoutes.ts`.

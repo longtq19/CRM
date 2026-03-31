@@ -26,10 +26,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess, w
   // Product Search
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [warehouseProducts, setWarehouseProducts] = useState<Product[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isLoadingWarehouseProducts, setIsLoadingWarehouseProducts] = useState(false);
-
   useEffect(() => {
     if (isOpen) {
       setDestWarehouseId('');
@@ -37,29 +33,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess, w
       setItems([]);
       setSearchTerm('');
       setSearchResults([]);
-      setWarehouseProducts([]);
     }
   }, [isOpen]);
-
-  // Load products for selected warehouse
-  useEffect(() => {
-    const loadWarehouseProducts = async () => {
-      if (!destWarehouseId) {
-        setWarehouseProducts([]);
-        return;
-      }
-      setIsLoadingWarehouseProducts(true);
-      try {
-        const res: any = await apiClient.get(`/products?warehouseId=${destWarehouseId}&limit=100`);
-        setWarehouseProducts(res.data || []);
-      } catch (error) {
-        console.error('Error loading warehouse products:', error);
-      } finally {
-        setIsLoadingWarehouseProducts(false);
-      }
-    };
-    loadWarehouseProducts();
-  }, [destWarehouseId]);
 
   // Debounced Search
   useEffect(() => {
@@ -68,19 +43,16 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess, w
         setSearchResults([]);
         return;
       }
-      setIsSearching(true);
       try {
         const res: any = await apiClient.get(`/products?search=${searchTerm}&limit=10${destWarehouseId ? `&warehouseId=${destWarehouseId}` : ''}`);
         setSearchResults(res.data || []);
       } catch (error) {
         console.error('Search error:', error);
-      } finally {
-        setIsSearching(false);
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, destWarehouseId]);
 
   const handleAddItem = (product: Product) => {
     const categoryCode = product.category?.code || 'BIO';
@@ -266,34 +238,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess, w
               </div>
             )}
 
-            {/* Quick list based on selected warehouse */}
-            {destWarehouseId && !searchTerm && warehouseProducts.length > 0 && (
-              <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Plus size={14} /> Sản phẩm khả dụng trong kho
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {warehouseProducts.map(product => (
-                    <div 
-                      key={product.id}
-                      onClick={() => handleAddItem(product)}
-                      className="p-3 bg-white border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 cursor-pointer flex items-center justify-between transition-all group shadow-sm"
-                    >
-                      <div>
-                        <p className="font-medium text-sm text-gray-900 group-hover:text-primary transition-colors line-clamp-1">{product.name}</p>
-                        <p className="text-[10px] text-gray-500 font-mono tracking-tighter">{product.code}</p>
-                      </div>
-                      <Plus size={16} className="text-gray-400 group-hover:text-primary transition-colors flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {destWarehouseId && !searchTerm && warehouseProducts.length === 0 && !isLoadingWarehouseProducts && (
-              <div className="mt-3 p-4 bg-blue-50/50 rounded-lg border border-dashed border-blue-200 text-center text-sm text-blue-600">
-                Kho này chưa có sản phẩm được gán riêng. Vui lòng tìm kiếm sản phẩm.
-              </div>
+            {destWarehouseId && !searchTerm.trim() && (
+              <p className="mt-2 text-xs text-gray-500">
+                Nhập tên hoặc mã sản phẩm ở ô trên để tìm và thêm vào phiếu.
+              </p>
             )}
           </div>
 
