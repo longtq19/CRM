@@ -1137,6 +1137,7 @@ model MarketingCampaign {
   status              String                     @map("status")
   startDate           DateTime                   @map("start_date")
   endDate             DateTime?                  @map("end_date")
+  /// Ngân sách dự kiến (VND) nhập khi tạo/sửa chiến dịch. Chi phí thực tế không lưu ở đây — tính tổng `amount` trên `marketing_campaign_costs`.
   totalBudget         Decimal?                   @map("total_budget") @db.Decimal(15, 2)
   sourceId            String?                    @map("source_id")
   createdByEmployeeId String                     @map("created_by_employee_id")

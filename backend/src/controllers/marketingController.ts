@@ -422,7 +422,28 @@ export const getMarketingCampaigns = async (req: Request, res: Response) => {
       }
     });
 
-    res.json(campaigns);
+    const ids = campaigns.map((c) => c.id);
+    const costSums =
+      ids.length === 0
+        ? []
+        : await prisma.marketingCampaignCost.groupBy({
+            by: ['campaignId'],
+            where: { campaignId: { in: ids } },
+            _sum: { amount: true },
+          });
+    const spentByCampaign = new Map<string, number>();
+    for (const row of costSums) {
+      const v = row._sum.amount;
+      spentByCampaign.set(row.campaignId, v != null ? Number(v) : 0);
+    }
+
+    // totalSpentActual: tổng amount marketing_campaign_costs (cùng logic totalCost trong effectiveness)
+    const payload = campaigns.map((c) => ({
+      ...c,
+      totalSpentActual: spentByCampaign.get(c.id) ?? 0,
+    }));
+
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ message: 'Lỗi khi lấy danh sách chiến dịch' });
   }

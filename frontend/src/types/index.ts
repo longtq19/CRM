@@ -96,6 +96,8 @@ export interface MarketingCampaign {
   startDate: string;
   endDate?: string | null;
   totalBudget?: number | null;
+  /** Tổng chi phí thực tế (VND) — từ API danh sách: sum `marketing_campaign_costs.amount` */
+  totalSpentActual?: number;
   sourceId?: string | null;
   source?: MarketingSource | null;
   createdByEmployeeId: string;

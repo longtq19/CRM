@@ -1826,8 +1826,17 @@ const Marketing = () => {
               <th className="px-4 py-3 whitespace-nowrap">Lead</th>
               <th className="px-4 py-3 whitespace-nowrap">API</th>
               <th className="px-4 py-3 whitespace-nowrap">Thời gian</th>
-              <th className="px-4 py-3 whitespace-nowrap text-right">
-                Ngân sách
+              <th
+                className="px-4 py-3 whitespace-nowrap text-right"
+                title="Số tiền kế hoạch nhập khi tạo/sửa chiến dịch (cột total_budget)"
+              >
+                Ngân sách dự kiến
+              </th>
+              <th
+                className="px-4 py-3 whitespace-nowrap text-right"
+                title="Tổng các khoản chi phí đã ghi cho chiến dịch (marketing_campaign_costs)"
+              >
+                Chi phí thực tế
               </th>
               <th className="px-4 py-3 whitespace-nowrap text-right">Thao tác</th>
             </tr>
@@ -1906,8 +1915,15 @@ const Marketing = () => {
                         style: 'currency',
                         currency: 'VND',
                         maximumFractionDigits: 0,
-                      }).format(campaign.totalBudget)
-                    : '-'}
+                      }).format(Number(campaign.totalBudget))
+                    : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-sm text-gray-900">
+                  {new Intl.NumberFormat('vi-VN', {
+                    style: 'currency',
+                    currency: 'VND',
+                    maximumFractionDigits: 0,
+                  }).format(Number((campaign as MarketingCampaign).totalSpentActual ?? 0))}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
