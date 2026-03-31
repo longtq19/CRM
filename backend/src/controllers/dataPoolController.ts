@@ -53,10 +53,8 @@ export const getDataPool = async (req: Request, res: Response) => {
       poolType,
       processingStatus,
       poolQueue,
-      strictPoolPush,
       provinceId,
       mainCrop,
-      managedScope,
     } = req.query;
     const { page, limit, skip } = getPaginationParams(req.query);
 
@@ -69,33 +67,8 @@ export const getDataPool = async (req: Request, res: Response) => {
     const canViewSalesOpen = perms.includes('VIEW_SALES');
     const canViewManagedUnit = perms.includes('VIEW_MANAGED_UNIT_POOL');
 
-    const managedScopeOn =
-      managedScope === '1' ||
-      managedScope === 'true' ||
-      String(managedScope || '').toLowerCase() === 'yes';
-
-    if (!canViewFloating && !canViewSalesOpen && !canViewManagedUnit) {
-      return res.status(403).json({
-        message:
-          'Cần quyền VIEW_FLOATING_POOL, VIEW_SALES hoặc VIEW_MANAGED_UNIT_POOL để xem danh sách kho số.',
-      });
-    }
-
-    const onlyManagedProfile = canViewManagedUnit && !canViewFloating && !canViewSalesOpen;
-
-    let managedTeamIds: string[] | null = null;
-    if (onlyManagedProfile || (managedScopeOn && canViewManagedUnit)) {
-      managedTeamIds = await getManagedTeamEmployeeIdsForPool(user.id);
-      if (!managedTeamIds) {
-        return res.status(403).json({
-          message:
-            'Quyền xem kho số theo đơn vị chỉ áp dụng khi bạn là trưởng đơn vị/khối (có ít nhất một phòng ban gán bạn là trưởng đơn vị).',
-        });
-      }
-    }
-
-    const useManagedTeamFilter = managedTeamIds !== null && managedTeamIds.length > 0;
-
+    const useManagedTeamFilter = false;
+    const managedTeamIds: string[] | null = null;
     const where: any = {};
     const customerConditions: any[] = [];
 
@@ -111,7 +84,7 @@ export const getDataPool = async (req: Request, res: Response) => {
       where.poolQueue = pq;
     }
 
-    if (pq === DATA_POOL_QUEUE.FLOATING && strictPoolPush !== 'false') {
+    if (pq === DATA_POOL_QUEUE.FLOATING) {
       const pushCfg = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } });
       const statuses = parsePoolPushStatusesJson(pushCfg?.value);
       if (processingStatus && processingStatus !== 'all') {
@@ -132,16 +105,9 @@ export const getDataPool = async (req: Request, res: Response) => {
       where.source = source;
     }
 
+    // Bỏ lọc theo manager unit
     if (employeeId && employeeId !== 'all') {
-      const eid = String(employeeId);
-      if (useManagedTeamFilter && !managedTeamIds!.includes(eid)) {
-        return res.status(403).json({
-          message: 'Nhân viên lọc nằm ngoài phạm vi đơn vị bạn quản lý.',
-        });
-      }
-      where.assignedToId = eid;
-    } else if (useManagedTeamFilter) {
-      where.assignedToId = { in: managedTeamIds! };
+      where.assignedToId = String(employeeId);
     }
 
     if (tagIds && String(tagIds).trim()) {
@@ -232,12 +198,6 @@ export const getDataPool = async (req: Request, res: Response) => {
         total,
         totalPages: Math.ceil(total / limit),
       },
-      ...(useManagedTeamFilter
-        ? {
-            viewScopeDescription:
-              'Chỉ lead đang gán cho nhân viên trong đơn vị/khối do bạn quản lý (trưởng đơn vị).',
-          }
-        : {}),
     });
   } catch (error) {
     console.error('Get data pool error:', error);
@@ -1463,8 +1423,16 @@ export const claimFromFloatingPool = async (req: Request, res: Response) => {
     const maxRoundsCfg = await prisma.systemConfig.findUnique({ where: { key: 'max_repartition_rounds' } }).catch(() => null);
     const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
 
+    const pushCfg = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } });
+    const statuses = parsePoolPushStatusesJson(pushCfg?.value);
+
     const allAvailable = await prisma.dataPool.findMany({
-      where: { status: 'AVAILABLE', poolType: 'SALES', poolQueue: DATA_POOL_QUEUE.FLOATING },
+      where: { 
+        status: 'AVAILABLE', 
+        poolType: 'SALES', 
+        poolQueue: DATA_POOL_QUEUE.FLOATING,
+        processingStatus: statuses.length > 0 ? { in: statuses } : undefined
+      },
       orderBy: [{ priority: 'desc' }, { enteredAt: 'asc' }],
       take: Number(count) * 10,
       include: { customer: { select: { id: true, name: true, phone: true, marketingOwnerId: true } } }

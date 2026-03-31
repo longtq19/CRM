@@ -60,15 +60,10 @@ interface Employee { id: string; code: string; fullName: string; employeeType?: 
 const DataPool = () => {
   const { hasPermission, user } = useAuthStore();
   const isTechAdmin = isTechnicalAdminRole(user?.roleGroup?.code);
-  const hasFloatingView =
-    isTechAdmin || hasPermission('VIEW_FLOATING_POOL') || hasPermission('FULL_ACCESS');
-  const hasSalesList = hasPermission('VIEW_SALES');
-  const hasManagedUnitView = hasPermission('VIEW_MANAGED_UNIT_POOL');
-  const mustManagedListOnly = hasManagedUnitView && !hasFloatingView && !hasSalesList;
-  const [listScope, setListScope] = useState<'floating' | 'managed'>(() =>
-    mustManagedListOnly ? 'managed' : 'floating'
-  );
-
+  const listScope = 'floating';
+  const roleCode = user?.roleGroup?.code || '';
+  const isSalesCskhGroup = roleCode.includes('SALES') || roleCode.includes('CSKH') || roleCode.includes('TELE');
+  
   const canDistributeFloating =
     isTechAdmin ||
     hasPermission('DISTRIBUTE_FLOATING_POOL') ||
@@ -76,8 +71,11 @@ const DataPool = () => {
     hasPermission('DISTRIBUTE_FLOATING_CROSS_ORG');
   const canClaimFloating =
     isTechAdmin ||
+    isSalesCskhGroup ||
     hasPermission('CLAIM_FLOATING_POOL') ||
     hasPermission('MANAGE_DATA_POOL');
+  const hasFloatingView =
+    isTechAdmin || isSalesCskhGroup || hasPermission('VIEW_FLOATING_POOL') || hasPermission('FULL_ACCESS');
   const canRecallManagedUnit =
     isTechAdmin ||
     hasPermission('RECALL_MANAGED_UNIT_LEADS');
@@ -121,16 +119,10 @@ const DataPool = () => {
 
   const [detailCustomer, setDetailCustomer] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [managedScopeHint, setManagedScopeHint] = useState('');
-  const [teamAssignedTotal, setTeamAssignedTotal] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (mustManagedListOnly) setListScope('managed');
-  }, [mustManagedListOnly]);
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [listScope]);
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -139,16 +131,9 @@ const DataPool = () => {
         page: String(page),
         limit: String(pageSize),
       });
-      if (listScope === 'managed') {
-        params.set('status', 'ASSIGNED');
-        params.set('managedScope', '1');
-      } else {
         params.set('status', 'AVAILABLE');
         params.set('poolType', 'SALES');
         params.set('poolQueue', 'FLOATING');
-        params.set('strictPoolPush', 'true');
-        setManagedScopeHint('');
-      }
       if (search) params.set('search', search);
       if (processingStatusFilter !== 'all') params.set('processingStatus', processingStatusFilter);
       if (sourceFilter !== 'all') params.set('source', sourceFilter);
@@ -160,9 +145,6 @@ const DataPool = () => {
       setItems(res.data || []);
       setTotal(res.pagination?.total || 0);
       setTotalPages(res.pagination?.totalPages || 1);
-      if (typeof res.viewScopeDescription === 'string') {
-        setManagedScopeHint(res.viewScopeDescription);
-      }
     } catch { /* ignore */ }
     setLoading(false);
   }, [
@@ -179,13 +161,11 @@ const DataPool = () => {
 
   const loadStats = useCallback(async () => {
     try {
-      const q = listScope === 'managed' && hasManagedUnitView ? '?managedScope=1' : '';
-      const res = await apiClient.get(`/data-pool/stats${q}`);
+      const res = await apiClient.get(`/data-pool/stats`);
       setTotalAvailableFloating(res.totalAvailableFloating ?? 0);
       setTodayAdded(res.todayAdded || 0);
-      setTeamAssignedTotal(typeof res.totalAssigned === 'number' ? res.totalAssigned : null);
     } catch { /* ignore */ }
-  }, [listScope, hasManagedUnitView]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadStats(); }, [loadStats]);
@@ -346,68 +326,26 @@ const DataPool = () => {
           <Database className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            {listScope === 'managed' ? 'Kho số — phạm vi đơn vị quản lý' : 'Kho số thả nổi'}
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900">Kho số thả nổi</h1>
           <p className="text-sm text-gray-500">
-            {listScope === 'managed'
-              ? 'Lead đang gán cho nhân viên trong đơn vị/khối do bạn là trưởng đơn vị — thu hồi để phân lại cho NV trong phạm vi (không vượt khối nếu không có quyền cross-org).'
-              : 'Lead trả về theo tham số vận hành (pool_push_processing_statuses) — không gồm kho Sales chưa phân (xem tại trang Sales)'}
+            Lead trả về theo tham số vận hành (pool_push_processing_statuses) — không gồm kho Sales chưa phân (xem tại trang Sales)
           </p>
-          {hasFloatingView && hasManagedUnitView && (
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => setListScope('floating')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium ${listScope === 'floating' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
-              >
-                Kho thả nổi
-              </button>
-              <button
-                type="button"
-                onClick={() => setListScope('managed')}
-                className={`px-3 py-1 rounded-lg text-sm font-medium ${listScope === 'managed' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}
-              >
-                Lead trong đơn vị
-              </button>
-            </div>
-          )}
-          {managedScopeHint && (
-            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1 mt-2">{managedScopeHint}</p>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        {listScope === 'floating' ? (
-          <>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Số đang chờ (thả nổi)</p>
-              <p className="text-2xl font-bold text-amber-600">{totalAvailableFloating}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Mới hôm nay (vào pool)</p>
-              <p className="text-2xl font-bold text-green-600">{todayAdded}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
-              <p className="text-sm text-gray-500">Gợi ý</p>
-              <p className="text-sm text-gray-700">Nhận khách / Phân chia cần quyền tương ứng trong Nhóm quyền</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Lead đang gán (trong đơn vị)</p>
-              <p className="text-2xl font-bold text-indigo-600">{teamAssignedTotal ?? '—'}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4 md:col-span-2">
-              <p className="text-sm text-gray-500">Gợi ý</p>
-              <p className="text-sm text-gray-700">
-                Phân lại từ kho Sales/CSKH: dùng trang Sales hoặc CSKH với quyền ASSIGN_LEAD / MANAGE_CSKH_POOL; sau thu hồi lead nằm ở kho chưa phân.
-              </p>
-            </div>
-          </>
-        )}
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Số đang chờ (thả nổi)</p>
+          <p className="text-2xl font-bold text-amber-600">{totalAvailableFloating}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Mới hôm nay (vào pool)</p>
+          <p className="text-2xl font-bold text-green-600">{todayAdded}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
+          <p className="text-sm text-gray-500">Gợi ý</p>
+          <p className="text-sm text-gray-700">Nhân sự Sales/CSKH đều có thể vào nhận khách từ kho này.</p>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border p-4 mb-4">
