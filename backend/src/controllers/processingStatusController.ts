@@ -73,7 +73,7 @@ export const createProcessingStatus = async (req: Request, res: Response) => {
  */
 export const updateProcessingStatus = async (req: Request, res: Response) => {
   try {
-    const id = req.params.id;
+    const id = req.params.id as string;
     const { name, description, color, sortOrder, isActive, isPushToPool } = req.body;
 
     const status = await prisma.leadProcessingStatus.update({
@@ -100,7 +100,7 @@ export const updateProcessingStatus = async (req: Request, res: Response) => {
  */
 export const deleteProcessingStatus = async (req: Request, res: Response) => {
   try {
-    const id = req.params.id;
+    const id = req.params.id as string;
 
     // TODO: Kiểm tra xem có lead nào đang sử dụng trạng thái này không?
     // Nếu có thì nên deactivate thay vì delete.
