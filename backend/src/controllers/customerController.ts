@@ -17,7 +17,14 @@ import { describeCustomerAuditDiff } from '../utils/vietnameseAuditDiff';
 import { CUSTOMER_FIELD_LABELS, formatValueForHistory } from '../constants/customerFieldLabels';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
 import { userCanAccessCustomerForSalesModule, userCanAccessCustomerForResalesModule } from '../utils/customerRowAccess';
-import { normalizePhone, getMarketingAttributionDays, getAttributionExpiredAt } from '../services/leadDuplicateService';
+import {
+  normalizePhone,
+  getMarketingAttributionDays,
+  getAttributionExpiredAt,
+  findExistingByPhone,
+  getDuplicateStaffDisplayForClient,
+  notifyDuplicateStakeholders,
+} from '../services/leadDuplicateService';
 import { appendCustomerImpactNote } from '../utils/customerImpact';
 
 const TAG_AUDIT_LABELS: Record<string, string> = {
@@ -495,18 +502,40 @@ export const createCustomer = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Số điện thoại là bắt buộc' });
     }
 
-    const existingCustomer = await prisma.customer.findFirst({
-      where: { phone: phoneTrim }
-    });
+    const normalizedForDup = normalizePhone(phoneTrim);
+    const existingCustomer = normalizedForDup ? await findExistingByPhone(normalizedForDup) : null;
 
     if (existingCustomer) {
+      const actorName = (actor as any).fullName || (actor as any).name || 'N/A';
+      await notifyDuplicateStakeholders({
+        existingCustomer,
+        normalizedPhone: normalizedForDup!,
+        actorId: actor.id,
+        actorName,
+        actorPhone: (actor as any).phone,
+        sourceLabel: 'Tạo khách hàng (Sales/CSKH)',
+        note: note != null && String(note).trim() ? String(note).trim() : undefined,
+        customerId: existingCustomer.id,
+      });
+      const auditUser = getAuditUser(req);
+      await logAudit({
+        ...auditUser,
+        action: 'Cảnh báo',
+        object: 'Khách hàng',
+        objectId: existingCustomer.id,
+        result: 'SUCCESS',
+        details: `Nhập trùng SĐT ${normalizedForDup} khi tạo khách. Đã gửi thông báo NV phụ trách / Marketing (nếu có).`,
+        req,
+      });
       return res.status(400).json({
         message: 'Số điện thoại đã tồn tại trong hệ thống',
+        duplicate: true,
         existingCustomer: {
           id: existingCustomer.id,
           name: existingCustomer.name,
-          code: existingCustomer.code
-        }
+          code: existingCustomer.code,
+        },
+        responsibleStaff: getDuplicateStaffDisplayForClient(existingCustomer),
       });
     }
 

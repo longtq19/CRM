@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { apiClient } from '../api/client';
+import { apiClient, ApiHttpError } from '../api/client';
+import { formatDuplicateStaffForAlert } from '../utils/formatDuplicateStaffAlert';
 import { 
   X, User, Phone, Mail, MapPin, Sprout, Building2, 
   Save, Loader, ChevronDown, ChevronUp, Tag, Plus, Megaphone
@@ -490,8 +491,24 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
       
       onSaved();
       onClose();
-    } catch (error: any) {
-      alert(error.message || 'Lỗi khi lưu khách hàng');
+    } catch (error: unknown) {
+      if (error instanceof ApiHttpError && error.status === 400) {
+        const p = error.payload as {
+          message?: string;
+          duplicate?: boolean;
+          responsibleStaff?: {
+            salesOrCareResponsible: { fullName: string; phone: string | null } | null;
+            marketingResponsible: { fullName: string; phone: string | null } | null;
+          };
+        };
+        if (p?.duplicate && p.responsibleStaff) {
+          alert(
+            `${p.message || error.message}${formatDuplicateStaffForAlert(p.responsibleStaff)}`,
+          );
+          return;
+        }
+      }
+      alert(error instanceof Error ? error.message : 'Lỗi khi lưu khách hàng');
     } finally {
       setSaving(false);
     }

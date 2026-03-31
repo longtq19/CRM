@@ -330,6 +330,7 @@ Nghiệp vụ chính:
   - **Tạo khách (`POST`):** JWT cần một trong `MANAGE_CUSTOMERS` | `MANAGE_SALES` | `MANAGE_RESALES` (quản trị kỹ thuật / `FULL_ACCESS` theo `checkPermission`). **Sửa/xóa** khách: quyền như cấu hình route (ví dụ `MANAGE_CUSTOMERS`, `DELETE_CUSTOMER` cho xóa).
   - Tạo mã `KH-XXXXXX`
   - Ràng buộc trùng `phone`; **SĐT phụ** `phone_secondary` (nullable, unique khi có giá trị) — gán **một lần** qua `PATCH /api/customers/:id/phone-secondary`, không sửa sau khi đã có (API trả lỗi nếu đã tồn tại hai số).
+  - **Trùng SĐT khi tạo (`POST`):** HTTP 400, `duplicate: true`, `responsibleStaff` (tên + SĐT **NV Sales/CSKH phụ trách** và/hoặc **NV Marketing** khi có trên bản ghi khách — ưu tiên `customers.employee_id`, nếu chưa có thì NV đang được gán ở kho `data_pool.assigned_to_id` khi `status=ASSIGNED`). Đồng thời gửi `user_notifications` (`notifyDuplicateStakeholders` trong `leadDuplicateService`) tới các NV phụ trách đó — **không** gửi lại cho chính người vừa nhập trùng. Ghi `system_logs` (cảnh báo). FE form khách (`CustomerForm.tsx`) hiển thị thêm các dòng NV trong thông báo lỗi.
   - **NV marketing đóng góp (1-n):** bảng `customer_marketing_contributors` (khách + nhân viên marketing đã từng nhập/trùng SĐT); backfill từ `created_by` / marketing owner khi migrate; luồng tạo khách Marketing / trùng SĐT gọi upsert contributor.
   - Khi tạo mới bởi role `SALES` thì tự gắn customer vào `DataPool` (status ASSIGNED) để hiển thị vào danh sách Sales.
   - **Sales gán Marketing (tùy chọn):** body `POST` có thể có `marketingOwnerId`, `campaignId`, `leadSourceId` — gắn số cho NV Marketing và chiến dịch/nền tảng; backend kiểm tra NV tồn tại, set `attributionExpiredAt` theo `marketing_revenue_attribution_days`. FE: form tạo khách trên **Kinh doanh** (`CustomerForm.tsx`) — dropdown NV Marketing lấy từ `GET /api/hr/employees?marketingOwnerOptions=1` (xem mục **4.10**); danh sách chiến dịch theo `GET /api/marketing/campaigns?createdByEmployeeId=…`, tự điền `leadSourceId` theo chiến dịch khi chọn.
@@ -461,9 +462,10 @@ Các nhánh nghiệp vụ:
   - `PUT /api/marketing/leads/:id/status` (cập nhật leadStatus)
   - `POST /api/marketing/leads/push-to-pool` (đẩy bulk sang DataPool)
   - `GET /api/marketing/leads/import-template` + `POST /api/marketing/leads/import` (import Excel)
-  - Trường hợp SĐT trùng (`leadDuplicateService` + `createMarketingLead`):
-    - **Cùng chiến dịch** (trùng trong phạm vi marketing đã thiết kế): trả **cảnh báo** (`sameCampaignWarning` / tương đương), không tạo khách trùng không cần thiết.
-    - **Chiến dịch khác:** ghi nhận với `note` bắt buộc, tạo tương tác loại `marketing_duplicate_interaction`, gửi thông báo tới **NV phụ trách Sales** (`customer.employeeId`).
+  - Trường hợp SĐT trùng (`leadDuplicateService` + `createMarketingLead` / import Excel):
+    - **Cùng chiến dịch:** trả `sameCampaignWarning`, `responsibleStaff` (tên + SĐT NV phụ trách / Marketing); gửi thông báo tới NV Sales/CSKH phụ trách và NV Marketing (trừ người nhập), qua `notifyDuplicateStakeholders`.
+    - **Chiến dịch khác** (cho phép trùng): ghi `note`, tương tác `marketing_duplicate_interaction`, JSON có `responsibleStaff`; thông báo như trên.
+    - **Từ chối trùng** (`marketing_allow_duplicate_phone=false`): HTTP 400 `rejectedDuplicate`, `responsibleStaff`; vẫn gửi thông báo cho NV liên quan (trừ người nhập).
 - Chi phí campaign:
   - **Quyền route (một trong):** `VIEW_MARKETING_CAMPAIGNS` | `CREATE_MARKETING_CAMPAIGN` | `UPDATE_MARKETING_CAMPAIGN` | `MANAGE_CUSTOMERS` — để NV Tiếp thị (có xem/tạo/sửa chiến dịch) nhập chi phí mà không cần quyền Kinh doanh. **Phạm vi từng chiến dịch** (ai được xem/sửa/xóa chi phí): trong controller — người tạo chiến dịch hoặc marketing admin (`MANAGE_MARKETING_GROUPS` / quản trị kỹ thuật), cùng logic tab chiến dịch.
   - `GET/POST/PUT/DELETE` …/costs và `PUT/DELETE` `/api/marketing/costs/:costId` — **bắt buộc** gắn chi phí với chiến dịch qua URL; **`sourceId` và `platform` trên bản ghi chi phí luôn lấy từ nền tảng của chiến dịch** (1–1; không gửi/đổi từ client). Chiến dịch không có `sourceId` thì không thêm/cập nhật chi phí. Metric, mô tả, chứng từ tùy chọn (FE `MarketingCostEffectiveness` hiển thị nền tảng chỉ đọc).
@@ -503,8 +505,8 @@ Luồng:
    - kiểm trùng:
      - nếu trùng và là duplicate:
        - không tạo customer mới
-       - tạo userNotifications cho các mục tiêu liên quan
-       - trả `success=true` + `duplicate=true` + `customerId`
+       - gửi `user_notifications` tới NV Sales/CSKH phụ trách và NV Marketing (actor = chủ chiến dịch; trừ actor khỏi danh sách nhận nếu trùng mục tiêu)
+       - trả `success=true` + `duplicate=true` + `customerId` + `responsibleStaff` (khi có)
    - Nếu không trùng:
      - tạo customer (marketingOwnerId = owner chiến dịch; `employeeId` ban đầu `null`); ghi tên / địa chỉ dòng chữ / ghi chú theo `acceptedFields` (không upsert `customer_addresses` từ public lead).
      - tạo `dataPool` nguồn `MARKETING`, `status=AVAILABLE` — **giống lead Marketing tạo thủ công** (`createMarketingLead`): luôn thử tự phân (neo = owner chiến dịch), thứ tự **(1)** luồng khối — `pickNextSalesEmployeeId` (anchor = owner): định tuyến theo `dataFlowShares` trên khối (`marketingToSalesPct`, khối con, …) và **chia đều NV trong đơn vị lá Sales** (đếm `MKT_SALES_EMPLOYEE_IN_LEAF`); **(2)** nếu không gán được, fallback **`team_distribution_ratios`** (`assignLeadsUsingTeamRatios`). Kết quả: `dataPool` → `ASSIGNED`, `customer.employeeId` = NV Sales, `lead_distribution_history`. Nếu không chọn được NV Sales, lead nằm **kho Sales chưa phân** (`SALES_OPEN`, `AVAILABLE`).

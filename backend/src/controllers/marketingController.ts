@@ -2,16 +2,16 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
-import { createUserNotification } from './userNotificationController';
 import {
   checkDuplicateAndHandle,
   getMarketingAttributionDays,
   getAttributionExpiredAt,
-  getDuplicateNotificationTargets,
   normalizePhone,
   findExistingByPhone,
   addDuplicateNote,
-  logDuplicateAction
+  logDuplicateAction,
+  getDuplicateStaffDisplayForClient,
+  notifyDuplicateStakeholders,
 } from '../services/leadDuplicateService';
 import { Decimal } from '@prisma/client/runtime/library';
 import * as ExcelJS from 'exceljs';
@@ -1356,12 +1356,16 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
           await addDuplicateNote(existing.id, actor.id, actor.fullName || actor.name || 'Unknown', rowNote, 'marketing_duplicate_interaction');
           await upsertMarketingContributor(existing.id, actor.id);
           logDuplicateAction(actor.id, actor.fullName || actor.name || 'Unknown', actor.phone, 'duplicate_lead_detected', existing.id, `Import Excel: SĐT trùng ${trimmedPhone}. ${rowNote}`);
-          const targets = getDuplicateNotificationTargets(existing);
-          const title = 'Marketing nhập số trùng (Import)';
-          const content = `Marketing ${actor.fullName || actor.name || 'N/A'} import số trùng ${trimmedPhone}. Note: ${rowNote}`;
-          for (const empId of targets) {
-            await createUserNotification(empId, title, content, 'DUPLICATE_LEAD', `/customers/${existing.id}`, { customerId: existing.id, phone: trimmedPhone, note: rowNote });
-          }
+          await notifyDuplicateStakeholders({
+            existingCustomer: existing,
+            normalizedPhone: trimmedPhone,
+            actorId: actor.id,
+            actorName: actor.fullName || actor.name || 'N/A',
+            actorPhone: actor.phone,
+            sourceLabel: 'Marketing (Import Excel)',
+            note: rowNote,
+            customerId: existing.id,
+          });
           results.errors.push(`Dòng ${i}: SĐT ${trimmedPhone} đã tồn tại - đã ghi note và gửi thông báo`);
           continue;
         }
@@ -1529,11 +1533,22 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         details: `Nhập số trùng trong cùng chiến dịch. SĐT ${trimmedPhone}, chiến dịch ${campaignIdStr}.`,
         req,
       });
+      await notifyDuplicateStakeholders({
+        existingCustomer: existingSameCampaign,
+        normalizedPhone: trimmedPhone,
+        actorId: actor?.id,
+        actorName: actor?.fullName || actor?.name || 'N/A',
+        actorPhone: actor?.phone,
+        sourceLabel: 'Marketing (cùng chiến dịch)',
+        note: noteTrim,
+        customerId: existingSameCampaign.id,
+      });
       return res.status(200).json({
         duplicate: true,
         sameCampaignWarning: true,
         customerId: existingSameCampaign.id,
         message: 'Số điện thoại đã tồn tại trong chiến dịch này.',
+        responsibleStaff: getDuplicateStaffDisplayForClient(existingSameCampaign),
       });
     }
 
@@ -1548,27 +1563,50 @@ export const createMarketingLead = async (req: Request, res: Response) => {
     });
 
     if (duplicateResult.rejectedDuplicate) {
+      if (duplicateResult.existingCustomer) {
+        await notifyDuplicateStakeholders({
+          existingCustomer: duplicateResult.existingCustomer,
+          normalizedPhone: trimmedPhone,
+          actorId: actor?.id,
+          actorName: actor?.fullName || actor?.name || 'N/A',
+          actorPhone: actor?.phone,
+          sourceLabel: 'Marketing (từ chối trùng)',
+          note: noteTrim,
+          customerId: duplicateResult.customerId!,
+        });
+      }
       return res.status(400).json({
         message:
           duplicateResult.message ||
           'Hệ thống không cho phép nhập số trùng. Bật «cho phép marketing nhập số trùng» trong Tham số vận hành nếu cần.',
+        duplicate: true,
+        rejectedDuplicate: true,
+        customerId: duplicateResult.customerId,
+        responsibleStaff: duplicateResult.existingCustomer
+          ? getDuplicateStaffDisplayForClient(duplicateResult.existingCustomer)
+          : undefined,
       });
     }
 
     if (duplicateResult.duplicate && duplicateResult.existingCustomer) {
-      const title = 'Marketing nhập số trùng';
-      const content = `Marketing ${actor?.fullName || actor?.name || 'N/A'} đã nhập số trùng ${trimmedPhone}. Note: ${noteTrim || '-'}`;
-      const targets = getDuplicateNotificationTargets(duplicateResult.existingCustomer);
-      for (const employeeId of targets) {
-        await createUserNotification(employeeId, title, content, 'DUPLICATE_LEAD', `/customers/${duplicateResult.customerId}`, { customerId: duplicateResult.customerId, phone: trimmedPhone, note: noteTrim });
-      }
+      await notifyDuplicateStakeholders({
+        existingCustomer: duplicateResult.existingCustomer,
+        normalizedPhone: trimmedPhone,
+        actorId: actor?.id,
+        actorName: actor?.fullName || actor?.name || 'N/A',
+        actorPhone: actor?.phone,
+        sourceLabel: 'Marketing',
+        note: noteTrim,
+        customerId: duplicateResult.customerId!,
+      });
       return res.status(200).json({
         isNew: false,
         duplicate: true,
         case: duplicateResult.case,
         customerId: duplicateResult.customerId,
         message: duplicateResult.message,
-        duplicateLead: duplicateResult.duplicateLead
+        duplicateLead: duplicateResult.duplicateLead,
+        responsibleStaff: getDuplicateStaffDisplayForClient(duplicateResult.existingCustomer),
       });
     }
 

@@ -6,6 +6,7 @@ import { prisma } from '../config/database';
 import { logModel } from '../models/logModel';
 import { upsertMarketingContributor } from '../utils/customerMarketingContributors';
 import { getSubordinateIds as getDepartmentSubordinateIds } from '../utils/viewScopeHelper';
+import { createUserNotification } from '../controllers/userNotificationController';
 
 const DEFAULT_ATTRIBUTION_DAYS = 45;
 const KVC_DIVISION_CODE = 'KVC';
@@ -107,6 +108,7 @@ export async function findExistingByPhone(phone: string) {
         select: {
           id: true,
           fullName: true,
+          phone: true,
           departmentId: true
         }
       },
@@ -114,10 +116,17 @@ export async function findExistingByPhone(phone: string) {
         select: {
           id: true,
           fullName: true,
+          phone: true,
           departmentId: true
         }
       },
-      dataPool: true
+      dataPool: {
+        include: {
+          assignedTo: {
+            select: { id: true, fullName: true, phone: true }
+          }
+        }
+      }
     }
   });
 }
@@ -320,6 +329,7 @@ export interface CheckDuplicateOutput {
   customerId?: string;
   message?: string;
   duplicateLead?: boolean;
+  /** Từ chối trùng: bản ghi khách để FE hiển thị NV phụ trách */
   existingCustomer?: any;
 }
 
@@ -346,6 +356,7 @@ export async function checkDuplicateAndHandle(input: CheckDuplicateInput): Promi
       duplicate: true,
       rejectedDuplicate: true,
       customerId: existing.id,
+      existingCustomer: existing,
       message:
         'Hệ thống đang tắt «cho phép marketing nhập số trùng». Không thể ghi nhận lead trùng số điện thoại.',
     };
@@ -397,11 +408,108 @@ export function getAttributionExpiredAt(createdAt: Date, attributionDays: number
   return d;
 }
 
+/** Dữ liệu hiển thị cho người nhập trùng (Sales / Marketing / CSKH). */
+export type DuplicateStaffDisplayForClient = {
+  salesOrCareResponsible: { fullName: string; phone: string | null } | null;
+  marketingResponsible: { fullName: string; phone: string | null } | null;
+};
+
+export function getDuplicateStaffDisplayForClient(existing: any): DuplicateStaffDisplayForClient {
+  const salesEmp = existing?.employee;
+  const poolAssignee = existing?.dataPool?.assignedTo;
+  let salesOrCareResponsible: DuplicateStaffDisplayForClient['salesOrCareResponsible'] = null;
+  if (salesEmp?.id) {
+    salesOrCareResponsible = {
+      fullName: String(salesEmp.fullName || '—').trim() || '—',
+      phone: salesEmp.phone != null ? String(salesEmp.phone) : null,
+    };
+  } else if (
+    poolAssignee?.id &&
+    existing?.dataPool &&
+    String(existing.dataPool.status) === 'ASSIGNED'
+  ) {
+    salesOrCareResponsible = {
+      fullName: String(poolAssignee.fullName || '—').trim() || '—',
+      phone: poolAssignee.phone != null ? String(poolAssignee.phone) : null,
+    };
+  }
+  const mo = existing?.marketingOwner;
+  const marketingResponsible =
+    mo?.id != null
+      ? {
+          fullName: String(mo.fullName || '—').trim() || '—',
+          phone: mo.phone != null ? String(mo.phone) : null,
+        }
+      : null;
+  return { salesOrCareResponsible, marketingResponsible };
+}
+
 /**
- * Khi trùng số giữa các chiến dịch: thông báo nhân viên phụ trách khách (Sales/CS — employee_id).
+ * Nhận thông báo: NV Sales/CSKH phụ trách (`employee_id`) hoặc NV được gán kho (`data_pool.assigned_to` khi chưa có employee),
+ * và NV Marketing (`marketing_owner_id`). Không gửi lại cho chính người vừa nhập trùng.
  */
-export function getDuplicateNotificationTargets(existingCustomer: any): string[] {
+export function getDuplicateNotificationTargets(
+  existingCustomer: any,
+  excludeActorId?: string | null
+): string[] {
   const ids: string[] = [];
   if (existingCustomer?.employeeId) ids.push(existingCustomer.employeeId);
-  return [...new Set(ids)];
+  if (existingCustomer?.marketingOwnerId) ids.push(existingCustomer.marketingOwnerId);
+  if (
+    !existingCustomer?.employeeId &&
+    existingCustomer?.dataPool?.assignedToId &&
+    String(existingCustomer.dataPool.status) === 'ASSIGNED'
+  ) {
+    ids.push(existingCustomer.dataPool.assignedToId);
+  }
+  const ex = excludeActorId && String(excludeActorId).trim() ? String(excludeActorId).trim() : null;
+  const filtered = ex ? ids.filter((id) => id !== ex) : ids;
+  return [...new Set(filtered)];
+}
+
+/**
+ * Gửi thông báo đến NV phụ trách + Marketing (trừ người nhập trùng).
+ */
+export async function notifyDuplicateStakeholders(params: {
+  existingCustomer: any;
+  normalizedPhone: string;
+  actorId: string | null | undefined;
+  actorName: string;
+  actorPhone?: string | null;
+  sourceLabel: string;
+  note?: string;
+  customerId: string;
+}): Promise<void> {
+  const { existingCustomer, normalizedPhone, actorId, actorName, actorPhone, sourceLabel, note, customerId } =
+    params;
+  const targets = getDuplicateNotificationTargets(existingCustomer, actorId ?? null);
+  if (targets.length === 0) return;
+
+  const actorPart = `${actorName || '—'}${actorPhone ? ` · SĐT ${actorPhone}` : ''}`;
+  const cust = existingCustomer;
+  const display = getDuplicateStaffDisplayForClient(existingCustomer);
+  const lines: string[] = [
+    `${actorPart} đã nhập trùng SĐT ${normalizedPhone} (${sourceLabel}).`,
+    cust?.name ? `Khách: ${cust.name} (mã ${cust.code || '—'}).` : `Mã khách: ${cust?.code || customerId}.`,
+  ];
+  if (display.salesOrCareResponsible) {
+    lines.push(
+      `NV phụ trách (Sales/CSKH): ${display.salesOrCareResponsible.fullName}${display.salesOrCareResponsible.phone ? ` · ${display.salesOrCareResponsible.phone}` : ''}.`
+    );
+  }
+  if (display.marketingResponsible) {
+    lines.push(
+      `NV Marketing: ${display.marketingResponsible.fullName}${display.marketingResponsible.phone ? ` · ${display.marketingResponsible.phone}` : ''}.`
+    );
+  }
+  if (note && String(note).trim()) lines.push(`Ghi chú: ${String(note).trim()}`);
+
+  const title = `Trùng số khách hàng (${sourceLabel})`;
+  const content = lines.join('\n');
+  const link = `/customers/${customerId}`;
+  const metadata = { customerId, phone: normalizedPhone, duplicate: true };
+
+  for (const empId of targets) {
+    await createUserNotification(empId, title, content, 'DUPLICATE_LEAD', link, metadata);
+  }
 }

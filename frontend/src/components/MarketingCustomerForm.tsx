@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { apiClient } from '../api/client';
+import { apiClient, ApiHttpError } from '../api/client';
+import { formatDuplicateStaffForAlert } from '../utils/formatDuplicateStaffAlert';
 import { ToolbarButton } from './ui/ToolbarButton';
 import {
   X, User, Phone, Mail, MapPin, Sprout, Building2,
@@ -222,11 +223,15 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
         farmingYears: form.farmingYears ? parseInt(form.farmingYears) : null,
       });
       if (data?.sameCampaignWarning) {
-        alert(data.message || 'Số điện thoại đã tồn tại trong chiến dịch này.');
+        let msg = data.message || 'Số điện thoại đã tồn tại trong chiến dịch này.';
+        if (data.responsibleStaff) msg += formatDuplicateStaffForAlert(data.responsibleStaff);
+        alert(msg);
         return;
       }
       if (data?.duplicate) {
-        const msg = data.message || 'Số điện thoại đã tồn tại. Hệ thống đã ghi nhận note và gửi thông báo.';
+        let msg =
+          data.message || 'Số điện thoại đã tồn tại. Hệ thống đã ghi nhận note và gửi thông báo.';
+        if (data.responsibleStaff) msg += formatDuplicateStaffForAlert(data.responsibleStaff);
         alert(msg);
         onSaved();
         onClose();
@@ -234,8 +239,21 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
       }
       onSaved();
       onClose();
-    } catch (error: any) {
-      alert(error.message || 'Lỗi khi tạo khách hàng Marketing');
+    } catch (error: unknown) {
+      if (error instanceof ApiHttpError && error.status === 400) {
+        const p = error.payload as {
+          message?: string;
+          responsibleStaff?: {
+            salesOrCareResponsible: { fullName: string; phone: string | null } | null;
+            marketingResponsible: { fullName: string; phone: string | null } | null;
+          };
+        };
+        if (p?.responsibleStaff) {
+          alert(`${p.message || error.message}${formatDuplicateStaffForAlert(p.responsibleStaff)}`);
+          return;
+        }
+      }
+      alert(error instanceof Error ? error.message : 'Lỗi khi tạo khách hàng Marketing');
     } finally {
       setSaving(false);
     }

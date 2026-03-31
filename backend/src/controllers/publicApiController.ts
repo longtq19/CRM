@@ -8,8 +8,9 @@ import {
   checkDuplicateAndHandle,
   getMarketingAttributionDays,
   getAttributionExpiredAt,
-  getDuplicateNotificationTargets,
-  normalizePhone
+  normalizePhone,
+  getDuplicateStaffDisplayForClient,
+  notifyDuplicateStakeholders,
 } from '../services/leadDuplicateService';
 import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoAssignService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
@@ -368,7 +369,7 @@ export const receivePublicLead = async (req: Request, res: Response) => {
       include: {
         source: true,
         createdByEmployee: {
-          select: { id: true, fullName: true }
+          select: { id: true, fullName: true, phone: true }
         }
       }
     });
@@ -449,28 +450,48 @@ export const receivePublicLead = async (req: Request, res: Response) => {
     });
 
     if (duplicateResult.rejectedDuplicate) {
+      if (duplicateResult.existingCustomer) {
+        await notifyDuplicateStakeholders({
+          existingCustomer: duplicateResult.existingCustomer,
+          normalizedPhone: trimmedPhone,
+          actorId: campaign.createdByEmployeeId,
+          actorName: campaignOwnerName,
+          actorPhone: campaign.createdByEmployee?.phone ?? null,
+          sourceLabel: 'Form công khai (từ chối trùng)',
+          note: noteText || undefined,
+          customerId: duplicateResult.customerId!,
+        });
+      }
       return res.status(400).json({
         success: false,
         message:
           duplicateResult.message ||
           'Hệ thống không cho phép nhập số trùng.',
+        responsibleStaff: duplicateResult.existingCustomer
+          ? getDuplicateStaffDisplayForClient(duplicateResult.existingCustomer)
+          : undefined,
       });
     }
 
     if (duplicateResult.duplicate && duplicateResult.existingCustomer) {
-      const title = 'Marketing nhập số trùng';
-      const content = `Marketing ${campaignOwnerName} đã nhập số trùng ${trimmedPhone}. Note: ${noteText || '-'}`;
-      const targets = getDuplicateNotificationTargets(duplicateResult.existingCustomer);
-      for (const employeeId of targets) {
-        await createUserNotification(employeeId, title, content, 'DUPLICATE_LEAD', `/customers/${duplicateResult.customerId}`, { customerId: duplicateResult.customerId, phone: trimmedPhone });
-      }
+      await notifyDuplicateStakeholders({
+        existingCustomer: duplicateResult.existingCustomer,
+        normalizedPhone: trimmedPhone,
+        actorId: campaign.createdByEmployeeId,
+        actorName: campaignOwnerName,
+        actorPhone: campaign.createdByEmployee?.phone ?? null,
+        sourceLabel: 'Form công khai (website)',
+        note: noteText || undefined,
+        customerId: duplicateResult.customerId!,
+      });
       return res.status(200).json({
         success: true,
         message: duplicateResult.message || 'Số điện thoại đã tồn tại trong hệ thống',
         customerId: duplicateResult.customerId,
         isNew: false,
         duplicate: true,
-        case: duplicateResult.case
+        case: duplicateResult.case,
+        responsibleStaff: getDuplicateStaffDisplayForClient(duplicateResult.existingCustomer),
       });
     }
 
