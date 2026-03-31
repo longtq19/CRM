@@ -8,6 +8,7 @@ import {
   pickFairSalesEmployeeInLeaf,
   ROUTING_COUNTER_KIND,
 } from './divisionFlowRoutingCounterService';
+import { SALES_ROLE_CODES, RESALES_ROLE_CODES } from '../constants/roleIdentification';
 
 function hashString(input: string): number {
   let h = 0;
@@ -340,7 +341,7 @@ const salesEmployeeFilter = {
   status: { code: 'WORKING' as const },
   OR: [
     { salesType: 'SALES' as const },
-    { roleGroup: { code: { in: ['TELESALES', 'TELESALES_MGR', 'REALSALES', 'REALSALES_MGR'] } } },
+    { roleGroup: { code: { in: SALES_ROLE_CODES } } },
   ],
 };
 
@@ -348,7 +349,7 @@ const resalesEmployeeFilter = {
   status: { code: 'WORKING' as const },
   OR: [
     { salesType: 'RESALES' as const },
-    { roleGroup: { code: { in: ['REALSALES', 'REALSALES_MGR', 'RESALES', 'RESALES_MGR'] } } },
+    { roleGroup: { code: { in: RESALES_ROLE_CODES } } },
   ],
 };
 

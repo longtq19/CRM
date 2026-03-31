@@ -1448,7 +1448,7 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
         });
         await upsertMarketingContributor(newCustomer.id, actor.id);
         if (ownerId) await upsertMarketingContributor(newCustomer.id, ownerId);
-        await prisma.dataPool.create({
+        const dpEntry = await prisma.dataPool.create({
           data: {
             customerId: newCustomer.id,
             source: 'IMPORT',
@@ -1457,7 +1457,16 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
             poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
             note: `Import Excel bởi ${actor.fullName || actor.id}`
           }
-        }).catch(() => {});
+        }).catch(() => null);
+
+        if (dpEntry && ownerId) {
+          await assignSingleMarketingPoolToSales({
+            dpEntryId: dpEntry.id,
+            customerId: newCustomer.id,
+            anchorEmployeeId: ownerId,
+            now,
+          }).catch(() => {});
+        }
         results.success++;
       } catch (err: any) {
         results.failed++;
