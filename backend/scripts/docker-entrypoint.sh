@@ -41,7 +41,8 @@ if [ "${SKIP_DB_WAIT:-0}" != "1" ]; then
 fi
 
 echo "[entrypoint] prisma migrate deploy"
-npx prisma migrate deploy --schema=prisma/schema.prisma
+# Allow start even if deploy fails (e.g. P3009 resolve needed) so container stays UP for terminal access.
+npx prisma migrate deploy --schema=prisma/schema.prisma || echo "[entrypoint] WARNING: prisma migrate deploy failed. Manual fix may be required."
 
 echo "[entrypoint] Starting Node server"
 exec node dist/src/server.js
