@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "db:smoke": "ts-node scripts/smoke-db.ts",
     "db:migrate": "prisma migrate deploy",
+    "migrate:resolve-p3009": "ts-node scripts/resolve-p3009-migration.ts",
     "restore:kagri-org": "ts-node scripts/restore-kagri-org.ts",
     "verify:kagri-org": "ts-node scripts/verify-kagri-org.ts",
     "backup:db": "node scripts/backup-db-full.js",

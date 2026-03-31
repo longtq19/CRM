@@ -13,7 +13,8 @@
     "prisma/seed-address-from-json.ts",
     "scripts/sync-address-from-vtp.ts",
     "scripts/export-address-json-from-vtp.ts",
-    "scripts/clear-address-catalog.ts"
+    "scripts/clear-address-catalog.ts",
+    "scripts/resolve-p3009-migration.ts"
   ],
   "exclude": ["node_modules"]
 }
