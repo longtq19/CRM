@@ -14,6 +14,7 @@ import {
 import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
+import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
 
 /** Trường JSON public lead: chỉ SĐT bắt buộc; ghi chú / họ tên / địa chỉ (dòng chữ) là tùy chọn theo chiến dịch. */
 export const PUBLIC_LEAD_FIELD_CODES = ['phone', 'name', 'address', 'note'] as const;
@@ -156,6 +157,7 @@ ${payloadLines}
 export const generateApiKey = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
 
     const campaign = await prisma.marketingCampaign.findUnique({
       where: { id: campaignId }
@@ -163,6 +165,9 @@ export const generateApiKey = async (req: Request, res: Response) => {
 
     if (!campaign) {
       return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (!(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId))) {
+      return res.status(403).json({ message: 'Không có quyền cấu hình API cho chiến dịch này' });
     }
 
     const { acceptedFields } = req.body;
@@ -205,11 +210,15 @@ export const generateApiKey = async (req: Request, res: Response) => {
 export const updateCampaignApiIntegration = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
     const { acceptedFields } = req.body;
 
     const campaign = await prisma.marketingCampaign.findUnique({ where: { id: campaignId } });
     if (!campaign) {
       return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (!(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId))) {
+      return res.status(403).json({ message: 'Không có quyền cấu hình API cho chiến dịch này' });
     }
     if (!campaign.apiKey) {
       return res.status(400).json({ message: 'Chiến dịch chưa có API key' });
@@ -246,6 +255,18 @@ export const updateCampaignApiIntegration = async (req: Request, res: Response) 
 export const revokeApiKey = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
+
+    const campaign = await prisma.marketingCampaign.findUnique({
+      where: { id: campaignId },
+      select: { createdByEmployeeId: true },
+    });
+    if (!campaign) {
+      return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (!(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId))) {
+      return res.status(403).json({ message: 'Không có quyền thu hồi API key cho chiến dịch này' });
+    }
 
     await prisma.marketingCampaign.update({
       where: { id: campaignId },
@@ -268,7 +289,19 @@ export const revokeApiKey = async (req: Request, res: Response) => {
 export const updateAllowedOrigins = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
     const { allowedOrigins } = req.body;
+
+    const existing = await prisma.marketingCampaign.findUnique({
+      where: { id: campaignId },
+      select: { createdByEmployeeId: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (!(await canAccessMarketingCampaignByCreator(actor, existing.createdByEmployeeId))) {
+      return res.status(403).json({ message: 'Không có quyền cập nhật chiến dịch này' });
+    }
 
     const updated = await prisma.marketingCampaign.update({
       where: { id: campaignId },
@@ -680,6 +713,7 @@ export const receivePublicLead = async (req: Request, res: Response) => {
 export const getCampaignApiInfo = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
 
     const campaign = await prisma.marketingCampaign.findUnique({
       where: { id: campaignId },
@@ -693,12 +727,16 @@ export const getCampaignApiInfo = async (req: Request, res: Response) => {
         acceptedFields: true,
         publicLeadAddressHierarchy: true,
         leadCount: true,
-        status: true
+        status: true,
+        createdByEmployeeId: true,
       }
     });
 
     if (!campaign) {
       return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (!(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId))) {
+      return res.status(403).json({ message: 'Không có quyền xem cấu hình API chiến dịch này' });
     }
 
     const baseUrl = process.env.API_BASE_URL || 'https://crm.kagri.tech/api';
@@ -707,8 +745,9 @@ export const getCampaignApiInfo = async (req: Request, res: Response) => {
       : null;
     const sampleCode = buildPublicLeadSampleCode(baseUrl, campaign.apiKey, acceptedArr, campaign.code);
 
+    const { createdByEmployeeId: _creatorOmit, ...campaignRest } = campaign;
     res.json({
-      ...campaign,
+      ...campaignRest,
       endpoint: `${baseUrl}/public/lead`,
       sampleCode
     });

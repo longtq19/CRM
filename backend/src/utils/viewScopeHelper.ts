@@ -316,3 +316,56 @@ export async function buildCustomerWhereByScope(
     ],
   };
 }
+
+/** Quyền xem mọi chiến dịch marketing (toàn công ty): VIEW_ALL_COMPANY_CUSTOMERS, phạm vi CUSTOMER=COMPANY, quản trị kỹ thuật, FULL_ACCESS. */
+export async function canViewAllCompanyMarketingCampaigns(actor: {
+  id: string;
+  roleGroupId: string | null;
+  roleGroupCode?: string | null;
+  permissions?: string[];
+}): Promise<boolean> {
+  if (!actor?.id) return false;
+  if (actor.permissions?.includes('FULL_ACCESS')) return true;
+  if (actor.roleGroupCode && isTechnicalAdminRoleCode(actor.roleGroupCode)) return true;
+  if (userHasCatalogPermission(actor, 'VIEW_ALL_COMPANY_CUSTOMERS')) return true;
+  /** Quản lý nhóm Marketing: cần thao tác chiến dịch / API trên toàn công ty. */
+  if (userHasCatalogPermission(actor, 'MANAGE_MARKETING_GROUPS')) return true;
+  const scope = await getConfiguredScope(actor.roleGroupId ?? null, 'CUSTOMER');
+  return scope === 'COMPANY';
+}
+
+/**
+ * NV thường: chỉ chiến dịch do mình tạo.
+ * Quản lý đơn vị (có cấp dưới trong cây phòng ban): thêm chiến dịch do NV cấp dưới tạo.
+ */
+export async function getAllowedMarketingCampaignCreatorIds(actor: {
+  id: string;
+  roleGroupId?: string | null;
+  permissions?: string[];
+}): Promise<string[]> {
+  const subs = await getSubordinateIds(actor.id);
+  if (subs.length > 0) return [actor.id, ...subs];
+  return [actor.id];
+}
+
+/** Kinh doanh: gọi GET `...?createdByEmployeeId=` (NV Marketing) để chọn chiến dịch khi tạo khách — không thuộc phạm vi cây của user KD. */
+export function isSalesKdCampaignDropdownQuery(actor: { permissions?: string[] }): boolean {
+  return (
+    userHasCatalogPermission(actor, 'MANAGE_SALES') && userHasCatalogPermission(actor, 'VIEW_CUSTOMERS')
+  );
+}
+
+export async function canAccessMarketingCampaignByCreator(
+  actor: {
+    id: string;
+    roleGroupId: string | null;
+    roleGroupCode?: string | null;
+    permissions?: string[];
+  },
+  createdByEmployeeId: string | null | undefined
+): Promise<boolean> {
+  if (!createdByEmployeeId) return false;
+  if (await canViewAllCompanyMarketingCampaigns(actor)) return true;
+  const allowed = await getAllowedMarketingCampaignCreatorIds(actor);
+  return allowed.includes(createdByEmployeeId);
+}

@@ -16,7 +16,14 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import * as ExcelJS from 'exceljs';
 import { marketingEmployeeWhere } from '../constants/roleIdentification';
-import { getSubordinateIds, buildCustomerWhereByScope } from '../utils/viewScopeHelper';
+import {
+  getSubordinateIds,
+  buildCustomerWhereByScope,
+  canViewAllCompanyMarketingCampaigns,
+  getAllowedMarketingCampaignCreatorIds,
+  isSalesKdCampaignDropdownQuery,
+  canAccessMarketingCampaignByCreator,
+} from '../utils/viewScopeHelper';
 import { isTechnicalAdminRoleCode, userHasCatalogPermission } from '../constants/rbac';
 import { ROOT_COUNTABLE_CROPS } from '../constants/cropConfigs';
 import {
@@ -351,6 +358,7 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
 export const getMarketingCampaigns = async (req: Request, res: Response) => {
   try {
     const { sourceId, status, search, createdByEmployeeId } = req.query;
+    const actor = (req as any).user;
 
     const where: any = {};
     if (typeof sourceId === 'string' && sourceId !== '') {
@@ -359,14 +367,42 @@ export const getMarketingCampaigns = async (req: Request, res: Response) => {
     if (typeof status === 'string' && status !== '') {
       where.status = status;
     }
-    if (typeof createdByEmployeeId === 'string' && createdByEmployeeId !== '') {
-      where.createdByEmployeeId = createdByEmployeeId;
+
+    const qCreatedBy =
+      typeof createdByEmployeeId === 'string' && createdByEmployeeId !== '' ? createdByEmployeeId : null;
+
+    if (actor?.id) {
+      const fullCompany = await canViewAllCompanyMarketingCampaigns(actor);
+      if (!fullCompany) {
+        const allowed = await getAllowedMarketingCampaignCreatorIds(actor);
+        if (qCreatedBy) {
+          if (allowed.includes(qCreatedBy)) {
+            where.createdByEmployeeId = qCreatedBy;
+          } else if (isSalesKdCampaignDropdownQuery(actor)) {
+            where.createdByEmployeeId = qCreatedBy;
+          } else {
+            return res.json([]);
+          }
+        } else {
+          where.createdByEmployeeId = { in: allowed };
+        }
+      } else if (qCreatedBy) {
+        where.createdByEmployeeId = qCreatedBy;
+      }
+    } else if (qCreatedBy) {
+      where.createdByEmployeeId = qCreatedBy;
     }
+
     if (typeof search === 'string' && search.trim() !== '') {
       const term = search.trim();
-      where.OR = [
-        { code: { contains: term, mode: 'insensitive' } },
-        { name: { contains: term, mode: 'insensitive' } }
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { code: { contains: term, mode: 'insensitive' } },
+            { name: { contains: term, mode: 'insensitive' } },
+          ],
+        },
       ];
     }
 
@@ -469,7 +505,7 @@ export const createMarketingCampaign = async (req: Request, res: Response) => {
 
 async function isMarketingAdmin(actor: any): Promise<boolean> {
   if (!actor?.id) return false;
-  if (userHasCatalogPermission(actor, ['MANAGE_MARKETING_GROUPS', 'MANAGE_CUSTOMERS', 'FULL_ACCESS'])) {
+  if (userHasCatalogPermission(actor, ['MANAGE_MARKETING_GROUPS', 'FULL_ACCESS'])) {
     return true;
   }
   const emp = await prisma.employee.findUnique({
@@ -488,6 +524,14 @@ export const updateMarketingCampaign = async (req: Request, res: Response) => {
     const existing = await prisma.marketingCampaign.findUnique({ where: { id } });
     if (!existing) {
       return res.status(404).json({ message: 'Chiến dịch không tồn tại' });
+    }
+
+    const admin = await isMarketingAdmin(actor);
+    if (
+      !admin &&
+      !(await canAccessMarketingCampaignByCreator(actor, existing.createdByEmployeeId))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa chiến dịch này' });
     }
 
     const trimmedName = typeof name === 'string' ? name.trim() : '';
@@ -646,6 +690,14 @@ export const deleteMarketingCampaign = async (req: Request, res: Response) => {
 
     if (!existing) {
       return res.status(404).json({ message: 'Chiến dịch không tồn tại' });
+    }
+
+    const admin = await isMarketingAdmin(actor);
+    if (
+      !admin &&
+      !(await canAccessMarketingCampaignByCreator(actor, existing.createdByEmployeeId))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa chiến dịch này' });
     }
 
     // Quyền xóa: middleware DELETE_MARKETING_CAMPAIGN (và quản trị kỹ thuật bypass).
@@ -1614,7 +1666,22 @@ export const createMarketingLead = async (req: Request, res: Response) => {
 export const getCampaignCosts = async (req: Request, res: Response) => {
   try {
     const campaignId = req.params.campaignId as string;
+    const actor = (req as any).user;
     const { startDate, endDate, costType, platform } = req.query;
+
+    const camp = await prisma.marketingCampaign.findUnique({
+      where: { id: campaignId },
+      select: { createdByEmployeeId: true },
+    });
+    if (!camp) {
+      return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (
+      !(await canAccessMarketingCampaignByCreator(actor, camp.createdByEmployeeId)) &&
+      !(await isMarketingAdmin(actor))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền xem chi phí chiến dịch này' });
+    }
 
     const where: any = { campaignId };
 
@@ -1707,18 +1774,11 @@ export const createCampaignCost = async (req: Request, res: Response) => {
     }
     const platformResolved = deriveCostPlatformFromMarketingSource(campaign.source);
 
-    // Kiểm tra quyền: chỉ người tạo chiến dịch hoặc admin
-    const isCreator = actor.id === campaign.createdByEmployeeId;
-    const actorEmployee = await prisma.employee.findUnique({
-      where: { id: actor.id },
-      select: { roleGroup: { select: { code: true } } }
-    });
-    const isAdmin =
-      userHasCatalogPermission(actor, ['MANAGE_MARKETING_GROUPS', 'MANAGE_CUSTOMERS', 'FULL_ACCESS']) ||
-      isTechnicalAdminRoleCode(actorEmployee?.roleGroup?.code);
-
-    if (!isCreator && !isAdmin) {
-      return res.status(403).json({ message: 'Chỉ người tạo chiến dịch hoặc Admin mới được nhập chi phí' });
+    if (
+      !(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId)) &&
+      !(await isMarketingAdmin(actor))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền nhập chi phí cho chiến dịch này' });
     }
 
     // Gán chi phí cho người tạo chiến dịch
@@ -1804,6 +1864,7 @@ export const updateCampaignCost = async (req: Request, res: Response) => {
     const campaignForCost = await prisma.marketingCampaign.findUnique({
       where: { id: beforeCost.campaignId },
       select: {
+        createdByEmployeeId: true,
         sourceId: true,
         source: { select: { id: true, name: true, code: true } },
       },
@@ -1812,6 +1873,12 @@ export const updateCampaignCost = async (req: Request, res: Response) => {
       return res
         .status(400)
         .json({ message: 'Chiến dịch chưa gắn nền tảng; không thể cập nhật chi phí.' });
+    }
+    if (
+      !(await canAccessMarketingCampaignByCreator(actor, campaignForCost.createdByEmployeeId)) &&
+      !(await isMarketingAdmin(actor))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền cập nhật chi phí chiến dịch này' });
     }
     const platformResolved = deriveCostPlatformFromMarketingSource(campaignForCost.source);
     // Không cho client đổi nền tảng / sourceId — luôn theo chiến dịch
@@ -1935,6 +2002,20 @@ export const deleteCampaignCost = async (req: Request, res: Response) => {
     const existingCost = await prisma.marketingCampaignCost.findUnique({ where: { id: costId } });
     if (!existingCost) {
       return res.status(404).json({ message: 'Không tìm thấy chi phí' });
+    }
+
+    const campaignForCost = await prisma.marketingCampaign.findUnique({
+      where: { id: existingCost.campaignId },
+      select: { createdByEmployeeId: true },
+    });
+    if (!campaignForCost) {
+      return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+    if (
+      !(await canAccessMarketingCampaignByCreator(actor, campaignForCost.createdByEmployeeId)) &&
+      !(await isMarketingAdmin(actor))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa chi phí chiến dịch này' });
     }
 
     await prisma.marketingCampaignCost.delete({ where: { id: costId } });
@@ -2135,14 +2216,21 @@ export const updateMarketingLeadStatus = async (req: Request, res: Response) => 
 export const getMarketingEffectiveness = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate, sourceId } = req.query;
+    const actor = (req as any).user;
 
-    // Lấy tất cả chiến dịch với chi phí và lead
+    const campaignWhere: any = {
+      ...(sourceId && { sourceId: sourceId as string }),
+      ...(startDate && { startDate: { gte: new Date(startDate as string) } }),
+      ...(endDate && { endDate: { lte: new Date(endDate as string) } }),
+    };
+    if (actor?.id && !(await canViewAllCompanyMarketingCampaigns(actor))) {
+      const allowed = await getAllowedMarketingCampaignCreatorIds(actor);
+      campaignWhere.createdByEmployeeId = { in: allowed };
+    }
+
+    // Lấy chiến dịch (theo phạm vi người tạo) với chi phí và lead
     const campaigns = await prisma.marketingCampaign.findMany({
-      where: {
-        ...(sourceId && { sourceId: sourceId as string }),
-        ...(startDate && { startDate: { gte: new Date(startDate as string) } }),
-        ...(endDate && { endDate: { lte: new Date(endDate as string) } })
-      },
+      where: campaignWhere,
       include: {
         source: { select: { id: true, name: true } },
         costs: true,
@@ -2323,6 +2411,14 @@ export const getCampaignEffectiveness = async (req: Request, res: Response) => {
 
     if (!campaign) {
       return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
+    }
+
+    const actor = (req as any).user;
+    if (
+      !(await canAccessMarketingCampaignByCreator(actor, campaign.createdByEmployeeId)) &&
+      !(await isMarketingAdmin(actor))
+    ) {
+      return res.status(403).json({ message: 'Bạn không có quyền xem hiệu quả chiến dịch này' });
     }
 
     // Tính toán chi tiết
