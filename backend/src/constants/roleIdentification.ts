@@ -30,9 +30,7 @@ export const SALES_ROLE_CODES: string[] = [
   'sales_executive',
   'sales_manager',
   'NV_SALES',
-  'QL_SALES',
-  'TELESALES_MGR',
-  'TELESALES'
+  'QL_SALES'
 ];
 
 /** Các mã nhóm vai trò được coi là Resales (CSKH) */
@@ -41,8 +39,6 @@ export const RESALES_ROLE_CODES: string[] = [
   'CSKH_MGR',
   'NV_CSKH',
   'QL_CSKH',
-  'REALSALES_MGR',
-  'REALSALES',
   'CSK_MGR',
   'CSK_STAFF',
   'RES',
@@ -88,7 +84,7 @@ export function isResalesRole(roleCode: string): boolean {
   if (!roleCode) return false;
   if (roleCode === 'customer_success_executive' || roleCode === 'customer_success_manager') return true;
   const u = roleCode.toUpperCase();
-  return u === 'RESALES' || u.includes('CSKH') || u.includes('CSK') || u.includes('REALSALES');
+  return u === 'RESALES' || u.includes('CSKH') || u.includes('CSK');
 }
 
 /** Kiểm tra roleCode có thuộc Sales không */
@@ -97,5 +93,5 @@ export function isSalesRole(roleCode: string): boolean {
   if (isResalesRole(roleCode)) return false;
   if (roleCode === 'sales_executive' || roleCode === 'sales_manager') return true;
   const u = roleCode.toUpperCase();
-  return u === 'SALES' || u.includes('SAL') || u.includes('TELESALES');
+  return u === 'SALES' || u.includes('SAL');
 }

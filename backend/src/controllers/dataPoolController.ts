@@ -414,7 +414,7 @@ export const autoDistribute = async (req: Request, res: Response) => {
         where: {
           OR: [
             { salesType: { in: ['MARKETING', 'SALES', 'RESALES'] } },
-            { roleGroup: { code: { in: ['TELESALES', 'TELESALES_MGR', 'MARKETING', 'MARKETING_MGR', 'REALSALES', 'REALSALES_MGR'] } } },
+            { roleGroup: { code: { in: ['sales_executive', 'sales_manager', 'customer_success_executive', 'customer_success_manager', 'marketing', 'marketing_manager'] } } },
           ],
           status: { code: 'WORKING' },
         },

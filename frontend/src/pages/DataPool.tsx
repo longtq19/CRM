@@ -61,8 +61,8 @@ const DataPool = () => {
   const { hasPermission, user } = useAuthStore();
   const isTechAdmin = isTechnicalAdminRole(user?.roleGroup?.code);
   const listScope = 'floating';
-  const roleCode = user?.roleGroup?.code || '';
-  const isSalesCskhGroup = roleCode.includes('SALES') || roleCode.includes('CSKH') || roleCode.includes('TELE');
+  const roleCode = (user?.roleGroup?.code || '').toLowerCase();
+  const isSalesCskhGroup = roleCode.includes('sales') || roleCode.includes('customer_success');
   
   const canDistributeFloating =
     isTechAdmin ||

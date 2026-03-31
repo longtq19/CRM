@@ -47,7 +47,24 @@ router.post(
   distributeFromFloatingPool
 );
 // NV Sales/CSKH tự nhận khách từ kho thả nổi / kho CSKH
-router.post('/claim-customer', checkPermission(['CLAIM_FLOATING_POOL', 'CLAIM_LEAD_CSKH']), claimFromFloatingPool);
+// NV Sales/CSKH tự nhận khách từ kho thả nổi / kho CSKH
+router.post(
+  '/claim-customer',
+  (req, res, next) => {
+    const user = (req as any).user;
+    const role = (user.roleGroupCode || '').toLowerCase();
+    if (
+      role.includes('sales') ||
+      role.includes('customer_success') ||
+      user.permissions.includes('CLAIM_FLOATING_POOL') ||
+      user.permissions.includes('CLAIM_LEAD_CSKH')
+    ) {
+      return next();
+    }
+    return checkPermission(['CLAIM_FLOATING_POOL', 'CLAIM_LEAD_CSKH'])(req, res, next);
+  },
+  claimFromFloatingPool
+);
 
 // ── Legacy / nội bộ (giữ cho cron và luồng vận hành) ──
 router.post('/claim', checkPermission('CLAIM_LEAD'), claimLead);
