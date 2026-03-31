@@ -525,7 +525,7 @@ Luồng tạo & vận chuyển:
 1. Tạo đơn:
    - `POST /api/orders`
   - **Modal tạo đơn (FE `CreateOrderModal`):** bước **Chọn khách hàng** tự động gọi `GET /api/customers` (phân trang) để hiển thị danh sách khách trong **phạm vi được phép** — cùng logic với module Khách hàng; khi gõ từ **2 ký tự** trở lên thêm tham số `search`. Response có `viewScopeDescription` (tiếng Việt) khi backend trả về. Bước **Thêm sản phẩm** gọi `GET /api/products` (phân trang) để hiển thị **đủ danh sách sản phẩm theo trang** ngay khi vào bước; từ **2 ký tự** trở lên thêm `search` (lọc tên/mã). Tổng số lượng đặt **không vượt tổng tồn** (`stocks` trên từng sản phẩm): hết tồn hoặc vượt tồn thì hiện cảnh báo và không cho thêm/tăng số lượng.
-  - Hỗ trợ thêm `warehouseId` (kho gửi), `receiverProvinceId/DistrictId/WardId` (địa chỉ nhận).
+  - **Bắt buộc** `warehouseId` (kho gửi — điểm gửi Viettel Post), `receiverProvinceId/DistrictId/WardId` (địa chỉ nhận; V3 có thể thiếu `receiverDistrictId` nếu có `vtp_district_id` trên xã).
    - Quyền: **`CREATE_ORDER`** (tạo đơn gán `employeeId` = người tạo) và/hoặc **`MANAGE_ORDERS`** (luồng quản lý rộng hơn — xem `orderRoutes.ts`). Nút tạo đơn trên FE hiển thị khi có một trong hai quyền.
   - **Danh sách / chi tiết đơn** (`GET /api/orders`, `GET /api/orders/:id`): lọc theo `employeeId` người tạo đơn — mặc định **bản thân + cấp dưới quản lý** (`getVisibleEmployeeIds(..., 'ORDER')`, cùng logic Sales/CSKH xem phạm vi cây quản lý). Quyền **`VIEW_ALL_COMPANY_ORDERS`** hoặc phạm vi nhóm **COMPANY** (tab Nhóm quyền → phạm vi xem đơn hàng) bỏ giới hạn — xem **toàn công ty**.
   - **`GET /api/orders/stats`:** cùng phạm vi lọc `employeeId` như danh sách (trước đây thống kê có thể lệch nếu không lọc; đã đồng bộ).
@@ -544,7 +544,7 @@ Luồng tạo & vận chuyển:
    - điều kiện:
      - shippingStatus phải là `CONFIRMED`
      - receiver cần đủ thông tin + đặc biệt cần `receiverProvinceId/receiverDistrictId/receiverWardId`
-   - backend gọi `viettelPostService.createOrder(...)` — **khối lượng** gửi VTP là **tổng gram** = Σ(`product.weight` × số lượng); sản phẩm không có `weight` dùng 500g/đơn vị (đồng bộ với màn tạo đơn). **Mã dịch vụ VTP (`ORDER_SERVICE`):** ưu tiên biến môi trường `VTP_ORDER_SERVICE` (nếu đặt); nếu không — gọi **`/order/getPriceAll`** cùng tuyến/khối lượng và chọn **VCN** nếu có trong danh sách, **nếu không** thì dùng **dịch vụ đầu tiên** trả về (nhiều hợp đồng TMĐT chỉ còn LCOD/NCOD/…, không còn VCN; gửi cố định VCN sẽ lỗi *Price does not apply to this itinerary*). Địa chỉ **sau sáp nhập** (2 cấp): mã **quận/huyện** VTP lấy từ `wards.vtp_district_id` khi đồng bộ `source=new` (`POST /api/vtp/sync-address`). Đơn lưu `warehouse_id` (kho gửi) để đồng bộ địa chỉ gửi với kho đã chọn khi đẩy VTP.
+   - backend gọi `viettelPostService.createOrder(...)` — **khối lượng** gửi VTP là **tổng gram** = Σ(`product.weight` × số lượng); sản phẩm không có `weight` dùng 500g/đơn vị (đồng bộ với màn tạo đơn). **Điểm gửi (SENDER_*):** bắt buộc lấy từ **kho** đã gắn đơn (`orders.warehouse_id`) qua `resolveWarehouseVtpSender` — **không** dùng `VTP_SENDER_*` trong `.env` cho luồng ứng dụng (tránh lệch danh mục V3 và lỗi *Price does not apply* / không có cước). Kho phải có đủ địa chỉ chi tiết, SĐT; với **địa chỉ sau sáp nhập** (không cấp huyện trong DB), mã **DISTRICT** VTP lấy từ `wards.vtp_district_id` trên xã kho (đồng bộ `POST /api/vtp/sync-address` với `source=new`). **Mã dịch vụ VTP (`ORDER_SERVICE`):** ưu tiên `VTP_ORDER_SERVICE` (nếu đặt); nếu không — gọi **`/order/getPriceAll`** và chọn dịch vụ khả dụng (xem trên). Địa chỉ nhận V3: `receiver_district_id` có thể null — backend suy từ `receiver_ward_id` + `wards.vtp_district_id`.
    - **Kiểm thử tạo đơn thật (CLI):** trong `backend/` chạy `npm run test:vtp-order` (cần `VTP_TOKEN` hoặc `VTP_USERNAME`+`VTP_PASSWORD`). Mặc định script dùng **gửi** từ `VTP_SENDER_*` và **nhận** mẫu liên tỉnh Hà Nội → TP.HCM (mã trong script); ghi đè bằng `VTP_TEST_RECEIVER_PROVINCE` / `VTP_TEST_RECEIVER_DISTRICT` / `VTP_TEST_RECEIVER_WARD`, hoặc `VTP_TEST_USE_DB_RECEIVER=1` để lấy xã từ DB (cần đã sync địa chỉ VTP).
    - cập nhật order:
      - `shippingStatus=SHIPPING`
@@ -952,7 +952,7 @@ Nhánh VTP address:
 Nhánh VTP shipping:
 
 - `GET /api/vtp/services`
-- `POST /api/vtp/calculate-fee` — gọi VTP **`/order/getPriceAll`** (danh sách dịch vụ + `GIA_CUOC`); body gồm tổng **`productWeight`** (gram), `senderProvince/District` (+ `senderWard` hoặc env `VTP_SENDER_WARD`), `receiverProvince/District` (+ `receiverWard` nếu có); **mặc định không gửi kích thước** (length/width/height). Dùng `viettelPostService.getPriceAllList` + token từ `VTP_TOKEN` hoặc đăng nhập `VTP_USERNAME`/`VTP_PASSWORD`. Kiểm tra nhanh (cần credential VTP): trong `backend/` chạy `node scripts/test-vtp-getPriceAll.js` (tùy chỉnh `VTP_TEST_*` nếu ID tỉnh/huyện/xã không khớp danh mục tài khoản). Tính cước trong `viettelPostService.calculateFee`: ưu tiên **`serviceType`** nếu khớp một dòng trong `getPriceAll`, nếu không thì **VCN**, nếu không có thì **dòng đầu** (đồng bộ với `createOrder` khi không đặt `VTP_ORDER_SERVICE`).
+- `POST /api/vtp/calculate-fee` — gọi VTP **`/order/getPriceAll`**. Body **bắt buộc có `warehouseId`** (kho trong hệ thống); backend suy điểm gửi qua `resolveWarehouseVtpSender` (cùng logic đẩy VTP), không dùng `VTP_SENDER_*`. Thêm `receiverProvince`, `receiverDistrict` (tùy chọn nếu đã suy từ xã V3), `receiverWard`, `productWeight`, `productPrice`, `moneyCollection`. **Mặc định không gửi kích thước**. Token: `VTP_TOKEN` hoặc `VTP_USERNAME`/`VTP_PASSWORD`. Kiểm tra nhanh: `node scripts/test-vtp-getPriceAll.js`. `viettelPostService.calculateFee` (dùng nội bộ): ưu tiên **`serviceType`**, rồi VCN, rồi dòng đầu.
 - `POST /api/vtp/create-order` (MANAGE_ORDERS)
 - `GET /api/vtp/track/:orderCode`
 - `POST /api/vtp/cancel-order` (MANAGE_ORDERS)
@@ -1136,8 +1136,8 @@ Nghiệp vụ:
      - Viettel Post:
        - `VTP_API_URL`, `VTP_USERNAME`, `VTP_PASSWORD`, `VTP_TOKEN`
        - `VTP_WEBHOOK_SECRET` (comment nếu chưa dùng, nhưng code đã hỗ trợ validate token nếu có)
-       - `VTP_SENDER_*`
        - `VTP_ORDER_SERVICE` (tùy chọn — cố định mã dịch vụ khi tạo đơn; để trống thì tự chọn theo `getPriceAll`)
+       - `VTP_SENDER_*` — **không** dùng cho tính cước/tạo đơn trong app (chỉ script thử nghiệm CLI nếu cần)
 3. Chạy dev:
    - `npm run dev`
 4. Seed (nếu cần):

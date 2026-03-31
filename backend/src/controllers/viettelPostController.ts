@@ -8,7 +8,12 @@ import {
   mergeWardsByNormalizedNameForResponse,
   storageAdministrativeName
 } from '../utils/addressDisplayNormalize';
-import { resolveReceiverVtpDistrictId } from '../utils/orderVtpAddress';
+import {
+  resolveReceiverVtpDistrictId,
+  resolveWarehouseVtpSender,
+  resolveVtpProvinceIdFromClient,
+  resolveVtpWardIdFromClient,
+} from '../utils/orderVtpAddress';
 
 /** Thư mục JSON địa chỉ (backend/data/addresses) */
 const getAddressDataDir = () => path.join(process.cwd(), 'data', 'addresses');
@@ -710,15 +715,13 @@ export const getVTPServices = async (req: Request, res: Response) => {
 
 /**
  * Tính phí vận chuyển — gọi VTP `getPriceAll` với **tổng khối lượng** (gram), không gửi kích thước.
- * Body: senderProvince, senderDistrict, receiverProvince, receiverDistrict (bắt buộc);
- * senderWard, receiverWard (khuyến nghị); productWeight, productPrice, moneyCollection.
+ * **Điểm gửi:** bắt buộc `warehouseId` (kho trong hệ thống) — không dùng biến môi trường VTP_SENDER_*.
+ * **Điểm nhận:** tỉnh + (huyện hoặc xã có `vtp_district_id` sau sáp nhập).
  */
 export const calculateShippingFee = async (req: Request, res: Response) => {
   try {
     const {
-      senderProvince,
-      senderDistrict,
-      senderWard,
+      warehouseId,
       receiverProvince,
       receiverDistrict,
       receiverWard,
@@ -727,15 +730,32 @@ export const calculateShippingFee = async (req: Request, res: Response) => {
       moneyCollection,
     } = req.body;
 
-    if (senderProvince == null || senderDistrict == null || receiverProvince == null) {
-      return res.status(400).json({ success: false, message: 'Thiếu ID tỉnh/huyện gửi hoặc tỉnh nhận' });
+    if (warehouseId == null || String(warehouseId).trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Thiếu kho gửi hàng (warehouseId). Chọn kho trong hệ thống — điểm gửi lấy từ địa chỉ kho, không dùng mặc định từ biến môi trường.',
+      });
+    }
+
+    const sender = await resolveWarehouseVtpSender(String(warehouseId).trim());
+    if (!sender) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Kho gửi không hợp lệ hoặc thiếu dữ liệu: cần tỉnh + xã, địa chỉ chi tiết, SĐT liên hệ; với địa chỉ V3 (sau sáp nhập) cần xã đã có mã huyện VTP (vtp_district_id khi đồng bộ listWardsNew).',
+      });
+    }
+
+    const receiverProvinceNum = await resolveVtpProvinceIdFromClient(receiverProvince);
+    if (receiverProvinceNum == null) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai mã tỉnh/thành nhận (Viettel Post).' });
     }
 
     let receiverDistrictNum =
       receiverDistrict != null && receiverDistrict !== '' ? parseInt(String(receiverDistrict), 10) : NaN;
-    const receiverWardNum =
-      receiverWard != null && receiverWard !== '' ? parseInt(String(receiverWard), 10) : NaN;
-    if (Number.isNaN(receiverDistrictNum) && Number.isFinite(receiverWardNum)) {
+    const receiverWardNum = await resolveVtpWardIdFromClient(receiverWard);
+    if (Number.isNaN(receiverDistrictNum) && receiverWardNum != null) {
       const resolved = await resolveReceiverVtpDistrictId({
         receiverDistrictId: null,
         receiverWardId: receiverWardNum,
@@ -746,25 +766,17 @@ export const calculateShippingFee = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message:
-          'Thiếu mã quận/huyện nhận (Viettel Post). Với địa chỉ sau sáp nhập, chọn đủ Tỉnh và Phường/Xã — hệ thống lấy mã huyện từ danh mục xã; nếu vẫn lỗi, đồng bộ địa chỉ từ VTP (POST /api/vtp/sync-address).',
+          'Thiếu mã quận/huyện nhận (Viettel Post). Với địa chỉ sau sáp nhập (V3), chọn đủ Tỉnh và Phường/Xã — hệ thống lấy mã huyện từ danh mục xã; nếu vẫn lỗi, đồng bộ địa chỉ từ VTP (POST /api/vtp/sync-address).',
       });
     }
 
-    const defaultSenderWard = parseInt(process.env.VTP_SENDER_WARD || '175', 10);
-    const sWard =
-      senderWard != null && senderWard !== ''
-        ? parseInt(String(senderWard), 10)
-        : defaultSenderWard;
-    const rWard =
-      receiverWard != null && receiverWard !== '' ? parseInt(String(receiverWard), 10) : NaN;
-
     const list = await viettelPostService.getPriceAllList({
-      senderProvince: Number(senderProvince),
-      senderDistrict: Number(senderDistrict),
-      senderWard: Number.isFinite(sWard) ? sWard : undefined,
-      receiverProvince: Number(receiverProvince),
+      senderProvince: sender.senderProvince,
+      senderDistrict: sender.senderDistrict,
+      senderWard: sender.senderWard,
+      receiverProvince: receiverProvinceNum,
       receiverDistrict: receiverDistrictNum,
-      receiverWard: Number.isFinite(rWard) ? rWard : undefined,
+      receiverWard: receiverWardNum ?? undefined,
       productWeight: Number(productWeight) || 500,
       productPrice: Number(productPrice) || 0,
       moneyCollection: Number(moneyCollection) || 0,

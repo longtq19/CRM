@@ -7,7 +7,7 @@ import { viettelPostService } from '../services/viettelPostService';
 import { updateCustomerRank } from './customerRankController';
 import { getSubordinateIds, getVisibleEmployeeIds } from '../utils/viewScopeHelper';
 import { prismaEmployeeTypeLogisticsWhere } from '../utils/logisticsEmployeeType';
-import { resolveReceiverVtpDistrictId } from '../utils/orderVtpAddress';
+import { resolveReceiverVtpDistrictId, resolveWarehouseVtpSender } from '../utils/orderVtpAddress';
 import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/leadDuplicateService';
 import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
@@ -436,11 +436,14 @@ export const createOrder = async (req: Request, res: Response) => {
       });
     }
 
-    if (warehouseId) {
-      const wh = await prisma.warehouse.findUnique({ where: { id: String(warehouseId) } });
-      if (!wh) {
-        return res.status(400).json({ message: 'Không tìm thấy kho gửi hàng đã chọn.' });
-      }
+    if (!warehouseId || String(warehouseId).trim() === '') {
+      return res.status(400).json({
+        message: 'Vui lòng chọn kho gửi hàng (bắt buộc). Điểm gửi Viettel Post lấy từ địa chỉ kho trong hệ thống, không dùng biến môi trường mặc định.',
+      });
+    }
+    const whCheck = await prisma.warehouse.findUnique({ where: { id: String(warehouseId) } });
+    if (!whCheck) {
+      return res.status(400).json({ message: 'Không tìm thấy kho gửi hàng đã chọn.' });
     }
 
     // Tính tổng tiền
@@ -511,7 +514,7 @@ export const createOrder = async (req: Request, res: Response) => {
             : null,
         receiverWardId:
           receiverWardIdNum != null && !Number.isNaN(receiverWardIdNum) ? receiverWardIdNum : null,
-        warehouseId: warehouseId ? String(warehouseId) : null,
+        warehouseId: String(warehouseId),
         items: {
           create: orderItems.map((item, index) => ({
             code: `${code}-${index + 1}`,
@@ -878,29 +881,22 @@ export const pushToViettelPost = async (req: Request, res: Response) => {
       totalWeight = sumOrderWeightGramsFromItems(order.items);
     }
 
-    // Sender: lấy từ warehouse nếu có warehouseId (body hoặc đơn đã lưu), fallback env vars
-    const reqWarehouseId = req.body?.warehouseId ?? order.warehouseId;
-    let senderName = process.env.VTP_SENDER_NAME || 'KAGRI BIO';
-    let senderPhone = process.env.VTP_SENDER_PHONE || process.env.VTP_USERNAME || '0352737467';
-    let senderAddress = process.env.VTP_SENDER_ADDRESS || 'Số 103, ngõ 95, Đạo Xuyên, Bát Tràng';
-    let sProvinceId = parseInt(process.env.VTP_SENDER_PROVINCE || '1', 10);
-    let sDistrictId = parseInt(process.env.VTP_SENDER_DISTRICT || '8', 10);
-    let sWardId = parseInt(process.env.VTP_SENDER_WARD || '175', 10);
-
-    if (reqWarehouseId) {
-      const wh = await prisma.warehouse.findUnique({
-        where: { id: reqWarehouseId },
-        include: { province: true, district: true, ward: true }
+    const reqWarehouseId = (req.body?.warehouseId ?? order.warehouseId) as string | undefined;
+    if (!reqWarehouseId || String(reqWarehouseId).trim() === '') {
+      return res.status(400).json({
+        message:
+          'Thiếu kho gửi: đơn phải có kho gửi hàng (tạo đơn với warehouseId) hoặc truyền warehouseId khi đẩy VTP. Không dùng địa chỉ mặc định từ biến môi trường.',
       });
-      if (wh) {
-        senderName = wh.contactName || senderName;
-        senderPhone = wh.contactPhone || senderPhone;
-        senderAddress = wh.detailAddress || wh.address || senderAddress;
-        if (wh.province?.code) sProvinceId = parseInt(wh.province.code, 10) || sProvinceId;
-        if (wh.district?.code) sDistrictId = parseInt(wh.district.code, 10) || sDistrictId;
-        if (wh.ward?.code) sWardId = parseInt(wh.ward.code, 10) || sWardId;
-      }
     }
+    const senderResolved = await resolveWarehouseVtpSender(String(reqWarehouseId).trim());
+    if (!senderResolved) {
+      return res.status(400).json({
+        message:
+          'Kho gửi không đủ dữ liệu Viettel Post: kiểm tra tỉnh/xã, địa chỉ chi tiết, SĐT; với địa chỉ V3 (sau sáp nhập) xã cần có mã huyện VTP (đồng bộ POST /api/vtp/sync-address).',
+      });
+    }
+    const { senderName, senderPhone, senderAddress, senderProvince: sProvinceId, senderDistrict: sDistrictId, senderWard: sWardId } =
+      senderResolved;
 
     const rProvinceId = order.receiverProvinceId ?? NaN;
     const rWardId = order.receiverWardId ?? NaN;
@@ -989,7 +985,7 @@ export const pushToViettelPost = async (req: Request, res: Response) => {
       const errMsg = vtpError?.response?.data?.message || vtpError?.message || 'Không thể kết nối Viettel Post';
       console.error('Push to VTP failed:', vtpError);
       return res.status(400).json({
-        message: `Đẩy đơn Viettel Post thất bại: ${errMsg}. Vui lòng kiểm tra cấu hình VTP_USERNAME, VTP_PASSWORD trong .env`
+        message: `Đẩy đơn Viettel Post thất bại: ${errMsg}. Kiểm tra token/đăng nhập VTP (VTP_TOKEN hoặc VTP_USERNAME, VTP_PASSWORD), địa chỉ kho và địa chỉ nhận.`,
       });
     }
   } catch (error: any) {

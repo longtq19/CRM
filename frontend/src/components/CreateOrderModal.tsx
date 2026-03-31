@@ -4,7 +4,7 @@ import {
   Plus, Minus, Check, RefreshCw, AlertCircle, ChevronRight,
   Phone, Home, Building2, Clock, DollarSign, Weight
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, ApiHttpError } from '../api/client';
 import { orderApi } from '../api/orderApi';
 import type { CreateOrderData } from '../api/orderApi';
 import type { Customer, Product } from '../types';
@@ -30,10 +30,16 @@ interface Ward {
   WARDS_NAME: string;
 }
 
-interface WarehouseLite {
+interface WarehouseOption {
   id: string;
   code: string;
   name: string;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  detailAddress?: string | null;
+  address?: string | null;
+  province?: { id: string; name: string; code?: string } | null;
+  ward?: { id: string; name: string; vtpDistrictId?: number | null } | null;
 }
 
 interface DbWardRow {
@@ -105,7 +111,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   const [dbProvinces, setDbProvinces] = useState<Array<{id: string; name: string}>>([]);
   const [dbProvincesNew, setDbProvincesNew] = useState<Array<{id: string; name: string}>>([]);
   const [dbWards, setDbWards] = useState<DbWardRow[]>([]);
-  const [warehouses, setWarehouses] = useState<WarehouseLite[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [warehouseId, setWarehouseId] = useState<string>('');
   const addressPrefillDoneRef = useRef<string | null>(null);
 
@@ -134,16 +140,6 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     }, 0);
     return Math.max(100, Math.round(t));
   }, [orderItems]);
-
-  // Sender info (from company)
-  const senderInfo = {
-    name: 'KAGRI BIO',
-    phone: '0352737467',
-    address: 'So nha 103 ngo 95 Dao Xuyen xa Bat Trang',
-    provinceId: 1,
-    districtId: 8,
-    wardId: 175
-  };
 
   // Calculate totals
   const totalAmount = orderItems.reduce((sum, item) => sum + ((item.product.listPriceNet || 0) * item.quantity), 0);
@@ -324,7 +320,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     (async () => {
       try {
         const res = await apiClient.get('/inventory/warehouses');
-        if (!cancelled && Array.isArray(res)) setWarehouses(res as WarehouseLite[]);
+        if (!cancelled && Array.isArray(res)) setWarehouses(res as WarehouseOption[]);
       } catch {
         if (!cancelled) setWarehouses([]);
       }
@@ -444,8 +440,12 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     })();
   }, [step, selectedCustomer?.id]);
 
-  // Calculate shipping fee when address is complete
+  // Calculate shipping fee — điểm gửi lấy từ kho đã chọn (API), không dùng mặc định env
   const calculateShipping = useCallback(async () => {
+    if (!warehouseId) {
+      setError('Vui lòng chọn kho gửi hàng trước khi tính cước.');
+      return;
+    }
     if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverWardId) {
       return;
     }
@@ -458,39 +458,41 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setError(null);
 
       const codAmount = totalAmount;
-      const rProv = parseInt(String(receiverInfo.receiverProvinceId), 10);
-      const rDistRaw = receiverInfo.receiverDistrictId
-        ? parseInt(String(receiverInfo.receiverDistrictId), 10)
-        : NaN;
-      const rWardRaw = receiverInfo.receiverWardId ? parseInt(String(receiverInfo.receiverWardId), 10) : NaN;
 
       const response: any = await apiClient.post('/vtp/calculate-fee', {
-        senderProvince: senderInfo.provinceId,
-        senderDistrict: senderInfo.districtId,
-        senderWard: senderInfo.wardId,
-        receiverProvince: rProv,
-        receiverDistrict: Number.isFinite(rDistRaw) ? rDistRaw : undefined,
-        receiverWard: Number.isFinite(rWardRaw) ? rWardRaw : undefined,
+        warehouseId,
+        receiverProvince: receiverInfo.receiverProvinceId,
+        receiverDistrict:
+          orderAddressType === 'OLD'
+            ? receiverInfo.receiverDistrictId
+            : receiverInfo.receiverDistrictId || undefined,
+        receiverWard: receiverInfo.receiverWardId,
         productWeight: totalWeightGrams,
         productPrice: codAmount,
-        moneyCollection: codAmount // COD
+        moneyCollection: codAmount,
       });
 
       if (Array.isArray(response)) {
         setShippingServices(response);
-        // Auto-select cheapest service
         if (response.length > 0) {
           const cheapest = response.reduce((min, s) => s.GIA_CUOC < min.GIA_CUOC ? s : min, response[0]);
           setSelectedService(cheapest);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error calculating shipping:', error);
-      setError('Không thể tính phí vận chuyển. Vui lòng kiểm tra lại địa chỉ.');
+      const msg =
+        error instanceof ApiHttpError
+          ? error.message
+          : typeof error === 'object' && error !== null && 'message' in error && typeof (error as Error).message === 'string'
+            ? (error as Error).message
+            : 'Không thể tính phí vận chuyển. Kiểm tra kho gửi và địa chỉ nhận (V3 cần xã có mã huyện VTP sau đồng bộ).';
+      setError(msg);
     } finally {
       setLoadingServices(false);
     }
   }, [
+    warehouseId,
     receiverInfo.receiverProvinceId,
     receiverInfo.receiverDistrictId,
     receiverInfo.receiverWardId,
@@ -621,6 +623,10 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setError('Vui lòng nhập đầy đủ thông tin người nhận');
       return;
     }
+    if (!warehouseId) {
+      setError('Vui lòng chọn kho gửi hàng (bắt buộc).');
+      return;
+    }
     if (!receiverInfo.receiverProvinceId || !receiverInfo.receiverWardId) {
       setError('Vui lòng chọn đủ địa chỉ (tỉnh, phường/xã).');
       return;
@@ -629,6 +635,18 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setError('Vui lòng chọn đầy đủ địa chỉ (Tỉnh/Quận/Phường).');
       return;
     }
+
+    const receiverProvinceIdNum = (() => {
+      const raw = receiverInfo.receiverProvinceId;
+      const n = parseInt(String(raw), 10);
+      if (Number.isFinite(n) && n > 0) return n;
+      const p = dbProvincesNew.find((x) => x.id === raw);
+      return p ? parseInt(String(p.id), 10) : NaN;
+    })();
+    const receiverWardIdNum = parseInt(String(receiverInfo.receiverWardId), 10);
+    const receiverDistrictIdNum = receiverInfo.receiverDistrictId
+      ? parseInt(String(receiverInfo.receiverDistrictId), 10)
+      : NaN;
 
     try {
       setLoading(true);
@@ -648,12 +666,11 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
             ? receiverInfo.receiverDistrictName || '—'
             : receiverInfo.receiverDistrictName,
         receiverWard: receiverInfo.receiverWardName,
-        receiverProvinceId: Number(receiverInfo.receiverProvinceId) || undefined,
-        receiverDistrictId: receiverInfo.receiverDistrictId
-          ? Number(receiverInfo.receiverDistrictId)
-          : undefined,
-        receiverWardId: Number(receiverInfo.receiverWardId) || undefined,
-        warehouseId: warehouseId || undefined,
+        receiverProvinceId: Number.isFinite(receiverProvinceIdNum) ? receiverProvinceIdNum : undefined,
+        receiverDistrictId:
+          Number.isFinite(receiverDistrictIdNum) ? receiverDistrictIdNum : undefined,
+        receiverWardId: Number.isFinite(receiverWardIdNum) ? receiverWardIdNum : undefined,
+        warehouseId,
       };
       await orderApi.createOrder(data);
       onSuccess();
@@ -670,6 +687,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       case 1: return !!selectedCustomer;
       case 2: return orderItems.length > 0;
       case 3: {
+        if (!warehouseId) return false;
         const base =
           !!receiverInfo.receiverName &&
           !!receiverInfo.receiverPhone &&
@@ -1112,14 +1130,21 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
               <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
                 <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
                   <Building2 size={18} className="text-primary" />
-                  Kho gửi hàng (Viettel Post)
+                  Kho gửi hàng (Viettel Post) <span className="text-red-500">*</span>
                 </label>
                 <select
+                  required
                   value={warehouseId}
-                  onChange={(e) => setWarehouseId(e.target.value)}
+                  onChange={(e) => {
+                    setWarehouseId(e.target.value);
+                    setShippingServices([]);
+                    setSelectedService(null);
+                  }}
                   className="w-full max-w-lg rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="">— Mặc định (cấu hình hệ thống / biến môi trường) —</option>
+                  <option value="" disabled>
+                    -- Chọn kho gửi (bắt buộc) --
+                  </option>
                   {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.code} — {w.name}
@@ -1127,7 +1152,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
-                  Khi đẩy đơn lên Viettel Post, ưu tiên địa chỉ kho đã chọn (nếu kho có đủ tỉnh/huyện/xã).
+                  Điểm gửi tính cước và tạo vận đơn lấy từ địa chỉ kho trong hệ thống (không dùng biến môi trường). Kho cần có đủ địa chỉ, SĐT; xã sau sáp nhập cần đồng bộ VTP để có mã huyện (vtp_district_id).
                 </p>
               </div>
 

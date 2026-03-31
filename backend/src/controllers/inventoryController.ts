@@ -20,9 +20,9 @@ export const getWarehouses = async (req: Request, res: Response) => {
       where: { status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       include: {
-        province: { select: { id: true, name: true } },
-        district: { select: { id: true, name: true } },
-        ward: { select: { id: true, name: true } },
+        province: { select: { id: true, name: true, code: true } },
+        district: { select: { id: true, name: true, code: true } },
+        ward: { select: { id: true, name: true, code: true, vtpDistrictId: true } },
       },
     });
     res.json(warehouses);
