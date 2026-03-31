@@ -298,7 +298,7 @@ export const createTransaction = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Kho đi và kho đến là bắt buộc' });
     }
 
-    const userId = (req as any).user?.userId || 'system'; // Get from auth middleware
+    const userId = (req as any).user?.id || (req as any).user?.userId || 'system'; // Get from auth middleware
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create Transaction Record
@@ -332,15 +332,21 @@ export const createTransaction = async (req: Request, res: Response) => {
 
         // Handle BIO (Batch) - batch info is optional
         if (productTypeCode === 'BIO' && batch && batch.code && batch.code.trim()) {
+          const mfgDateParsed = batch.mfgDate && String(batch.mfgDate).trim() !== '' ? new Date(batch.mfgDate) : null;
+          const expDateParsed = batch.expDate && String(batch.expDate).trim() !== '' ? new Date(batch.expDate) : null;
+
           // Upsert Batch only if batch code is provided
           const batchRecord = await tx.batch.upsert({
             where: { code: batch.code.trim() },
-            update: {},
+            update: {
+              mfgDate: mfgDateParsed,
+              expDate: expDateParsed,
+            },
             create: {
               code: batch.code.trim(),
               productId,
-              mfgDate: batch.mfgDate ? new Date(batch.mfgDate) : null,
-              expDate: batch.expDate ? new Date(batch.expDate) : null,
+              mfgDate: mfgDateParsed,
+              expDate: expDateParsed,
             },
           });
           batchId = batchRecord.id;
@@ -359,32 +365,30 @@ export const createTransaction = async (req: Request, res: Response) => {
 
         // Update Stock & Serials
         if (type === 'IMPORT') {
-          // Increase Dest Stock
-          await tx.stock.upsert({
+          // Use findFirst instead of upsert to handle potential NULL in batchId unique constraint
+          const existingStock = await tx.stock.findFirst({
             where: {
-              warehouseId_productId_batchId: {
-                warehouseId: destWarehouseId,
-                productId,
-                batchId: batchId, // Prisma handles null batchId correctly for unique constraint if configured?
-                // Note: Standard SQL unique constraint with NULLs is tricky.
-                // However, Prisma schema defined: @@unique([warehouseId, productId, batchId])
-                // In Postgres, NULL != NULL, so multiple null batchIds allowed?
-                // Actually we should use a default empty string or handle TECH without batch logic carefully.
-                // For now assuming batchId is provided for BIO, and null for TECH.
-                // If unique constraint fails for multiple NULLs, we might need a dummy batch or different logic.
-                // Let's assume unique constraint works for now or handled by application logic.
-              } as any
-            },
-            create: {
               warehouseId: destWarehouseId,
               productId,
-              batchId,
-              quantity: Number(quantity),
-            },
-            update: {
-              quantity: { increment: Number(quantity) },
-            },
+              batchId: batchId || null
+            }
           });
+
+          if (existingStock) {
+            await tx.stock.update({
+              where: { id: existingStock.id },
+              data: { quantity: { increment: Number(quantity) } }
+            });
+          } else {
+            await tx.stock.create({
+              data: {
+                warehouseId: destWarehouseId,
+                productId,
+                batchId,
+                quantity: Number(quantity),
+              },
+            });
+          }
 
           // Handle TECH Serials (Create new serials)
           if (productTypeCode === 'TECH' && serials && Array.isArray(serials)) {
@@ -401,14 +405,12 @@ export const createTransaction = async (req: Request, res: Response) => {
           }
         } else if (type === 'EXPORT') {
           // Decrease Source Stock
-          const stock = await tx.stock.findUnique({
+          const stock = await tx.stock.findFirst({
             where: {
-              warehouseId_productId_batchId: {
-                warehouseId: sourceWarehouseId,
-                productId,
-                batchId: batchId as any,
-              },
-            },
+              warehouseId: sourceWarehouseId,
+              productId,
+              batchId: batchId || null
+            }
           });
 
           if (!stock || stock.quantity < quantity) {
