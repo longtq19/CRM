@@ -13,19 +13,7 @@ import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { CustomerTagBadges, CustomerTagsQuickCell, type TagBadgeModel } from '../components/CustomerTags';
 import { formatDate } from '../utils/format';
 import { CROP_DEFS } from '../constants/cropConfigs';
-
-const PROCESSING_STATUS_OPTIONS: { code: string; label: string }[] = [
-  { code: 'WRONG_NUMBER', label: 'Sai số' },
-  { code: 'INVALID_NUMBER_TYPE', label: 'Số loại / không hợp lệ' },
-  { code: 'NO_ANSWER', label: 'Không nghe máy' },
-  { code: 'NO_NEED', label: 'Không có nhu cầu' },
-  { code: 'BROWSING', label: 'Khách tham khảo' },
-  { code: 'TRASH_LEAD', label: 'Sổ thả / lead rác' },
-  { code: 'RELEASED', label: 'Trả số / nhả lead' },
-  { code: 'FOLLOW_UP_LATER', label: 'Hẹn gọi lại' },
-  { code: 'COMPETITOR', label: 'Đang dùng đối thủ' },
-  { code: 'PRICE_OBJECTION', label: 'Chê giá' },
-];
+import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 
 interface DataPoolItem {
   id: string;
@@ -59,6 +47,8 @@ interface Employee { id: string; code: string; fullName: string; employeeType?: 
 
 const DataPool = () => {
   const { hasPermission, user } = useAuthStore();
+  const { options: processingStatusOptions, loading: processingStatusCatalogLoading, statusLabel } =
+    useLeadProcessingStatuses();
   const isTechAdmin = isTechnicalAdminRole(user?.roleGroup?.code);
   const listScope = 'floating';
   const roleCode = (user?.roleGroup?.code || '').toLowerCase();
@@ -310,11 +300,6 @@ const DataPool = () => {
       )
     : employeeOptions;
 
-  const statusLabel = (code: string | null) => {
-    if (!code) return '—';
-    return PROCESSING_STATUS_OPTIONS.find(o => o.code === code)?.label || code;
-  };
-
   const showRowCheckboxes =
     (listScope === 'floating' && canDistributeFloating) ||
     (listScope === 'managed' && canRecallManagedUnit);
@@ -392,10 +377,11 @@ const DataPool = () => {
           <select
             className="border rounded-lg px-3 py-2 text-sm"
             value={processingStatusFilter}
+            disabled={processingStatusCatalogLoading}
             onChange={e => { setProcessingStatusFilter(e.target.value); setPage(1); }}
           >
             <option value="all">Tất cả trạng thái xử lý</option>
-            {PROCESSING_STATUS_OPTIONS.map(o => (
+            {processingStatusOptions.map(o => (
               <option key={o.code} value={o.code}>{o.label}</option>
             ))}
           </select>

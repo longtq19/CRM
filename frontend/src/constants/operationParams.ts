@@ -1,5 +1,8 @@
 /** Đồng bộ mã với backend `operationParams.ts` — nhãn hiển thị FE. */
+export const DEFAULT_LEAD_PROCESSING_STATUS_CODE = 'NEW';
+
 export const POOL_PUSH_STATUS_DEFINITIONS: { code: string; label: string }[] = [
+  { code: 'NEW', label: 'Mới' },
   { code: 'WRONG_NUMBER', label: 'Sai số' },
   { code: 'INVALID_NUMBER_TYPE', label: 'Số loại / số không hợp lệ' },
   { code: 'NO_ANSWER', label: 'Không nghe máy' },

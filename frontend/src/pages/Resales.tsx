@@ -39,6 +39,7 @@ import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { CROP_DEFS } from '../constants/cropConfigs';
 import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants/rbac';
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
+import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -46,20 +47,6 @@ const PRIORITY_OPTIONS = [
   { value: '3', label: 'Trung bình' },
   { value: '4', label: 'Cao' },
   { value: '5', label: 'Rất cao' },
-];
-
-const PROCESSING_STATUS_OPTIONS = [
-  { code: 'WRONG_NUMBER', label: 'Sai số' },
-  { code: 'INVALID_NUMBER_TYPE', label: 'Số loại / không hợp lệ' },
-  { code: 'NO_ANSWER', label: 'Không nghe máy' },
-  { code: 'NO_NEED', label: 'Không có nhu cầu' },
-  { code: 'BROWSING', label: 'Khách tham khảo' },
-  { code: 'TRASH_LEAD', label: 'Sổ thả / lead rác' },
-  { code: 'DEAL_CLOSED', label: 'Chốt đơn' },
-  { code: 'RELEASED', label: 'Trả số / nhả lead' },
-  { code: 'FOLLOW_UP_LATER', label: 'Hẹn gọi lại' },
-  { code: 'COMPETITOR', label: 'Đang dùng đối thủ' },
-  { code: 'PRICE_OBJECTION', label: 'Chê giá' },
 ];
 
 const TYPE_TRANSLATIONS: Record<string, string> = {
@@ -199,6 +186,8 @@ const Resales = () => {
 
   const [moduleView, setModuleView] = useState<'work' | 'effectiveness'>('work');
   const canViewEffectiveness = hasModuleEffectivenessAccess(hasPermission, 'cskh', user?.roleGroup?.code);
+
+  const { options: processingStatusOptions, statusLabel } = useLeadProcessingStatuses();
 
   const [activeTab, setActiveTab] = useState<TabType>('customers');
   const [stats, setStats] = useState<ResalesStats | null>(null);
@@ -476,9 +465,6 @@ const Resales = () => {
         e.code.toLowerCase().includes(cskhDistEmpSearch.toLowerCase())
       )
     : cskhDistEmpOptions;
-
-  const statusLabel = (code: string | null | undefined) =>
-    PROCESSING_STATUS_OPTIONS.find((o) => o.code === code)?.label || code || '—';
 
   const saveCskhLeadPriority = async (dataPoolId: string, value: string) => {
     const priority = parseInt(value, 10);
@@ -1480,7 +1466,7 @@ const Resales = () => {
         }}
         customerId={impactCustomerId}
         apiPrefix="resales"
-        processingStatusOptions={PROCESSING_STATUS_OPTIONS}
+        processingStatusOptions={processingStatusOptions}
         canAdd={canManage}
         onSaved={() => {
           loadCustomers();

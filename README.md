@@ -260,6 +260,8 @@ JSON gồm: `marketingToSalesPct` (MKT → từng đơn vị lá Sales **trực 
 
 Chỉ danh mục `operations_params` hiển thị trên tab này (và mục tương ứng trong Cài đặt). Các key cũ Marketing/Telesales/Resales dư thừa được gán category `deprecated_internal` khi seed lại (`seedDefaultConfigs`). Phân bổ kho số (`auto_assign_lead`, `lead_assign_method`) vẫn là `lead_distribution`, chỉnh qua quyền `DATA_POOL_CONFIG` / API — **không** nằm trên tab Tham số vận hành.
 
+**Danh mục trạng thái xử lý lead (Vận hành → quản lý `lead_processing_statuses`):** Mã và nhãn chuẩn nằm trong `backend/src/constants/operationParams.ts` (`POOL_PUSH_STATUS_DEFINITIONS`). Khi backend khởi động, `ensureLeadProcessingStatuses` upsert bảng `lead_processing_statuses` (thứ tự `sortOrder`) và gán `data_pool.processing_status = NEW` («Mới») cho các bản ghi kho còn trống trạng thái. Số/lead **mới** vào kho (`data_pool` tạo từ Marketing, import, public API, Sales thêm khách, v.v.) mặc định `processing_status = NEW`. Giao diện Sales / Kho số thả nổi / CSKH lấy danh sách dropdown từ `GET /api/processing-statuses/active` (đồng bộ với tab cấu hình Vận hành). Trạng thái `NEW` **không** nằm trong `DEFAULT_POOL_PUSH_PROCESSING_STATUSES` (không đẩy kho thả nổi theo mặc định).
+
 Các key (chỉnh khi có quyền `CONFIG_OPERATIONS` hoặc `EDIT_SETTINGS`, hoặc tài khoản quản trị hệ thống):
 
 - `min_note_characters` (INTEGER, mặc định `10`): tối thiểu ký tự ghi chú lịch sử tác động (Sales/CSKH). **Ngoại lệ:** khi trạng thái xử lý được chọn thuộc `pool_push_processing_statuses`, backend **không** áp tối thiểu (`salesController` / `resalesController`); FE modal `CustomerImpactHistoryModal` đồng bộ (dùng danh sách mã từ cấu hình hoặc mặc định giống backend khi chưa có bản ghi).

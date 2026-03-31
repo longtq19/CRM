@@ -13,6 +13,7 @@ import {
 } from '../services/leadDuplicateService';
 import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoAssignService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
+import { DEFAULT_LEAD_PROCESSING_STATUS_CODE } from '../constants/operationParams';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
 import {
@@ -568,7 +569,8 @@ export const receivePublicLead = async (req: Request, res: Response) => {
         status: 'AVAILABLE',
         priority: 1,
         poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-        note: `Từ chiến dịch: ${campaign.name}`
+        note: `Từ chiến dịch: ${campaign.name}`,
+        processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
       }
     });
 

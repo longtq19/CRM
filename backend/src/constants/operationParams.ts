@@ -2,7 +2,11 @@
  * Trạng thái xử lý số (Sales) — mã lưu DB / API.
  * Danh sách đẩy kho thả nổi do cấu hình `pool_push_processing_statuses` chọn subset.
  */
+/** Mặc định khi số/lead mới vào kho (`data_pool.processing_status`). */
+export const DEFAULT_LEAD_PROCESSING_STATUS_CODE = 'NEW';
+
 export const POOL_PUSH_STATUS_DEFINITIONS: { code: string; label: string }[] = [
+  { code: 'NEW', label: 'Mới' },
   { code: 'WRONG_NUMBER', label: 'Sai số' },
   { code: 'INVALID_NUMBER_TYPE', label: 'Số loại / số không hợp lệ' },
   { code: 'NO_ANSWER', label: 'Không nghe máy' },

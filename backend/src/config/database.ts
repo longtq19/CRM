@@ -20,6 +20,8 @@ export const connectDB = async () => {
     await seedDefaultConfigs();
     const { ensureDefaultCustomerTags } = await import('../utils/ensureDefaultCustomerTags');
     await ensureDefaultCustomerTags();
+    const { ensureLeadProcessingStatuses } = await import('../utils/ensureLeadProcessingStatuses');
+    await ensureLeadProcessingStatuses();
     const { ensureAddressCatalog } = await import('../controllers/viettelPostController');
     await ensureAddressCatalog();
   } catch (error) {

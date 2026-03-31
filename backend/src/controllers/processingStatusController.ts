@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
-import { POOL_PUSH_STATUS_DEFINITIONS, DEFAULT_POOL_PUSH_PROCESSING_STATUSES } from '../constants/operationParams';
+import { ensureLeadProcessingStatuses } from '../utils/ensureLeadProcessingStatuses';
 
 /**
  * Lấy danh sách trạng thái xử lý
@@ -118,24 +118,10 @@ export const deleteProcessingStatus = async (req: Request, res: Response) => {
  */
 export const seedProcessingStatuses = async (req: Request, res: Response) => {
   try {
-    const results = [];
-    for (const def of POOL_PUSH_STATUS_DEFINITIONS) {
-      const isPushToPool = DEFAULT_POOL_PUSH_PROCESSING_STATUSES.includes(def.code);
-      const status = await prisma.leadProcessingStatus.upsert({
-        where: { code: def.code },
-        update: {
-          name: def.label,
-          isPushToPool,
-        },
-        create: {
-          code: def.code,
-          name: def.label,
-          isPushToPool,
-          color: '#9CA3AF',
-        },
-      });
-      results.push(status);
-    }
+    await ensureLeadProcessingStatuses();
+    const results = await prisma.leadProcessingStatus.findMany({
+      orderBy: { sortOrder: 'asc' },
+    });
     res.json({ message: 'Seed success', data: results });
   } catch (error) {
     console.error('Error seeding processing statuses:', error);

@@ -20,20 +20,7 @@ import { formatDate, formatCurrency } from '../utils/format';
 import { CROP_DEFS } from '../constants/cropConfigs';
 import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants/rbac';
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
-
-const PROCESSING_STATUS_OPTIONS = [
-  { code: 'WRONG_NUMBER', label: 'Sai số' },
-  { code: 'INVALID_NUMBER_TYPE', label: 'Số loại / không hợp lệ' },
-  { code: 'NO_ANSWER', label: 'Không nghe máy' },
-  { code: 'NO_NEED', label: 'Không có nhu cầu' },
-  { code: 'BROWSING', label: 'Khách tham khảo' },
-  { code: 'TRASH_LEAD', label: 'Sổ thả / lead rác' },
-  { code: 'DEAL_CLOSED', label: 'Chốt đơn' },
-  { code: 'RELEASED', label: 'Trả số / nhả lead' },
-  { code: 'FOLLOW_UP_LATER', label: 'Hẹn gọi lại' },
-  { code: 'COMPETITOR', label: 'Đang dùng đối thủ' },
-  { code: 'PRICE_OBJECTION', label: 'Chê giá' },
-];
+import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -134,6 +121,9 @@ const Sales = () => {
 
   const [moduleView, setModuleView] = useState<'work' | 'effectiveness'>('work');
   const canViewEffectiveness = hasModuleEffectivenessAccess(hasPermission, 'sales', currentUser?.roleGroup?.code);
+
+  const { options: processingStatusOptions, loading: processingStatusCatalogLoading, statusLabel } =
+    useLeadProcessingStatuses();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
@@ -462,9 +452,6 @@ const Sales = () => {
     setSavingPhone2(false);
   };
 
-  const statusLabel = (code: string | null) =>
-    PROCESSING_STATUS_OPTIONS.find(o => o.code === code)?.label || code || '—';
-
   return (
     <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
       {/* Header */}
@@ -711,10 +698,14 @@ const Sales = () => {
             <option value="">Tất cả thẻ</option>
             {tagOptions.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-          <select className="border rounded-lg px-3 py-2 text-sm" value={processingStatusFilter}
-            onChange={e => { setProcessingStatusFilter(e.target.value); setPage(1); }}>
+          <select
+            className="border rounded-lg px-3 py-2 text-sm"
+            value={processingStatusFilter}
+            disabled={processingStatusCatalogLoading}
+            onChange={e => { setProcessingStatusFilter(e.target.value); setPage(1); }}
+          >
             <option value="all">Tất cả trạng thái</option>
-            {PROCESSING_STATUS_OPTIONS.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
+            {processingStatusOptions.map(o => <option key={o.code} value={o.code}>{o.label}</option>)}
           </select>
           <select className="border rounded-lg px-3 py-2 text-sm" value={priorityFilter}
             onChange={e => { setPriorityFilter(e.target.value); setPage(1); }}>
@@ -866,7 +857,7 @@ const Sales = () => {
                         {!lead.processingStatus && (
                           <option value="">— Chọn trạng thái —</option>
                         )}
-                        {PROCESSING_STATUS_OPTIONS.map((o) => (
+                        {processingStatusOptions.map((o) => (
                           <option key={o.code} value={o.code}>
                             {o.label}
                           </option>
@@ -963,7 +954,7 @@ const Sales = () => {
         }}
         customerId={impactCustomerId}
         apiPrefix="sales"
-        processingStatusOptions={PROCESSING_STATUS_OPTIONS}
+        processingStatusOptions={processingStatusOptions}
         canAdd={canManage}
         onSaved={() => {
           loadLeads();

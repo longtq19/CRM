@@ -38,6 +38,7 @@ import {
 } from '../constants/customerExcelColumns';
 import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoAssignService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
+import { DEFAULT_LEAD_PROCESSING_STATUS_CODE } from '../constants/operationParams';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import {
   isPastCampaignEndDateInclusiveVietnam,
@@ -1455,7 +1456,8 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
             status: 'AVAILABLE',
             priority: 1,
             poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-            note: `Import Excel bởi ${actor.fullName || actor.id}`
+            note: `Import Excel bởi ${actor.fullName || actor.id}`,
+            processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
           }
         }).catch(() => null);
 
@@ -1666,7 +1668,8 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         status: 'AVAILABLE',
         priority: 1,
         poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-        note: `Tạo thủ công bởi ${actor?.fullName || actor?.id || 'Marketing'}`
+        note: `Tạo thủ công bởi ${actor?.fullName || actor?.id || 'Marketing'}`,
+        processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
       }
     }).catch(() => null);
 
@@ -2113,6 +2116,7 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
         priority: 1,
         poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
         note: 'Chuyển thủ công từ Marketing',
+        processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
       })),
       skipDuplicates: true,
     });

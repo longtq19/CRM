@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
 import { getPaginationParams } from '../utils/pagination';
-import { parsePoolPushStatusesJson, POOL_PUSH_STATUS_DEFINITIONS } from '../constants/operationParams';
+import {
+  parsePoolPushStatusesJson,
+  POOL_PUSH_STATUS_DEFINITIONS,
+  DEFAULT_LEAD_PROCESSING_STATUS_CODE,
+} from '../constants/operationParams';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { assignLeadsUsingTeamRatios } from '../services/teamRatioDistributionService';
@@ -653,6 +657,7 @@ export const addToDataPool = async (req: Request, res: Response) => {
         priority,
         status: 'AVAILABLE',
         poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
+        processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
       }))
     });
 
@@ -1192,7 +1197,12 @@ export const updateProcessingStatus = async (req: Request, res: Response) => {
       return res.json({ message: 'Chuyển sang Sales vòng tiếp theo' });
     }
 
-    res.status(400).json({ message: 'Trạng thái không hợp lệ' });
+    /** Trạng thái chỉ cập nhật mã (vd. NEW) — không đổi phân công / kho. */
+    await prisma.dataPool.update({
+      where: { id: dataPoolId },
+      data: { processingStatus },
+    });
+    return res.json({ message: 'Đã cập nhật trạng thái xử lý' });
   } catch (error) {
     console.error('Update processing status error:', error);
     res.status(500).json({ message: 'Lỗi khi cập nhật trạng thái xử lý' });

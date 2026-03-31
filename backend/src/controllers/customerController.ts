@@ -5,6 +5,7 @@ import { prisma } from '../config/database';
 import { getSubordinateIds, getVisibleEmployeeIds, describeCustomerListScopeVi } from '../utils/viewScopeHelper';
 import { isTechnicalAdminRoleCode, userHasCatalogPermission } from '../constants/rbac';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
+import { DEFAULT_LEAD_PROCESSING_STATUS_CODE } from '../constants/operationParams';
 import {
   CUSTOMER_EXCEL_COLUMNS,
   CUSTOMER_IMPORT_TEMPLATE_FILENAME,
@@ -680,7 +681,8 @@ export const createCustomer = async (req: Request, res: Response) => {
             assignedAt: new Date(),
             status: 'ASSIGNED',
             poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-            priority: 0
+            priority: 0,
+            processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE,
           }
         });
       } catch (dpErr: any) {
