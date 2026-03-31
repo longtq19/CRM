@@ -212,6 +212,7 @@ export async function syncDefaultMenus(): Promise<void> {
     await ensureAiMenuForRolesThatHaveChat();
     await ensureTechnicalAdminsHaveAllMenus();
     await ensureDefaultPermissionsCatalog();
+    await migrateMarketingPlatformPermissionsFromManage();
     await migrateMarketingCampaignPermissionsFromLegacyCatalog();
     await ensureViewMarketingCampaignsForManageCustomersRoles();
     await ensureCampaignWritePermissionsForMarketingRoles();
@@ -250,7 +251,9 @@ async function ensureCrmAdministratorDefaultPermissions(): Promise<void> {
     'VIEW_ALL_COMPANY_CUSTOMERS',
     'MANAGE_CUSTOMERS',
     'VIEW_MARKETING_PLATFORMS',
-    'MANAGE_MARKETING_PLATFORMS',
+    'CREATE_MARKETING_PLATFORM',
+    'UPDATE_MARKETING_PLATFORM',
+    'DELETE_MARKETING_PLATFORM',
     'DELETE_CUSTOMER',
     'MANAGE_MARKETING_GROUPS',
     'VIEW_MARKETING_CAMPAIGNS',
@@ -302,6 +305,51 @@ async function ensureDefaultPermissionsCatalog(): Promise<void> {
 }
 
 /** Đồng bộ từ quyền legacy MANAGE_MARKETING_CATALOG (seed cũ) sang bộ R/C/U/D chiến dịch trước khi xóa orphan. */
+/** Đồng bộ từ quyền gộp MANAGE_MARKETING_PLATFORMS sang CREATE/UPDATE/DELETE/VIEW rồi gỡ legacy (cleanup orphan xóa mã cũ). */
+async function migrateMarketingPlatformPermissionsFromManage(): Promise<void> {
+  try {
+    const legacy = await prisma.permission.findUnique({
+      where: { code: 'MANAGE_MARKETING_PLATFORMS' },
+      select: { id: true },
+    });
+    if (!legacy) return;
+
+    const newCodes = [
+      'CREATE_MARKETING_PLATFORM',
+      'UPDATE_MARKETING_PLATFORM',
+      'DELETE_MARKETING_PLATFORM',
+      'VIEW_MARKETING_PLATFORMS',
+    ];
+    const perms = await prisma.permission.findMany({
+      where: { code: { in: newCodes } },
+      select: { id: true, code: true },
+    });
+    if (perms.length === 0) return;
+
+    const groups = await prisma.roleGroup.findMany({
+      where: { permissions: { some: { code: 'MANAGE_MARKETING_PLATFORMS' } } },
+      include: { permissions: { select: { code: true } } },
+    });
+
+    for (const g of groups) {
+      const has = new Set((g.permissions || []).map((p) => p.code));
+      const toConnect = perms.filter((p) => p.code && !has.has(p.code)).map((p) => ({ id: p.id }));
+      if (toConnect.length > 0) {
+        await prisma.roleGroup.update({
+          where: { id: g.id },
+          data: { permissions: { connect: toConnect } },
+        });
+      }
+      await prisma.roleGroup.update({
+        where: { id: g.id },
+        data: { permissions: { disconnect: { id: legacy.id } } },
+      });
+    }
+  } catch (e) {
+    console.error('migrateMarketingPlatformPermissionsFromManage error:', e);
+  }
+}
+
 async function migrateMarketingCampaignPermissionsFromLegacyCatalog(): Promise<void> {
   try {
     const legacy = await prisma.permission.findUnique({
@@ -368,7 +416,7 @@ async function ensureViewMarketingCampaignsForManageCustomersRoles(): Promise<vo
   }
 }
 
-/** Nhóm có MANAGE_CUSTOMERS + MANAGE_MARKETING_PLATFORMS (Marketing vận hành nền tảng) nhận thêm CREATE/UPDATE chiến dịch nếu chưa có. */
+/** Nhóm có MANAGE_CUSTOMERS + ít nhất một quyền ghi nền tảng (tạo/sửa/xóa) nhận thêm CREATE/UPDATE chiến dịch nếu chưa có. */
 async function ensureCampaignWritePermissionsForMarketingRoles(): Promise<void> {
   try {
     const codes = ['CREATE_MARKETING_CAMPAIGN', 'UPDATE_MARKETING_CAMPAIGN'];
@@ -378,11 +426,20 @@ async function ensureCampaignWritePermissionsForMarketingRoles(): Promise<void> 
     });
     if (perms.length === 0) return;
 
+    const platformWriteCodes = [
+      'CREATE_MARKETING_PLATFORM',
+      'UPDATE_MARKETING_PLATFORM',
+      'DELETE_MARKETING_PLATFORM',
+    ];
     const groups = await prisma.roleGroup.findMany({
       where: {
         AND: [
           { permissions: { some: { code: 'MANAGE_CUSTOMERS' } } },
-          { permissions: { some: { code: 'MANAGE_MARKETING_PLATFORMS' } } },
+          {
+            permissions: {
+              some: { code: { in: platformWriteCodes } },
+            },
+          },
         ],
       },
       include: { permissions: { select: { code: true } } },

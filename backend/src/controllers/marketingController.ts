@@ -173,8 +173,8 @@ function generateSourceCode(): string {
 export const createMarketingSource = async (req: Request, res: Response) => {
   try {
     const actor = (req as any).user;
-    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS')) {
-      return res.status(403).json({ message: 'Bạn không có quyền quản lý nền tảng marketing' });
+    if (!userHasCatalogPermission(actor, 'CREATE_MARKETING_PLATFORM')) {
+      return res.status(403).json({ message: 'Bạn không có quyền tạo nền tảng marketing' });
     }
 
     const { code, name, description, isActive } = req.body;
@@ -228,7 +228,7 @@ export const updateMarketingSource = async (req: Request, res: Response) => {
     const { code, name, description, isActive } = req.body;
     const actor = (req as any).user;
 
-    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS')) {
+    if (!userHasCatalogPermission(actor, 'UPDATE_MARKETING_PLATFORM')) {
       return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa nền tảng marketing' });
     }
 
@@ -311,8 +311,7 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const actor = (req as any).user;
 
-    const hasPermission = userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS');
-    if (!hasPermission) {
+    if (!userHasCatalogPermission(actor, 'DELETE_MARKETING_PLATFORM')) {
       return res.status(403).json({ message: 'Bạn không có quyền xóa nền tảng marketing' });
     }
 

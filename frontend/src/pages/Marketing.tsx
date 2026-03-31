@@ -229,11 +229,15 @@ const Marketing = () => {
     hasPermission('MANAGE_MARKETING_GROUPS') ||
     hasPermission('MANAGE_SALES') ||
     hasPermission('MANAGE_RESALES');
-  /** Tab & UI danh mục Nền tảng — cần quyền catalog (gán trong Nhóm quyền). */
+  /** Tab & UI danh mục Nền tảng — xem hoặc bất kỳ quyền CRUD nền tảng. */
   const canViewMarketingPlatforms =
-    hasPermission('VIEW_MARKETING_PLATFORMS') || hasPermission('MANAGE_MARKETING_PLATFORMS');
-  /** CRUD nền tảng — chỉ MANAGE_MARKETING_PLATFORMS (không dùng MANAGE_CUSTOMERS). */
-  const canManageMarketingPlatforms = hasPermission('MANAGE_MARKETING_PLATFORMS');
+    hasPermission('VIEW_MARKETING_PLATFORMS') ||
+    hasPermission('CREATE_MARKETING_PLATFORM') ||
+    hasPermission('UPDATE_MARKETING_PLATFORM') ||
+    hasPermission('DELETE_MARKETING_PLATFORM');
+  const canCreateMarketingPlatform = hasPermission('CREATE_MARKETING_PLATFORM');
+  const canUpdateMarketingPlatform = hasPermission('UPDATE_MARKETING_PLATFORM');
+  const canDeleteMarketingPlatform = hasPermission('DELETE_MARKETING_PLATFORM');
   /** Tải danh sách nền tảng cho dropdown lead/import khi có quyền Marketing khác. */
   const shouldLoadMarketingSources =
     canViewMarketingPlatforms || hasPermission('MANAGE_CUSTOMERS');
@@ -626,6 +630,7 @@ const Marketing = () => {
   };
 
   const handleDeleteSource = async (source: MarketingSource) => {
+    if (!canDeleteMarketingPlatform) return;
     const campaignCount = (source as any)._count?.campaigns ?? 0;
     if (campaignCount > 0) {
       alert('Không thể xóa nền tảng đang được sử dụng bởi chiến dịch');
@@ -662,7 +667,15 @@ const Marketing = () => {
     }
   };
   const handleOpenSourceModal = (source?: MarketingSource) => {
-    if (!canManageMarketingPlatforms) return;
+    if (source) {
+      if (!canUpdateMarketingPlatform) {
+        alert('Bạn không có quyền sửa nền tảng.');
+        return;
+      }
+    } else if (!canCreateMarketingPlatform) {
+      alert('Bạn không có quyền tạo nền tảng.');
+      return;
+    }
     if (source) {
       setEditingSource(source);
       setSourceForm({
@@ -704,8 +717,10 @@ const Marketing = () => {
       } as any;
       if (sourceForm.code.trim()) payload.code = sourceForm.code.trim();
       if (editingSource) {
+        if (!canUpdateMarketingPlatform) return;
         await apiClient.put(`/marketing/sources/${editingSource.id}`, { ...payload, code: sourceForm.code.trim() || undefined });
       } else {
+        if (!canCreateMarketingPlatform) return;
         await apiClient.post('/marketing/sources', payload);
       }
       setSourceModalOpen(false);
@@ -1568,7 +1583,7 @@ const Marketing = () => {
             )}
             Làm mới
           </button>
-          {canManageMarketingPlatforms && (
+          {canCreateMarketingPlatform && (
           <button
             onClick={() => handleOpenSourceModal()}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90"
@@ -1617,8 +1632,7 @@ const Marketing = () => {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <span className="inline-flex items-center gap-1">
-                    {canManageMarketingPlatforms ? (
-                      <>
+                    {canUpdateMarketingPlatform ? (
                     <button
                       onClick={() => handleOpenSourceModal(source)}
                       disabled={((source as any)._count?.campaigns ?? 0) > 0}
@@ -1628,6 +1642,8 @@ const Marketing = () => {
                       <Edit size={14} />
                       Sửa
                     </button>
+                    ) : null}
+                    {canDeleteMarketingPlatform ? (
                     <button
                       onClick={() => handleDeleteSource(source)}
                       disabled={((source as any)._count?.campaigns ?? 0) > 0}
@@ -1637,10 +1653,10 @@ const Marketing = () => {
                       <Trash2 size={14} />
                       Xóa
                     </button>
-                      </>
-                    ) : (
+                    ) : null}
+                    {!canUpdateMarketingPlatform && !canDeleteMarketingPlatform ? (
                       <span className="text-xs text-gray-400">Chỉ xem</span>
-                    )}
+                    ) : null}
                   </span>
                 </td>
               </tr>

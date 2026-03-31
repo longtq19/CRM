@@ -31,29 +31,35 @@ import {
 
 const router = Router();
 
-// Sources — nền tảng (marketing_sources): GET cho dropdown lead/chiến dịch (MANAGE_CUSTOMERS); CRUD chỉ MANAGE_MARKETING_PLATFORMS
+// Sources — nền tảng (marketing_sources): GET — VIEW hoặc một trong CRUD hoặc MANAGE_CUSTOMERS (dropdown); POST/PUT/DELETE — từng quyền
 router.get(
   '/marketing/sources',
   authMiddleware,
-  checkPermission(['VIEW_MARKETING_PLATFORMS', 'MANAGE_MARKETING_PLATFORMS', 'MANAGE_CUSTOMERS']),
+  checkPermission([
+    'VIEW_MARKETING_PLATFORMS',
+    'CREATE_MARKETING_PLATFORM',
+    'UPDATE_MARKETING_PLATFORM',
+    'DELETE_MARKETING_PLATFORM',
+    'MANAGE_CUSTOMERS',
+  ]),
   getMarketingSources
 );
 router.post(
   '/marketing/sources',
   authMiddleware,
-  checkPermission('MANAGE_MARKETING_PLATFORMS'),
+  checkPermission('CREATE_MARKETING_PLATFORM'),
   createMarketingSource
 );
 router.put(
   '/marketing/sources/:id',
   authMiddleware,
-  checkPermission('MANAGE_MARKETING_PLATFORMS'),
+  checkPermission('UPDATE_MARKETING_PLATFORM'),
   updateMarketingSource
 );
 router.delete(
   '/marketing/sources/:id',
   authMiddleware,
-  checkPermission('MANAGE_MARKETING_PLATFORMS'),
+  checkPermission('DELETE_MARKETING_PLATFORM'),
   deleteMarketingSource
 );
 

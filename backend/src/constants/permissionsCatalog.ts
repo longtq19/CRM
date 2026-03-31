@@ -207,17 +207,27 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'MANAGE_CUSTOMERS',
     name: 'Quản lý khách hàng & Marketing',
     description:
-      'Sửa khách, lead Marketing, chi phí chiến dịch (khi đủ quyền chiến dịch), tag khách; xem nền tảng cho dropdown cần VIEW/MANAGE_MARKETING_PLATFORMS; CRUD chiến dịch dùng VIEW/CREATE/UPDATE/DELETE_MARKETING_CAMPAIGN; không gồm xóa khách (DELETE_CUSTOMER).',
+      'Sửa khách, lead Marketing, chi phí chiến dịch (khi đủ quyền chiến dịch), tag khách; xem nền tảng cho dropdown cần VIEW_MARKETING_PLATFORMS hoặc quyền tạo/sửa/xóa nền tảng; CRUD chiến dịch dùng VIEW/CREATE/UPDATE/DELETE_MARKETING_CAMPAIGN; không gồm xóa khách (DELETE_CUSTOMER).',
   },
   {
     code: 'VIEW_MARKETING_PLATFORMS',
     name: 'Xem danh mục nền tảng (Marketing)',
-    description: 'Xem danh sách nền tảng quảng cáo (marketing_sources) qua API; không bao gồm tạo/sửa/xóa.',
+    description: 'Xem danh sách nền tảng quảng cáo (GET marketing_sources); không bao gồm tạo/sửa/xóa.',
   },
   {
-    code: 'MANAGE_MARKETING_PLATFORMS',
-    name: 'Quản lý nền tảng (Marketing)',
-    description: 'Tạo, sửa, xóa danh mục nền tảng quảng cáo (CRUD marketing_sources).',
+    code: 'CREATE_MARKETING_PLATFORM',
+    name: 'Tạo nền tảng marketing',
+    description: 'POST tạo nền tảng (marketing_sources).',
+  },
+  {
+    code: 'UPDATE_MARKETING_PLATFORM',
+    name: 'Sửa nền tảng marketing',
+    description: 'PUT cập nhật nền tảng (marketing_sources).',
+  },
+  {
+    code: 'DELETE_MARKETING_PLATFORM',
+    name: 'Xóa nền tảng marketing',
+    description: 'DELETE nền tảng khi đủ điều kiện nghiệp vụ (marketing_sources).',
   },
   {
     code: 'DELETE_CUSTOMER',
