@@ -503,7 +503,7 @@ Luồng:
        - trả `success=true` + `duplicate=true` + `customerId`
    - Nếu không trùng:
      - tạo customer (marketingOwnerId = owner chiến dịch; `employeeId` ban đầu `null`); ghi tên / địa chỉ dòng chữ / ghi chú theo `acceptedFields` (không upsert `customer_addresses` từ public lead).
-     - tạo `dataPool` nguồn `MARKETING`, `status=AVAILABLE` — **giống lead Marketing tạo thủ công**: nếu đơn vị (`departments`) của **người tạo chiến dịch** có `auto_distribute_lead = true` (mặc định true), hệ thống ưu tiên **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` (anchor = owner), rồi có thể gán ngay Sales (`dataPool` → `ASSIGNED`, `customer.employeeId` = NV Sales, `lead_distribution_history`). Nếu tắt auto phân hoặc không chọn được NV Sales, lead nằm **kho Sales chưa phân** (`SALES_OPEN`, `AVAILABLE`) để nhận / phân tay như các số Marketing khác.
+     - tạo `dataPool` nguồn `MARKETING`, `status=AVAILABLE` — **giống lead Marketing tạo thủ công** (`createMarketingLead`): nếu đơn vị (`departments`) của **người tạo chiến dịch** có `auto_distribute_lead = true` (mặc định true) và NV có `department_id`, hệ thống ưu tiên **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` (anchor = owner), rồi có thể gán ngay Sales (`dataPool` → `ASSIGNED`, `customer.employeeId` = NV Sales, `lead_distribution_history`). Nếu tắt auto phân, NV tạo chiến dịch chưa gán đơn vị, hoặc không chọn được NV Sales, lead nằm **kho Sales chưa phân** (`SALES_OPEN`, `AVAILABLE`) để nhận / phân tay như các số Marketing khác.
      - tăng `marketingCampaign.leadCount`
      - tạo notifications (database) + emit socket `new_lead` + gửi Web Push.
 

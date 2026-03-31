@@ -12,6 +12,7 @@ import {
   normalizePhone
 } from '../services/leadDuplicateService';
 import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
+import { assignLeadsUsingTeamRatios } from '../services/teamRatioDistributionService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
@@ -560,7 +561,7 @@ export const receivePublicLead = async (req: Request, res: Response) => {
       }
     }
 
-    // Kho số: giống createMarketingLead — mặc định AVAILABLE; nếu đơn vị của người tạo chiến dịch bật autoDistributeLead thì tự gán Sales (Lead của tôi).
+    // Kho số: đồng bộ với createMarketingLead — AVAILABLE; nếu đơn vị NV tạo chiến dịch bật autoDistributeLead: ưu tiên tỉ lệ team, fallback pickNextSalesEmployeeId.
     const dpEntry = await prisma.dataPool.create({
       data: {
         customerId: customer.id,
@@ -584,39 +585,43 @@ export const receivePublicLead = async (req: Request, res: Response) => {
           select: { autoDistributeLead: true }
         });
         if (dept?.autoDistributeLead) {
-          const pickId = await pickNextSalesEmployeeId({
-            seed: `${dpEntry.id}:${customer.id}`,
-            excludeIds: [],
-            anchorEmployeeId: ownerId
-          });
-          if (pickId) {
-            const salesKeepDaysCfg = await prisma.systemConfig
-              .findUnique({ where: { key: 'data_pool_auto_recall_days' } })
-              .catch(() => null);
-            const salesKeepDays = salesKeepDaysCfg ? parseInt(salesKeepDaysCfg.value, 10) : 3;
-            const maxRoundsCfg = await prisma.systemConfig
-              .findUnique({ where: { key: 'max_repartition_rounds' } })
-              .catch(() => null);
-            const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
-            await prisma.dataPool.update({
-              where: { id: dpEntry.id },
-              data: {
-                status: 'ASSIGNED',
-                poolType: 'SALES',
-                poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
-                assignedToId: pickId,
-                assignedAt: now,
-                deadline: new Date(now.getTime() + salesKeepDays * 24 * 60 * 60 * 1000),
-                maxRounds: Number.isFinite(maxRounds) ? maxRounds : 5
-              }
+          const ratioResult = await assignLeadsUsingTeamRatios([dpEntry.id]);
+          const assignedByRatio = ratioResult.ok && ratioResult.assigned > 0;
+          if (!assignedByRatio) {
+            const pickId = await pickNextSalesEmployeeId({
+              seed: `${dpEntry.id}:${customer.id}`,
+              excludeIds: [],
+              anchorEmployeeId: ownerId
             });
-            await prisma.customer.update({
-              where: { id: customer.id },
-              data: { employeeId: pickId }
-            });
-            await prisma.leadDistributionHistory.create({
-              data: { customerId: customer.id, employeeId: pickId, method: 'AUTO' }
-            });
+            if (pickId) {
+              const salesKeepDaysCfg = await prisma.systemConfig
+                .findUnique({ where: { key: 'data_pool_auto_recall_days' } })
+                .catch(() => null);
+              const salesKeepDays = salesKeepDaysCfg ? parseInt(salesKeepDaysCfg.value, 10) : 3;
+              const maxRoundsCfg = await prisma.systemConfig
+                .findUnique({ where: { key: 'max_repartition_rounds' } })
+                .catch(() => null);
+              const maxRounds = maxRoundsCfg ? parseInt(maxRoundsCfg.value, 10) : 5;
+              await prisma.dataPool.update({
+                where: { id: dpEntry.id },
+                data: {
+                  status: 'ASSIGNED',
+                  poolType: 'SALES',
+                  poolQueue: DATA_POOL_QUEUE.SALES_OPEN,
+                  assignedToId: pickId,
+                  assignedAt: now,
+                  deadline: new Date(now.getTime() + salesKeepDays * 24 * 60 * 60 * 1000),
+                  maxRounds: Number.isFinite(maxRounds) ? maxRounds : 5
+                }
+              });
+              await prisma.customer.update({
+                where: { id: customer.id },
+                data: { employeeId: pickId }
+              });
+              await prisma.leadDistributionHistory.create({
+                data: { customerId: customer.id, employeeId: pickId, method: 'AUTO' }
+              });
+            }
           }
         }
       }
