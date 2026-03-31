@@ -115,13 +115,15 @@ interface SalesOpenPoolItem {
 const Sales = () => {
   const { hasPermission, user: currentUser } = useAuthStore();
   const canManage = hasPermission('MANAGE_SALES');
-  const canClaimSalesOpen = hasPermission('CLAIM_LEAD');
   const isTechAdmin = isTechnicalAdminRole(currentUser?.roleGroup?.code);
   const canDistributeSalesOpen =
     isTechAdmin ||
     hasPermission('ASSIGN_LEAD') ||
     hasPermission('MANAGE_DATA_POOL') ||
     hasPermission('DISTRIBUTE_SALES_CROSS_ORG');
+  const canDistributeToUnit = isTechAdmin || hasPermission('DISTRIBUTE_TO_UNIT') || hasPermission('MANAGE_DATA_POOL');
+  const canDistributeToStaff = isTechAdmin || hasPermission('DISTRIBUTE_TO_STAFF') || hasPermission('MANAGE_DATA_POOL');
+  const canClaimSalesOpen = isTechAdmin || hasPermission('CLAIM_LEAD');
   const canCreateCustomer =
     hasPermission('MANAGE_CUSTOMERS') || hasPermission('MANAGE_SALES');
   const canManageCustomerTags =
@@ -305,10 +307,16 @@ const Sales = () => {
   const loadSalesDistributeOptions = useCallback(async () => {
     try {
       const [empRes, unitRes] = await Promise.all([
-        apiClient.get('/hr/employees?limit=500&status=WORKING'),
-        apiClient.get('/hr/departments?function=SALES,CSKH&leafOnly=true'),
+        apiClient.get('/hr/employees?limit=1000&status=WORKING'),
+        apiClient.get('/hr/departments?function=SALES&leafOnly=true'),
       ]);
-      setSalesDistEmpOptions(empRes.data || empRes || []);
+      const allEmps: any[] = empRes.data || empRes || [];
+      // Chỉ hiện nhân viên thuộc loại sales
+      const salesEmps = allEmps.filter(e => 
+        e.employeeType?.code === 'sales' || 
+        ['SALES', 'MARKETING'].includes(e.salesType || '')
+      );
+      setSalesDistEmpOptions(salesEmps);
       setSalesDistUnitOptions(unitRes.data || unitRes || []);
     } catch { /* ignore */ }
   }, []);
@@ -1071,55 +1079,67 @@ const Sales = () => {
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-700 mb-1 block">Phân cho</label>
               <div className="flex gap-2 mb-3">
-                <button
-                  type="button"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ${salesDistributeTargetType === 'EMPLOYEE' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
-                  onClick={() => { setSalesDistributeTargetType('EMPLOYEE'); setSalesDistributeTargetId(''); }}
-                >
-                  Nhân viên cụ thể
-                </button>
-                <button
-                  type="button"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ${salesDistributeTargetType === 'UNIT' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
-                  onClick={() => { setSalesDistributeTargetType('UNIT'); setSalesDistributeTargetId(''); }}
-                >
-                  Đơn vị chức năng
-                </button>
+                {canDistributeToStaff && (
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${salesDistributeTargetType === 'EMPLOYEE' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
+                    onClick={() => { setSalesDistributeTargetType('EMPLOYEE'); setSalesDistributeTargetId(''); }}
+                  >
+                    Nhân viên cụ thể
+                  </button>
+                )}
+                {canDistributeToUnit && (
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${salesDistributeTargetType === 'UNIT' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
+                    onClick={() => { setSalesDistributeTargetType('UNIT'); setSalesDistributeTargetId(''); }}
+                  >
+                    Đơn vị chức năng
+                  </button>
+                )}
               </div>
 
-              {salesDistributeTargetType === 'EMPLOYEE' ? (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Tìm nhân viên..."
-                    className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
-                    value={salesDistEmpSearch}
-                    onChange={e => setSalesDistEmpSearch(e.target.value)}
-                  />
-                  <div className="max-h-48 overflow-y-auto border rounded-lg">
-                    {filteredDistEmployees.slice(0, 50).map(emp => (
-                      <div
-                        key={emp.id}
-                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${salesDistributeTargetId === emp.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
-                        onClick={() => setSalesDistributeTargetId(emp.id)}
-                      >
-                        {emp.fullName} <span className="text-gray-400">({emp.code})</span>
+              {((salesDistributeTargetType === 'EMPLOYEE' && canDistributeToStaff) || (salesDistributeTargetType === 'UNIT' && canDistributeToUnit)) ? (
+                <>
+                  {salesDistributeTargetType === 'EMPLOYEE' ? (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Tìm nhân viên..."
+                        className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+                        value={salesDistEmpSearch}
+                        onChange={e => setSalesDistEmpSearch(e.target.value)}
+                      />
+                      <div className="max-h-48 overflow-y-auto border rounded-lg">
+                        {filteredDistEmployees.slice(0, 50).map(emp => (
+                          <div
+                            key={emp.id}
+                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${salesDistributeTargetId === emp.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
+                            onClick={() => setSalesDistributeTargetId(emp.id)}
+                          >
+                            {emp.fullName} <span className="text-gray-400">({emp.code})</span>
+                          </div>
+                        ))}
+                        {filteredDistEmployees.length === 0 && <div className="px-3 py-4 text-gray-400 text-center text-sm">Không tìm thấy</div>}
                       </div>
-                    ))}
-                    {filteredDistEmployees.length === 0 && <div className="px-3 py-4 text-gray-400 text-center text-sm">Không tìm thấy</div>}
-                  </div>
-                </div>
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      value={salesDistributeTargetId}
+                      onChange={e => setSalesDistributeTargetId(e.target.value)}
+                    >
+                      <option value="">-- Chọn đơn vị --</option>
+                      {salesDistUnitOptions.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.function || ''})</option>
+                      ))}
+                    </select>
+                  )}
+                </>
               ) : (
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={salesDistributeTargetId}
-                  onChange={e => setSalesDistributeTargetId(e.target.value)}
-                >
-                  <option value="">-- Chọn đơn vị --</option>
-                  {salesDistUnitOptions.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.function || ''})</option>
-                  ))}
-                </select>
+                <div className="p-4 bg-orange-50 text-orange-700 text-sm rounded-lg border border-orange-100 italic">
+                  Bạn không có quyền chia khách cho mục tiêu này.
+                </div>
               )}
             </div>
 

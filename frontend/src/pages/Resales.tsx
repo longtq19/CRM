@@ -188,8 +188,9 @@ const Resales = () => {
     hasPermission('DISTRIBUTE_SALES_CROSS_ORG');
   const canClaimCskh =
     isTechAdmin ||
-    hasPermission('CLAIM_FLOATING_POOL') ||
-    hasPermission('MANAGE_CSKH_POOL');
+    hasPermission('CLAIM_LEAD_CSKH');
+  const canDistributeToUnit = isTechAdmin || hasPermission('DISTRIBUTE_TO_UNIT') || hasPermission('MANAGE_DATA_POOL');
+  const canDistributeToStaff = isTechAdmin || hasPermission('DISTRIBUTE_TO_STAFF') || hasPermission('MANAGE_DATA_POOL');
   const canManageCustomerTags =
     hasPermission('MANAGE_CUSTOMERS') ||
     hasPermission('MANAGE_SALES') ||
@@ -418,10 +419,16 @@ const Resales = () => {
   const loadCskhDistOptions = useCallback(async () => {
     try {
       const [empRes, unitRes] = await Promise.all([
-        apiClient.get('/hr/employees?limit=500&status=WORKING'),
-        apiClient.get('/hr/departments?function=SALES,CSKH&leafOnly=true'),
+        apiClient.get('/hr/employees?limit=1000&status=WORKING'),
+        apiClient.get('/hr/departments?function=CSKH&leafOnly=true'),
       ]);
-      setCskhDistEmpOptions(empRes.data || empRes || []);
+      const allEmps: any[] = empRes.data || empRes || [];
+      // Chỉ hiện nhân viên thuộc loại CSKH / customer_service
+      const cskhEmps = allEmps.filter(e => 
+        e.employeeType?.code === 'customer_service' || 
+        e.salesType === 'RESALES'
+      );
+      setCskhDistEmpOptions(cskhEmps);
       setCskhDistUnitOptions(unitRes.data || unitRes || []);
     } catch { /* ignore */ }
   }, []);
@@ -1582,55 +1589,67 @@ const Resales = () => {
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-700 mb-1 block">Phân cho</label>
               <div className="flex gap-2 mb-3">
-                <button
-                  type="button"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ${cskhDistTargetType === 'EMPLOYEE' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
-                  onClick={() => { setCskhDistTargetType('EMPLOYEE'); setCskhDistTargetId(''); }}
-                >
-                  Nhân viên cụ thể
-                </button>
-                <button
-                  type="button"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium border ${cskhDistTargetType === 'UNIT' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
-                  onClick={() => { setCskhDistTargetType('UNIT'); setCskhDistTargetId(''); }}
-                >
-                  Đơn vị chức năng
-                </button>
+                {canDistributeToStaff && (
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${cskhDistTargetType === 'EMPLOYEE' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
+                    onClick={() => { setCskhDistTargetType('EMPLOYEE'); setCskhDistTargetId(''); }}
+                  >
+                    Nhân viên cụ thể
+                  </button>
+                )}
+                {canDistributeToUnit && (
+                  <button
+                    type="button"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium border ${cskhDistTargetType === 'UNIT' ? 'bg-primary text-white border-primary' : 'bg-white text-gray-700'}`}
+                    onClick={() => { setCskhDistTargetType('UNIT'); setCskhDistTargetId(''); }}
+                  >
+                    Đơn vị chức năng
+                  </button>
+                )}
               </div>
 
-              {cskhDistTargetType === 'EMPLOYEE' ? (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Tìm nhân viên..."
-                    className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
-                    value={cskhDistEmpSearch}
-                    onChange={e => setCskhDistEmpSearch(e.target.value)}
-                  />
-                  <div className="max-h-48 overflow-y-auto border rounded-lg">
-                    {filteredCskhDistEmps.slice(0, 50).map(emp => (
-                      <div
-                        key={emp.id}
-                        className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${cskhDistTargetId === emp.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
-                        onClick={() => setCskhDistTargetId(emp.id)}
-                      >
-                        {emp.fullName} <span className="text-gray-400">({emp.code})</span>
+              {((cskhDistTargetType === 'EMPLOYEE' && canDistributeToStaff) || (cskhDistTargetType === 'UNIT' && canDistributeToUnit)) ? (
+                <>
+                  {cskhDistTargetType === 'EMPLOYEE' ? (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Tìm nhân viên..."
+                        className="w-full border rounded-lg px-3 py-2 text-sm mb-2"
+                        value={cskhDistEmpSearch}
+                        onChange={e => setCskhDistEmpSearch(e.target.value)}
+                      />
+                      <div className="max-h-48 overflow-y-auto border rounded-lg">
+                        {filteredCskhDistEmps.slice(0, 50).map(emp => (
+                          <div
+                            key={emp.id}
+                            className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 ${cskhDistTargetId === emp.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
+                            onClick={() => setCskhDistTargetId(emp.id)}
+                          >
+                            {emp.fullName} <span className="text-gray-400">({emp.code})</span>
+                          </div>
+                        ))}
+                        {filteredCskhDistEmps.length === 0 && <div className="px-3 py-4 text-gray-400 text-center text-sm">Không tìm thấy</div>}
                       </div>
-                    ))}
-                    {filteredCskhDistEmps.length === 0 && <div className="px-3 py-4 text-gray-400 text-center text-sm">Không tìm thấy</div>}
-                  </div>
-                </div>
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full border rounded-lg px-3 py-2 text-sm"
+                      value={cskhDistTargetId}
+                      onChange={e => setCskhDistTargetId(e.target.value)}
+                    >
+                      <option value="">-- Chọn đơn vị --</option>
+                      {cskhDistUnitOptions.map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.function || ''})</option>
+                      ))}
+                    </select>
+                  )}
+                </>
               ) : (
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                  value={cskhDistTargetId}
-                  onChange={e => setCskhDistTargetId(e.target.value)}
-                >
-                  <option value="">-- Chọn đơn vị --</option>
-                  {cskhDistUnitOptions.map(u => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.function || ''})</option>
-                  ))}
-                </select>
+                <div className="p-4 bg-orange-50 text-orange-700 text-sm rounded-lg border border-orange-100 italic">
+                  Bạn không có quyền chia khách cho mục tiêu này.
+                </div>
               )}
             </div>
 

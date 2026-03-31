@@ -1570,7 +1570,8 @@ export const distributeFromSalesPool = async (req: Request, res: Response) => {
       const scope = await validateSalesDistributeTarget(
         { id: user.id, roleGroupCode: user.roleGroupCode, permissions: user.permissions },
         targetEmployeeId,
-        targetDepartmentId
+        targetDepartmentId,
+        'SALES'
       );
       if (!scope.ok) {
         return res.status(403).json({ message: scope.message });
@@ -1610,7 +1611,14 @@ export const distributeFromSalesPool = async (req: Request, res: Response) => {
       targetEmployees = resolved.employees;
       if (targetEmployees.length === 0) {
         targetEmployees = await prisma.employee.findMany({
-          where: { departmentId: targetDepartmentId, status: { code: 'WORKING' } },
+          where: { 
+            departmentId: targetDepartmentId, 
+            status: { code: 'WORKING' },
+            OR: [
+              { employeeType: { code: 'sales' } },
+              { salesType: { in: ['SALES', 'MARKETING'] } }
+            ]
+          },
           select: { id: true },
         });
       }
@@ -1688,7 +1696,8 @@ export const distributeFromCskhPool = async (req: Request, res: Response) => {
       const scope = await validateSalesDistributeTarget(
         { id: user.id, roleGroupCode: user.roleGroupCode, permissions: user.permissions },
         targetEmployeeId,
-        targetDepartmentId
+        targetDepartmentId,
+        'CSKH'
       );
       if (!scope.ok) {
         return res.status(403).json({ message: scope.message });
@@ -1729,7 +1738,14 @@ export const distributeFromCskhPool = async (req: Request, res: Response) => {
       targetEmployees = resolved.employees;
       if (targetEmployees.length === 0) {
         targetEmployees = await prisma.employee.findMany({
-          where: { departmentId: targetDepartmentId, status: { code: 'WORKING' } },
+          where: { 
+            departmentId: targetDepartmentId, 
+            status: { code: 'WORKING' },
+            OR: [
+              { employeeType: { code: 'customer_service' } },
+              { salesType: 'RESALES' }
+            ]
+          },
           select: { id: true },
         });
       }

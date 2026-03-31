@@ -46,8 +46,8 @@ router.post(
   checkPermission(['DISTRIBUTE_FLOATING_POOL', 'MANAGE_DATA_POOL', 'DISTRIBUTE_FLOATING_CROSS_ORG']),
   distributeFromFloatingPool
 );
-// NV Sales/CSKH tự nhận khách từ kho thả nổi
-router.post('/claim-customer', checkPermission('CLAIM_FLOATING_POOL'), claimFromFloatingPool);
+// NV Sales/CSKH tự nhận khách từ kho thả nổi / kho CSKH
+router.post('/claim-customer', checkPermission(['CLAIM_FLOATING_POOL', 'CLAIM_LEAD_CSKH']), claimFromFloatingPool);
 
 // ── Legacy / nội bộ (giữ cho cron và luồng vận hành) ──
 router.post('/claim', checkPermission('CLAIM_LEAD'), claimLead);
@@ -73,7 +73,7 @@ router.put(
 // Quản lý phân chia lead từ kho Sales cho NV hoặc đơn vị
 router.post(
   '/distribute-sales',
-  checkPermission(['ASSIGN_LEAD', 'MANAGE_DATA_POOL', 'DISTRIBUTE_SALES_CROSS_ORG']),
+  checkPermission(['ASSIGN_LEAD', 'MANAGE_DATA_POOL', 'DISTRIBUTE_SALES_CROSS_ORG', 'DISTRIBUTE_TO_UNIT', 'DISTRIBUTE_TO_STAFF']),
   distributeFromSalesPool
 );
 
@@ -81,7 +81,7 @@ router.post(
 // Quản lý phân chia lead từ kho CSKH cho NV hoặc đơn vị
 router.post(
   '/distribute-cskh',
-  checkPermission(['MANAGE_CSKH_POOL', 'MANAGE_DATA_POOL', 'DISTRIBUTE_SALES_CROSS_ORG']),
+  checkPermission(['MANAGE_CSKH_POOL', 'MANAGE_DATA_POOL', 'DISTRIBUTE_SALES_CROSS_ORG', 'DISTRIBUTE_TO_UNIT', 'DISTRIBUTE_TO_STAFF']),
   distributeFromCskhPool
 );
 
