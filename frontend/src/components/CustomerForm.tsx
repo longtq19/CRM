@@ -198,24 +198,17 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
 
   useEffect(() => {
     if (customerId) return;
-    // Tải danh sách nhân viên marketing. Lọc server-side if possible, plus client-side check.
+    // marketingOwnerOptions=1: backend chỉ trả NV loại marketing và bỏ lọc phạm vi HR
+    // (Sales không thuộc cây Marketing nên trước đây GET /hr/employees không có NV Marketing).
     apiClient
-      .get('/hr/employees?limit=1000')
+      .get('/hr/employees?limit=500&marketingOwnerOptions=1')
       .then((res: any) => {
         const list = Array.isArray(res) ? res : res?.data || [];
-        const filtered = list.filter((emp: any) => {
-          if (emp.salesType === 'MARKETING') return true;
-          if (emp.roleGroup?.code?.includes('MKT')) return true;
-          const dept = emp.department?.name?.toLowerCase() || '';
-          const div = emp.department?.division?.name?.toLowerCase() || '';
-          if (dept.includes('marketing') || div.includes('marketing')) return true;
-          return false;
-        });
         setMarketingEmployees(
-          filtered.map((e: any) => ({ 
-            id: e.id, 
+          list.map((e: any) => ({
+            id: e.id,
             fullName: e.fullName || e.code || e.id,
-            phone: e.phone || ''
+            phone: e.phone || '',
           }))
         );
       })

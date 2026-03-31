@@ -7,6 +7,7 @@ import {
   userBypassesHrEmployeeScope,
   userHasAnyPermission,
   EMPLOYEE_TYPE_CATALOG_VIEW_PERMISSIONS,
+  MARKETING_OWNER_DROPDOWN_READ_PERMISSIONS,
 } from '../config/routePermissionPolicy';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
 import { ROLE_CODES, isTechnicalAdminRoleCode } from '../constants/rbac';
@@ -1617,6 +1618,11 @@ async function findEmployeeByIdWithHrRelations(id: string): Promise<any | null> 
 export const getEmployees = async (req: Request, res: Response) => {
   try {
     const { search, positionId, roleGroupId, employeeTypeId, status, salesType } = req.query;
+    const marketingOwnerOptionsRaw = req.query.marketingOwnerOptions;
+    const marketingOwnerOptions =
+      marketingOwnerOptionsRaw === '1' ||
+      marketingOwnerOptionsRaw === 'true' ||
+      String(marketingOwnerOptionsRaw || '').toLowerCase() === 'yes';
     const { page, limit, skip } = getPaginationParams(req.query);
 
     const organizationIdRaw = req.query.organizationId;
@@ -1652,6 +1658,18 @@ export const getEmployees = async (req: Request, res: Response) => {
     const currentUser = (req as any).user;
     const perms = (currentUser?.permissions || []) as string[];
     const skipHrScopeForRbac = userBypassesHrEmployeeScope(perms);
+
+    if (marketingOwnerOptions) {
+      const canUseMarketingOwnerList =
+        isTechnicalAdminRoleCode(currentUser?.roleGroupCode) ||
+        (perms || []).includes('FULL_ACCESS') ||
+        userHasAnyPermission(perms, [...MARKETING_OWNER_DROPDOWN_READ_PERMISSIONS]);
+      if (!canUseMarketingOwnerList) {
+        return res.status(403).json({
+          message: 'Không có quyền lấy danh sách nhân viên Marketing cho gán khách.',
+        });
+      }
+    }
 
     let hrVisibleIds: string[] | null = null;
     if (currentUser?.id && !skipHrScopeForRbac) {
@@ -1720,7 +1738,24 @@ export const getEmployees = async (req: Request, res: Response) => {
       where.AND.push({ salesType: String(salesType) });
     }
 
-    if (currentUser?.id && !skipHrScopeForRbac && hrVisibleIds !== null) {
+    if (marketingOwnerOptions) {
+      where.AND.push({
+        OR: [
+          { employeeType: { code: 'marketing' } },
+          { salesType: 'MARKETING' },
+          { salesType: 'marketing' },
+        ],
+      });
+    }
+
+    const skipHrScopeForMarketingOwnerList = marketingOwnerOptions;
+
+    if (
+      currentUser?.id &&
+      !skipHrScopeForRbac &&
+      hrVisibleIds !== null &&
+      !skipHrScopeForMarketingOwnerList
+    ) {
       where.AND.push({ id: { in: hrVisibleIds } });
     }
 

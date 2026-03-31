@@ -74,6 +74,18 @@ export const OPS_LEAF_STAFF_REMOVE_PERMISSIONS = [
 /** Bỏ lọc phạm vi HR khi xem danh sách/chi tiết NV (đủ quyền RBAC/cấu hình) */
 export const HR_EMPLOYEE_SCOPE_BYPASS_PERMISSIONS = ['MANAGE_ROLE_GROUPS', 'EDIT_SETTINGS'] as const;
 
+/**
+ * GET /hr/employees?marketingOwnerOptions=1 — dropdown «Gán Marketing» khi Sales/CSKH/Marketing tạo khách:
+ * bỏ lọc phạm vi HR, chỉ trả NV loại marketing (employee_types.code = marketing hoặc sales_type khớp).
+ */
+export const MARKETING_OWNER_DROPDOWN_READ_PERMISSIONS = [
+  'MANAGE_SALES',
+  'VIEW_SALES',
+  'MANAGE_CUSTOMERS',
+  'VIEW_CUSTOMERS',
+  'MANAGE_RESALES',
+] as const;
+
 /** API role-groups (RBAC) */
 export const ROLE_GROUP_API_READ_PERMISSIONS = ['VIEW_ROLE_GROUPS', 'VIEW_SETTINGS'] as const;
 export const ROLE_GROUP_API_WRITE_PERMISSIONS = ['MANAGE_ROLE_GROUPS', 'EDIT_SETTINGS'] as const;
