@@ -926,6 +926,12 @@ export const deleteCustomer = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const actor = (req as any).user;
 
+    // Chỉ nhóm quyền được cấp quyền PERMANENT_DELETE_CUSTOMER mới được xóa khách hàng vĩnh viễn
+    const canDelete = userHasCatalogPermission(actor, 'PERMANENT_DELETE_CUSTOMER');
+    if (!canDelete) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa khách hàng vĩnh viễn khỏi hệ thống' });
+    }
+
     const isAdmin = await isAdminUser(actor.id);
 
     let whereCondition: any = { id };

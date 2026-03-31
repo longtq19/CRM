@@ -60,6 +60,28 @@ const PROCESSING_STATUS_OPTIONS = [
   { code: 'PRICE_OBJECTION', label: 'Chê giá' },
 ];
 
+const TYPE_TRANSLATIONS: Record<string, string> = {
+  CALL: 'Gọi điện',
+  SMS: 'SMS',
+  EMAIL: 'Email',
+  MEETING: 'Gặp mặt',
+  NOTE: 'Ghi chú',
+  VISIT: 'Thăm viếng',
+  ZALO: 'Zalo',
+  FACEBOOK: 'Facebook',
+  OTHER: 'Khác',
+  lead_created: 'Tạo khách hàng',
+  new_lead: 'Khách hàng mới',
+  NEW_LEAD: 'Khách hàng mới',
+  FIELD_UPDATE: 'Cập nhật thông tin',
+  SYSTEM_UPDATE: 'Hệ thống cập nhật',
+  TAG_ASSIGN: 'Gắn thẻ',
+  TAG_REMOVE: 'Bỏ thẻ',
+  REMINDER: 'Nhắc nhở',
+  CALLBACK_REMINDER: 'Nhắc gọi lại',
+  marketing_duplicate_interaction: 'Trùng số (Marketing)',
+};
+
 interface SpendingRank {
   id: string;
   code: string;
@@ -881,7 +903,7 @@ const Resales = () => {
                 className="px-4 py-2 border rounded-lg"
               >
                 <option value="all">Tất cả nhân viên</option>
-                <option value={user?.id}>{user?.fullName || 'Tôi'}</option>
+                <option value={user?.id}>{user?.name || 'Tôi'}</option>
               </select>
               <select
                 value={cskhStageFilter}
@@ -1350,7 +1372,7 @@ const Resales = () => {
                       <div key={interaction.id} className="bg-gray-50 p-3 rounded-lg">
                         <div className="flex items-center justify-between mb-1 flex-wrap gap-x-2">
                           <span className="text-sm font-medium">
-                            {interaction.type === 'FIELD_UPDATE' ? 'Chỉnh sửa thông tin' : interaction.type}
+                            {TYPE_TRANSLATIONS[interaction.type] || interaction.type}
                             {interaction.employee?.fullName && (
                               <span className="font-normal text-gray-500"> — bởi {interaction.employee.fullName}</span>
                             )}

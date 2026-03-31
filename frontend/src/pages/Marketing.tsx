@@ -134,6 +134,15 @@ const INTERACTION_TYPE_MAP: Record<string, string> = {
   VISIT: 'Thăm viếng',
   FACEBOOK: 'Facebook',
   OTHER: 'Khác',
+  lead_created: 'Tạo khách hàng',
+  new_lead: 'Khách hàng mới',
+  NEW_LEAD: 'Khách hàng mới',
+  FIELD_UPDATE: 'Cập nhật thông tin',
+  SYSTEM_UPDATE: 'Hệ thống cập nhật',
+  TAG_ASSIGN: 'Gắn thẻ',
+  TAG_REMOVE: 'Bỏ thẻ',
+  REMINDER: 'Nhắc nhở',
+  CALLBACK_REMINDER: 'Nhắc gọi lại',
   marketing_duplicate_interaction: 'Trùng số (Marketing)',
 };
 
@@ -180,7 +189,7 @@ const Marketing = () => {
   const [leadSearch, setLeadSearch] = useState('');
   const [leadSourceFilter, setLeadSourceFilter] = useState('');
   const [leadCampaignFilter, setLeadCampaignFilter] = useState('');
-  const [leadStatusFilter, setLeadStatusFilter] = useState('');
+  const [leadDuplicateFilter, setLeadDuplicateFilter] = useState('');
   const [leadEmployeeFilter, setLeadEmployeeFilter] = useState('');
   const [leadTagFilter, setLeadTagFilter] = useState('');
   const [tagOptions, setTagOptions] = useState<Array<{ id: string; name: string }>>([]);
@@ -452,8 +461,10 @@ const Marketing = () => {
       const params = new URLSearchParams();
       if (leadSourceFilter) params.append('sourceId', leadSourceFilter);
       if (leadCampaignFilter) params.append('campaignId', leadCampaignFilter);
-      if (leadStatusFilter) params.append('status', leadStatusFilter);
+      if (leadDuplicateFilter) params.append('isDuplicate', leadDuplicateFilter);
       if (leadSearch.trim()) params.append('search', leadSearch.trim());
+      if (leadEmployeeFilter) params.append('marketingOwnerId', leadEmployeeFilter);
+      if (leadTagFilter) params.append('tagId', leadTagFilter);
       const qs = params.toString();
       const blob = await apiClient.getBlob(`/marketing/leads/export${qs ? `?${qs}` : ''}`);
       if (blob) {
@@ -489,8 +500,8 @@ const Marketing = () => {
       const matchesCampaign =
         !leadCampaignFilter || lead.campaignId === leadCampaignFilter;
 
-      const matchesStatus =
-        !leadStatusFilter || (lead.leadStatus || '') === leadStatusFilter;
+      const matchesDuplicate =
+        !leadDuplicateFilter || ((lead as any).marketingContributorsCount || 0) >= 2;
 
       const matchesEmployee =
         !leadEmployeeFilter || (lead as any).marketingOwnerId === leadEmployeeFilter;
@@ -498,9 +509,9 @@ const Marketing = () => {
       const matchesTag =
         !leadTagFilter || (lead as any).tags?.some((t: any) => (t.tagId || t.tag?.id) === leadTagFilter);
 
-      return matchesSearch && matchesSource && matchesCampaign && matchesStatus && matchesEmployee && matchesTag;
+      return matchesSearch && matchesSource && matchesCampaign && matchesDuplicate && matchesEmployee && matchesTag;
     });
-  }, [leads, leadSearch, leadSourceFilter, leadCampaignFilter, leadStatusFilter, leadEmployeeFilter, leadTagFilter]);
+  }, [leads, leadSearch, leadSourceFilter, leadCampaignFilter, leadDuplicateFilter, leadEmployeeFilter, leadTagFilter]);
 
   const totalLeadPages = Math.ceil(filteredLeads.length / leadPageSize) || 1;
   const paginatedLeads = filteredLeads.slice(
@@ -1011,21 +1022,15 @@ const Marketing = () => {
           ))}
         </select>
         <select
-          value={leadStatusFilter}
+          value={leadDuplicateFilter}
           onChange={(e) => {
-            setLeadStatusFilter(e.target.value);
+            setLeadDuplicateFilter(e.target.value);
             setLeadPage(1);
           }}
           className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
-          <option value="">Tất cả trạng thái</option>
-          <option value="NEW">Mới</option>
-          <option value="CONTACTED">Đã liên hệ</option>
-          <option value="QUALIFIED">Đủ điều kiện</option>
-          <option value="NEGOTIATING">Đang đàm phán</option>
-          <option value="WON">Thành công</option>
-          <option value="LOST">Thất bại</option>
-          <option value="INVALID">Không hợp lệ</option>
+          <option value="">Lọc trùng (Tất cả)</option>
+          <option value="true">Số trùng (≥ 2 NV Marketing)</option>
         </select>
         <select
           value={leadEmployeeFilter}
@@ -1218,14 +1223,6 @@ const Marketing = () => {
                       <Eye size={14} />
                       Chi tiết
                     </button>
-                    <button
-                      type="button"
-                      onClick={(e) => openLeadImpactHistory(e, lead)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      <MessageSquare size={14} />
-                      Lịch sử
-                    </button>
                   </div>
                 </td>
               </tr>
@@ -1321,14 +1318,6 @@ const Marketing = () => {
               >
                 <Eye size={14} />
                 Chi tiết
-              </button>
-              <button
-                type="button"
-                onClick={(e) => openLeadImpactHistory(e, lead)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <MessageSquare size={14} />
-                Lịch sử tác động
               </button>
             </div>
           </div>

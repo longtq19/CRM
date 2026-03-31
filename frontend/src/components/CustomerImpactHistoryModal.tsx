@@ -12,6 +12,28 @@ const INTERACTION_TYPES = [
   { value: 'NOTE', label: 'Ghi chú' },
 ];
 
+const TYPE_TRANSLATIONS: Record<string, string> = {
+  CALL: 'Gọi điện',
+  SMS: 'SMS',
+  EMAIL: 'Email',
+  MEETING: 'Gặp mặt',
+  NOTE: 'Ghi chú',
+  VISIT: 'Thăm viếng',
+  ZALO: 'Zalo',
+  FACEBOOK: 'Facebook',
+  OTHER: 'Khác',
+  lead_created: 'Tạo khách hàng',
+  new_lead: 'Khách hàng mới',
+  NEW_LEAD: 'Khách hàng mới',
+  FIELD_UPDATE: 'Cập nhật thông tin',
+  SYSTEM_UPDATE: 'Hệ thống cập nhật',
+  TAG_ASSIGN: 'Gắn thẻ',
+  TAG_REMOVE: 'Bỏ thẻ',
+  REMINDER: 'Nhắc nhở',
+  CALLBACK_REMINDER: 'Nhắc gọi lại',
+  marketing_duplicate_interaction: 'Trùng số (Marketing)',
+};
+
 export interface CustomerImpactHistoryModalProps {
   open: boolean;
   onClose: () => void;
@@ -267,7 +289,7 @@ export function CustomerImpactHistoryModal({
                     <span>{row.employee?.fullName || '—'}</span>
                   </div>
                   <div className="mt-1 text-xs">
-                    <span className="font-medium text-gray-700">{row.type}</span>
+                    <span className="font-medium text-gray-700">{TYPE_TRANSLATIONS[row.type] || row.type}</span>
                     {row.kind === 'SYSTEM_CHANGE' && (
                       <span className="ml-2 text-amber-700">[Hệ thống]</span>
                     )}

@@ -272,15 +272,33 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const actor = (req as any).user;
 
+    const hasPermission = userHasCatalogPermission(actor, 'DELETE_MARKETING_CATALOG');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa nền tảng marketing' });
+    }
+
     const existing = await prisma.marketingSource.findUnique({
       where: { id },
-      include: { _count: { select: { campaigns: true } } }
+      include: {
+        _count: {
+          select: {
+            campaigns: true,
+            customers: true,
+            costs: true,
+          }
+        }
+      }
     });
+
     if (!existing) {
       return res.status(404).json({ message: 'Nền tảng không tồn tại' });
     }
-    if (existing._count.campaigns > 0) {
-      return res.status(403).json({ message: 'Không thể xóa nền tảng đang được sử dụng bởi chiến dịch' });
+
+    const inUse = existing._count.campaigns > 0 || existing._count.customers > 0 || existing._count.costs > 0;
+    if (inUse) {
+      return res.status(403).json({
+        message: 'Không thể xóa nền tảng đang được sử dụng (có chiến dịch, khách hàng hoặc bản ghi chi phí liên quan)'
+      });
     }
 
     await prisma.marketingSource.delete({ where: { id } });
@@ -587,24 +605,44 @@ export const deleteMarketingCampaign = async (req: Request, res: Response) => {
 
     const existing = await prisma.marketingCampaign.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            customers: true,
+            costs: true,
+            opportunities: true,
+          }
+        }
+      }
     });
 
     if (!existing) {
       return res.status(404).json({ message: 'Chiến dịch không tồn tại' });
     }
 
+    // Quyền xóa: Người tạo hoặc nhóm quyền có DELETE_MARKETING_CATALOG
+    const isCreator = existing.createdByEmployeeId === actor.id;
+    const hasPermission = userHasCatalogPermission(actor, 'DELETE_MARKETING_CATALOG');
+    
+    if (!isCreator && !hasPermission) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa chiến dịch này' });
+    }
+
+    // Xóa an toàn: khi không có sử dụng mới được xóa
+    const inUse = existing._count.customers > 0 || existing._count.costs > 0 || existing._count.opportunities > 0;
+    if (inUse) {
+      return res.status(403).json({
+        message: 'Chiến dịch đang có khách hàng, cơ hội hoặc bản ghi chi phí liên quan. Hãy kết thúc chiến dịch này trước khi xóa (nếu không còn cần thiết).'
+      });
+    }
+
     const beforePlain = mkCampaignPlain(existing);
 
     await prisma.$transaction(
       async (tx) => {
-        await tx.leadOpportunity.deleteMany({ where: { campaignId: id } });
-        await tx.marketingCampaignCost.deleteMany({ where: { campaignId: id } });
+        // Xóa các bảng liên kết phụ
         await tx.marketingCampaignProduct.deleteMany({ where: { campaignId: id } });
         await tx.marketingCampaignMember.deleteMany({ where: { campaignId: id } });
-        await tx.customer.updateMany({
-          where: { campaignId: id },
-          data: { campaignId: null },
-        });
         await tx.marketingCampaign.delete({ where: { id } });
       },
       { timeout: 120_000 }
@@ -617,7 +655,7 @@ export const deleteMarketingCampaign = async (req: Request, res: Response) => {
         object: 'Chiến dịch marketing',
         objectId: id,
         result: 'SUCCESS',
-        details: `Xóa chiến dịch "${existing.name}" (mã ${existing.code}). Khách hàng gắn chiến dịch đã được gỡ gán; cơ hội/lead và chi phí thuộc chiến dịch đã xóa.`,
+        details: `Xóa chiến dịch "${existing.name}" (mã ${existing.code}).`,
         oldValues: beforePlain,
         req,
       });
@@ -632,7 +670,7 @@ export const deleteMarketingCampaign = async (req: Request, res: Response) => {
 
 export const getMarketingLeads = async (req: Request, res: Response) => {
   try {
-    const { sourceId, campaignId, status, search, tagIds } = req.query;
+    const { sourceId, campaignId, status, search, tagIds, isDuplicate } = req.query;
     const actor = (req as any).user;
 
     const scopeWhere = await buildCustomerWhereByScope(actor, 'CUSTOMER');
@@ -646,6 +684,9 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
     }
     if (typeof status === 'string' && status !== '') {
       where.leadStatus = status;
+    }
+    if (isDuplicate === 'true') {
+      where.marketingContributors = { _count: { gte: 2 } };
     }
     if (typeof search === 'string' && search.trim() !== '') {
       const term = search.trim();
@@ -697,6 +738,9 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
             employee: { select: { fullName: true, phone: true } },
           },
         },
+        _count: {
+          select: { marketingContributors: true }
+        }
       }
     });
 
@@ -735,6 +779,7 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
         firstDeliveredOrderAmount: firstAmountByCustomer.get(row.id) ?? null,
         duplicatePhoneNote: duplicateNoteByCustomer.get(row.id) ?? null,
         impactHistory: interactions ?? [],
+        marketingContributorsCount: row._count?.marketingContributors || 0,
       };
     });
 
@@ -759,7 +804,7 @@ const LEAD_STATUS_VI: Record<string, string> = {
 
 export const exportMarketingLeads = async (req: Request, res: Response) => {
   try {
-    const { sourceId, campaignId, status, search } = req.query;
+    const { sourceId, campaignId, status, search, isDuplicate, marketingOwnerId, tagId } = req.query;
     const actor = (req as any).user;
 
     const where: any = {};
@@ -777,6 +822,15 @@ export const exportMarketingLeads = async (req: Request, res: Response) => {
     if (typeof sourceId === 'string' && sourceId !== '') where.leadSourceId = sourceId;
     if (typeof campaignId === 'string' && campaignId !== '') where.campaignId = campaignId;
     if (typeof status === 'string' && status !== '') where.leadStatus = status;
+    if (isDuplicate === 'true') {
+      where.marketingContributors = { _count: { gte: 2 } };
+    }
+    if (typeof marketingOwnerId === 'string' && marketingOwnerId !== '') {
+      where.marketingOwnerId = marketingOwnerId;
+    }
+    if (typeof tagId === 'string' && tagId !== '') {
+      where.tags = { some: { tagId } };
+    }
     if (typeof search === 'string' && search.trim() !== '') {
       const term = search.trim();
       where.AND = [
