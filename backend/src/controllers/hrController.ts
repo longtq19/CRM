@@ -1777,7 +1777,7 @@ export const getEmployees = async (req: Request, res: Response) => {
     const includeBlock = {
       position: true,
       hrDepartmentUnit: true,
-      department: { include: { division: true } },
+      department: true,
       subsidiaries: true,
       employmentType: true,
       status: true,

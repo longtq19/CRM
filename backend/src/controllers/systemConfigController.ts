@@ -170,8 +170,9 @@ export const updateMultipleConfigs = async (req: Request, res: Response) => {
       } else if (existingConfig.dataType === 'BOOLEAN') {
         isValid = config.value === 'true' || config.value === 'false';
       } else if (existingConfig.dataType === 'ENUM' && existingConfig.enumOptions) {
-        const options = JSON.parse(existingConfig.enumOptions);
+        const options = JSON.parse(existingConfig.enumOptions || '[]');
         isValid = options.includes(config.value);
+      } else if (existingConfig.key === 'pool_push_processing_statuses') {
         try {
           const arr = JSON.parse(String(config.value));
           if (!Array.isArray(arr)) {
