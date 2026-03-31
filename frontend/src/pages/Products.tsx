@@ -21,8 +21,8 @@ import {
   LayoutGrid,
   FolderOpen,
   ChevronDown,
-  ChevronUp,
   AlertTriangle,
+  MapPin,
 } from 'lucide-react';
 import { apiClient, ApiHttpError } from '../api/client';
 import PaginationBar from '../components/PaginationBar';
@@ -97,6 +97,10 @@ const Products = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // Warehouse State
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [selectedWhId, setSelectedWhId] = useState<string>(() => localStorage.getItem('lastProductWhId') || '');
+
   // Form State
   const [units, setUnits] = useState<string[]>([]);
   const [comboProductOptions, setComboProductOptions] = useState<Product[]>([]);
@@ -121,6 +125,7 @@ const Products = () => {
     techManufacturer?: string;
     techModelYear?: string;
     comboProductIds?: string[];
+    warehouseId?: string;
   }>({});
 
   const fetchCategories = async () => {
@@ -147,13 +152,40 @@ const Products = () => {
     }
   };
 
+  const fetchWarehouses = async () => {
+    try {
+      const res: any = await apiClient.get('/inventory/warehouses');
+      if (Array.isArray(res)) {
+        setWarehouses(res);
+        // If nothing selected and we have warehouses, or last ID is invalid
+        if (!selectedWhId && res.length > 0) {
+          // Keep it empty to force choice or auto-pick? User said "Chọn kho TRƯỚC"
+          // I will auto-pick if there's only 1, otherwise let them pick.
+          if (res.length === 1) {
+            handleWhChange(res[0].id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch warehouses', err);
+    }
+  };
+
+  const handleWhChange = (id: string) => {
+    setSelectedWhId(id);
+    localStorage.setItem('lastProductWhId', id);
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
   const fetchComboProductOptions = async (searchText = '') => {
     try {
+      if (!selectedWhId) return;
       setComboLoading(true);
       const params = new URLSearchParams();
       if (searchText.trim()) params.set('search', searchText.trim());
       if (editingProduct?.id) params.set('excludeProductId', editingProduct.id);
-      const res: any = await apiClient.get(`/products/options${params.toString() ? `?${params.toString()}` : ''}`);
+      params.set('warehouseId', selectedWhId);
+      const res: any = await apiClient.get(`/products/options?${params.toString()}`);
       setComboProductOptions(Array.isArray(res) ? res : []);
     } catch (error) {
       console.error('Failed to fetch combo product options', error);
@@ -175,8 +207,9 @@ const Products = () => {
       params.set('limit', String(pagination.limit));
       if (searchTerm.trim()) params.set('search', searchTerm.trim());
       if (activeTab !== 'ALL') params.set('type', activeTab);
+      if (selectedWhId) params.set('warehouseId', selectedWhId);
 
-      const url = params.toString() ? `/products?${params.toString()}` : '/products';
+      const url = `/products?${params.toString()}`;
       const res: any = await apiClient.get(url);
 
       if (res && Array.isArray(res.data)) {
@@ -222,14 +255,21 @@ const Products = () => {
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, [pagination.page, pagination.limit, activeTab, searchTerm]);
-
-  useEffect(() => {
+    fetchWarehouses();
     fetchCategories();
     fetchUnits();
-    fetchComboProductOptions();
+    // fetchComboProductOptions depends on selectedWhId, handled in useEffect below
   }, []);
+
+  useEffect(() => {
+    if (selectedWhId) {
+      fetchProducts();
+      fetchComboProductOptions();
+    } else {
+        setProducts([]);
+        setPagination(prev => ({ ...prev, total: 0 }));
+    }
+  }, [selectedWhId, pagination.page, pagination.limit, activeTab, searchTerm]);
 
   useEffect(() => {
     if (formData.type !== 'COMBO' || !isModalOpen) return;
@@ -429,6 +469,7 @@ const Products = () => {
         techManufacturer: '',
         techModelYear: new Date().getFullYear().toString(),
         comboProductIds: [],
+        warehouseId: selectedWhId,
       });
     }
     setIsModalOpen(true);
@@ -508,6 +549,8 @@ const Products = () => {
       } else if (formData.type === 'COMBO') {
         payload.comboProductIds = formData.comboProductIds || [];
       }
+      
+      payload.warehouseId = formData.warehouseId || null;
 
       let productId = '';
       if (editingProduct) {
@@ -756,16 +799,37 @@ const Products = () => {
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="mt-4">
-            <div className="relative w-full md:w-80">
+          {/* Warehouse & Search Bar */}
+          <div className="mt-4 flex flex-col md:flex-row gap-4">
+            <div className="w-full md:w-64">
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-primary" size={18} />
+                <select
+                  value={selectedWhId}
+                  onChange={(e) => handleWhChange(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none bg-white font-medium text-gray-700"
+                >
+                  <option value="">-- Chọn Kho để xem --</option>
+                  {warehouses.map(w => (
+                    <option key={w.id} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+              </div>
+            </div>
+
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
                 placeholder="Tìm theo tên, mã sản phẩm..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPagination(prev => ({ ...prev, page: 1 })); }}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-gray-50"
+                className={clsx(
+                   "w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-gray-50",
+                   !selectedWhId && "opacity-50 cursor-not-allowed"
+                )}
+                disabled={!selectedWhId}
               />
             </div>
           </div>
@@ -773,7 +837,30 @@ const Products = () => {
 
         {/* Product List */}
         <div className="flex-1 overflow-auto p-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {!selectedWhId ? (
+            <div className="h-full flex flex-col items-center justify-center bg-white rounded-xl border border-dashed border-gray-200 text-gray-500 gap-4">
+               <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
+                 <MapPin size={32} className="text-gray-300" />
+               </div>
+               <div className="text-center">
+                 <p className="text-lg font-medium text-gray-900">Vui lòng chọn Kho</p>
+                 <p className="text-sm">Bạn cần chọn kho cụ thể để quản lý danh sách sản phẩm.</p>
+               </div>
+               <div className="w-64">
+                 <select
+                    value={selectedWhId}
+                    onChange={(e) => handleWhChange(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 outline-none"
+                  >
+                    <option value="">Chọn kho ngay...</option>
+                    {warehouses.map(w => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+               </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 text-gray-600 text-sm">
@@ -944,9 +1031,10 @@ const Products = () => {
           />
         )}
           </div>
-        </div>
+          )}
         </div>
       </div>
+    </div>
 
       {/* Modal */}
       {isModalOpen && (
@@ -993,6 +1081,30 @@ const Products = () => {
                       />
                     )}
                   </div>
+                  
+                  {/* Warehouse Info - Show ALWAYS */}
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="flex items-center gap-2 text-blue-700 font-semibold text-xs uppercase tracking-wider mb-2">
+                      <MapPin size={14} /> Kho sở hữu
+                    </div>
+                    {isEditing && !editingProduct ? (
+                      <select
+                        value={formData.warehouseId}
+                        onChange={e => setFormData({...formData, warehouseId: e.target.value})}
+                        className="w-full bg-white border border-blue-200 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-blue-400"
+                      >
+                        <option value="">Chọn kho...</option>
+                        {warehouses.map(wh => (
+                          <option key={wh.id} value={wh.id}>{wh.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <p className="text-sm text-blue-900 font-medium px-1">
+                        {warehouses.find(w => w.id === (formData.warehouseId || editingProduct?.warehouseId))?.name || 'Chế độ chung'}
+                      </p>
+                    )}
+                  </div>
+
                   {isEditing && (
                     <p className="text-xs text-center text-gray-500">
                       Nhấn vào ảnh để thay đổi<br/>

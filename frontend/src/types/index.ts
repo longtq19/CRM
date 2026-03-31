@@ -572,6 +572,7 @@ export interface Product {
   comboItems?: ProductComboItem[];
   batches?: ProductBatch[];
   stocks?: { quantity: number; warehouse?: { name: string } }[];
+  warehouseId?: string | null;
   
   createdAt: string;
   updatedAt: string;
