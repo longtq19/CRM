@@ -3,7 +3,7 @@ import { Settings, Save, RefreshCw, AlertCircle, CheckCircle, Info, Pencil, X, C
 import { apiClient } from '../../api/client';
 import { translate } from '../../utils/dictionary';
 import { useAuthStore } from '../../context/useAuthStore';
-import { POOL_PUSH_STATUS_DEFINITIONS } from '../../constants/operationParams';
+import type { LeadProcessingStatus } from '../../types';
 
 interface SystemConfig {
   id: string;
@@ -67,6 +67,7 @@ const OperationRulesSettings = ({
   );
 
   const [configs, setConfigs] = useState<SystemConfig[]>([]);
+  const [processingStatusDefs, setProcessingStatusDefs] = useState<LeadProcessingStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +103,15 @@ const OperationRulesSettings = ({
       );
       const data = Array.isArray(response) ? response : [];
       setConfigs(data);
+
+      // Fetch processing status definitions for checkboxes
+      try {
+        const psRes: any = await apiClient.get('/processing-statuses');
+        const psData = psRes.data ?? psRes;
+        setProcessingStatusDefs(Array.isArray(psData) ? psData : []);
+      } catch (psErr) {
+        console.error('Error fetching processing status definitions:', psErr);
+      }
       
       // Initialize edited configs
       const initialConfigs: Record<string, EditedConfig> = {};
@@ -330,19 +340,22 @@ const OperationRulesSettings = ({
           }
           return (
             <div className="flex flex-col gap-2 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-              {POOL_PUSH_STATUS_DEFINITIONS.map(({ code, label }) => (
+              {processingStatusDefs.map(({ code, name }) => (
                 <label key={code} className="flex items-center gap-2 text-sm cursor-pointer">
                   <input
                     type="checkbox"
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 text-primary focus:ring-primary/20"
                     checked={selected.includes(code)}
                     disabled={readOnly}
                     onChange={(e) => togglePoolPushStatus(config.key, code, e.target.checked)}
                   />
-                  <span>{label}</span>
+                  <span>{name}</span>
                   <span className="text-xs text-gray-400 font-mono">{code}</span>
                 </label>
               ))}
+              {processingStatusDefs.length === 0 && (
+                <p className="text-xs text-gray-400 italic">Đang tải danh mục trạng thái...</p>
+              )}
             </div>
           );
         }

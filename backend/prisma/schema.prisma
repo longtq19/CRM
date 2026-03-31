@@ -2220,3 +2220,18 @@ enum OrgFunc {
   /// Ghi nhận doanh thu từ data trong khoảng 01/07/2025–31/01/2026
   REV_DATA_RANGE_20250701_20260131
 }
+
+model LeadProcessingStatus {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  description  String?
+  color        String   @default("#9CA3AF")
+  sortOrder    Int      @default(0) @map("sort_order")
+  isActive     Boolean  @default(true) @map("is_active")
+  isPushToPool Boolean  @default(false) @map("is_push_to_pool")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("lead_processing_statuses")
+}

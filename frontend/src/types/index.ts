@@ -606,3 +606,15 @@ export interface SupportTicket {
   assignedTo?: { id: string; fullName: string; phone: string; avatarUrl?: string | null; code: string } | null;
   attachments: SupportTicketAttachment[];
 }
+export interface LeadProcessingStatus {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  color: string;
+  sortOrder: number;
+  isActive: boolean;
+  isPushToPool: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

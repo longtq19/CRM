@@ -4,6 +4,7 @@ import DepartmentManager from '../components/DepartmentManager';
 import OperationRulesSettings from '../components/settings/OperationRulesSettings';
 import CustomerRankSettings from '../components/settings/CustomerRankSettings';
 import SalesTargetSettings from '../components/settings/SalesTargetSettings';
+import LeadProcessingStatusManager from '../components/LeadProcessingStatusManager';
 import { useAuthStore } from '../context/useAuthStore';
 import { OPS_LEAF_STAFF_REMOVE_PERMISSIONS } from '../constants/routePermissionPolicy';
 import {
@@ -11,16 +12,18 @@ import {
   Settings,
   Award,
   Target,
+  ClipboardList,
 } from 'lucide-react';
 import clsx from 'clsx';
 
-type TabId = 'org' | 'params' | 'customer-ranks' | 'sales-targets';
+type TabId = 'org' | 'params' | 'customer-ranks' | 'sales-targets' | 'catalogs';
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'org', label: 'Cấu trúc tổ chức', icon: Building2 },
   { id: 'params', label: 'Tham số vận hành', icon: Settings },
   { id: 'customer-ranks', label: 'Phân hạng KH', icon: Award },
   { id: 'sales-targets', label: 'Mục tiêu KD', icon: Target },
+  { id: 'catalogs', label: 'Danh mục trạng thái', icon: ClipboardList },
 ];
 
 const Operations = () => {
@@ -93,6 +96,7 @@ const Operations = () => {
         )}
         {activeTab === 'customer-ranks' && <CustomerRankSettings />}
         {activeTab === 'sales-targets' && <SalesTargetSettings canEdit={canEdit} />}
+        {activeTab === 'catalogs' && <LeadProcessingStatusManager canEdit={canManageOperationRules} />}
       </div>
     </div>
   );

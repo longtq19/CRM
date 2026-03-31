@@ -555,9 +555,15 @@ export const addInteraction = async (req: Request, res: Response) => {
     const minNoteCfg = await prisma.systemConfig.findUnique({ where: { key: 'min_note_characters' } }).catch(() => null);
     const minNoteChars = minNoteCfg ? parseInt(minNoteCfg.value, 10) : 10;
     const textToCheck = detail != null && String(detail).trim() !== '' ? String(detail).trim() : String(content).trim();
-    const pushCfg = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } }).catch(() => null);
-    const poolPushStatuses = parsePoolPushStatusesJson(pushCfg?.value);
     const ps = processingStatus != null ? String(processingStatus).trim() : '';
+    
+    // Fetch push-to-pool statuses from DB
+    const pushStatuses = await prisma.leadProcessingStatus.findMany({
+      where: { isPushToPool: true, isActive: true },
+      select: { code: true }
+    }).catch(() => []);
+    const poolPushStatuses = pushStatuses.map((s: { code: string }) => s.code);
+    
     const skipMinNoteForPool = ps !== '' && poolPushStatuses.includes(ps);
     if (!skipMinNoteForPool && textToCheck.length < minNoteChars) {
       return res.status(400).json({

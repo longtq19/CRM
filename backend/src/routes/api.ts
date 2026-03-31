@@ -34,6 +34,7 @@ import seedRoutes from './seedRoutes';
 import inventoryRoutes from './inventoryRoutes';
 import customerStatusRoutes from './customerStatusRoutes';
 import shippingQuotaRoutes from './shippingQuotaRoutes';
+import processingStatusRoutes from './processingStatusRoutes';
 
 const router = Router();
 
@@ -78,5 +79,6 @@ router.use('/marketing-groups', marketingGroupRoutes);
 router.use('/support-tickets', supportTicketRoutes);
 router.use('/seed', seedRoutes);
 router.use('/inventory', inventoryRoutes);
+router.use('/processing-statuses', processingStatusRoutes);
 
 export default router;

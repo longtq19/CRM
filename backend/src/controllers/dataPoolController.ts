@@ -85,8 +85,13 @@ export const getDataPool = async (req: Request, res: Response) => {
     }
 
     if (pq === DATA_POOL_QUEUE.FLOATING) {
-      const pushCfg = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } });
-      const statuses = parsePoolPushStatusesJson(pushCfg?.value);
+      // Fetch push-to-pool statuses from DB
+      const pushStatuses = await prisma.leadProcessingStatus.findMany({
+        where: { isPushToPool: true, isActive: true },
+        select: { code: true }
+      }).catch(() => []);
+      const statuses = pushStatuses.map((s: { code: string }) => s.code);
+      
       if (processingStatus && processingStatus !== 'all') {
         const p = String(processingStatus);
         where.processingStatus = statuses.includes(p) ? p : { in: [] };

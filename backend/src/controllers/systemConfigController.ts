@@ -102,8 +102,15 @@ export const updateSystemConfig = async (req: Request, res: Response) => {
       } catch {
         return res.status(400).json({ error: 'Giá trị phải là mảng JSON hợp lệ' });
       }
-      if (!Array.isArray(arr) || !arr.every((x) => typeof x === 'string' && POOL_PUSH_STATUS_CODES.has(x))) {
-        return res.status(400).json({ error: 'Mỗi phần tử phải là mã trạng thái hợp lệ' });
+      if (!Array.isArray(arr)) {
+        return res.status(400).json({ error: 'Giá trị phải là mảng JSON hợp lệ' });
+      }
+      
+      const dbStatuses = await prisma.leadProcessingStatus.findMany({ select: { code: true } });
+      const validCodes = new Set(dbStatuses.map((s: { code: string }) => s.code));
+      
+      if (!arr.every((x: unknown) => typeof x === 'string' && validCodes.has(x))) {
+        return res.status(400).json({ error: 'Mỗi phần tử phải là mã trạng thái hợp lệ trong danh mục' });
       }
     }
     
@@ -165,11 +172,15 @@ export const updateMultipleConfigs = async (req: Request, res: Response) => {
       } else if (existingConfig.dataType === 'ENUM' && existingConfig.enumOptions) {
         const options = JSON.parse(existingConfig.enumOptions);
         isValid = options.includes(config.value);
-      } else if (existingConfig.key === 'pool_push_processing_statuses' && existingConfig.dataType === 'STRING') {
         try {
           const arr = JSON.parse(String(config.value));
-          isValid =
-            Array.isArray(arr) && arr.every((x: unknown) => typeof x === 'string' && POOL_PUSH_STATUS_CODES.has(x));
+          if (!Array.isArray(arr)) {
+            isValid = false;
+          } else {
+            const dbStatuses = await prisma.leadProcessingStatus.findMany({ select: { code: true } });
+            const validCodes = new Set(dbStatuses.map((s: { code: string }) => s.code));
+            isValid = arr.every((x: unknown) => typeof x === 'string' && validCodes.has(x));
+          }
         } catch {
           isValid = false;
         }
