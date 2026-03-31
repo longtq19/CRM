@@ -7,17 +7,13 @@ import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { pickNextSalesEmployeeId } from './leadRoutingService';
 import { assignLeadsUsingTeamRatios } from './teamRatioDistributionService';
 
-export async function shouldTryAutoAssignMarketingSales(anchorEmployeeId: string): Promise<boolean> {
-  const emp = await prisma.employee.findUnique({
-    where: { id: anchorEmployeeId },
-    select: { departmentId: true },
-  });
-  if (!emp?.departmentId) return true;
-  const dept = await prisma.department.findUnique({
-    where: { id: emp.departmentId },
-    select: { autoDistributeLead: true },
-  });
-  return Boolean(dept?.autoDistributeLead);
+/**
+ * Luôn `true`: tỉ lệ MKT→Sales nằm ở **khối** (`data_flow_shares` trên Vận hành), không phụ thuộc cờ `auto_distribute_lead`
+ * trên đơn vị Marketing (cờ đó từng chặn cả lead website dù đã cấu hình khối).
+ */
+export async function shouldTryAutoAssignMarketingSales(_anchorEmployeeId?: string): Promise<boolean> {
+  void _anchorEmployeeId;
+  return true;
 }
 
 async function applyPoolAssignment(

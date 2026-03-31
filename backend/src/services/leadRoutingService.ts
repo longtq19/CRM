@@ -35,6 +35,34 @@ export async function getDivisionRootForDepartment(
   return null;
 }
 
+/**
+ * Khi đi `parentId` không gặp DIVISION (dữ liệu cũ / cây lệch): tìm **khối DIVISION** có cây con **nhỏ nhất**
+ * mà vẫn chứa `deptId` — thường là khối gần đơn vị NV Marketing nhất (nơi có `data_flow_shares`).
+ */
+async function findNearestDivisionContainingDepartment(
+  deptId: string
+): Promise<{ divisionId: string; organizationId: string } | null> {
+  const start = await prisma.department.findUnique({
+    where: { id: deptId },
+    select: { organizationId: true },
+  });
+  if (!start?.organizationId) return null;
+  const divisions = await prisma.department.findMany({
+    where: { organizationId: start.organizationId, type: 'DIVISION' },
+    select: { id: true, organizationId: true },
+  });
+  let best: { divisionId: string; organizationId: string } | null = null;
+  let bestSize = Infinity;
+  for (const d of divisions) {
+    const sub = await collectSubtreeDepartmentIds(d.id);
+    if (sub.has(deptId) && sub.size < bestSize) {
+      bestSize = sub.size;
+      best = { divisionId: d.id, organizationId: d.organizationId };
+    }
+  }
+  return best;
+}
+
 async function collectSubtreeDepartmentIds(divisionId: string): Promise<Set<string>> {
   const ids = new Set<string>();
   const queue = [divisionId];
@@ -440,7 +468,12 @@ export async function pickNextSalesEmployeeId(opts: {
       select: { departmentId: true },
     });
     anchorDept = emp?.departmentId ?? null;
-    if (anchorDept) divisionInfo = await getDivisionRootForDepartment(anchorDept);
+    if (anchorDept) {
+      divisionInfo = await getDivisionRootForDepartment(anchorDept);
+      if (!divisionInfo) {
+        divisionInfo = await findNearestDivisionContainingDepartment(anchorDept);
+      }
+    }
   }
 
   // Config-first: ưu tiên targetSalesUnitId nếu department gốc đã cấu hình
@@ -497,6 +530,8 @@ export async function pickNextSalesEmployeeId(opts: {
           employeeIds: eligibleW,
         });
         if (fairW) return fairW;
+        const p1wFb = pickFromCandidates(inWeighted, exclude, opts.seed + ':fairfb');
+        if (p1wFb) return p1wFb;
       }
     }
     const inBlock = await prisma.employee.findMany({
@@ -600,7 +635,12 @@ export async function pickNextResalesEmployeeId(opts: {
       select: { departmentId: true },
     });
     anchorDept = emp?.departmentId ?? null;
-    if (anchorDept) divisionInfo = await getDivisionRootForDepartment(anchorDept);
+    if (anchorDept) {
+      divisionInfo = await getDivisionRootForDepartment(anchorDept);
+      if (!divisionInfo) {
+        divisionInfo = await findNearestDivisionContainingDepartment(anchorDept);
+      }
+    }
   }
 
   // Config-first: ưu tiên targetCsUnitId, rồi externalCsDivisionId trên bản ghi khối
