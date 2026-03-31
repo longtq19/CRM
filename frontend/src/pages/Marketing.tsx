@@ -223,12 +223,14 @@ const Marketing = () => {
     hasPermission('MANAGE_MARKETING_GROUPS') ||
     hasPermission('MANAGE_SALES') ||
     hasPermission('MANAGE_RESALES');
+  /** Tab & UI danh mục Nền tảng — cần quyền catalog (gán trong Nhóm quyền). */
   const canViewMarketingPlatforms =
-    hasPermission('VIEW_MARKETING_PLATFORMS') ||
-    hasPermission('MANAGE_MARKETING_PLATFORMS') ||
-    hasPermission('MANAGE_CUSTOMERS');
-  const canManageMarketingPlatforms =
-    hasPermission('MANAGE_MARKETING_PLATFORMS') || hasPermission('MANAGE_CUSTOMERS');
+    hasPermission('VIEW_MARKETING_PLATFORMS') || hasPermission('MANAGE_MARKETING_PLATFORMS');
+  /** CRUD nền tảng — chỉ MANAGE_MARKETING_PLATFORMS (không dùng MANAGE_CUSTOMERS). */
+  const canManageMarketingPlatforms = hasPermission('MANAGE_MARKETING_PLATFORMS');
+  /** Tải danh sách nền tảng cho dropdown lead/import khi có quyền Marketing khác. */
+  const shouldLoadMarketingSources =
+    canViewMarketingPlatforms || hasPermission('MANAGE_CUSTOMERS');
   const [leadSubmitting, setLeadSubmitting] = useState(false);
   const [leadError, setLeadError] = useState<string | null>(null);
   const [leadForm, setLeadForm] = useState({
@@ -303,7 +305,7 @@ const Marketing = () => {
   ];
 
   useEffect(() => {
-    if (canViewMarketingPlatforms) loadSources();
+    if (shouldLoadMarketingSources) loadSources();
     loadCampaigns();
     loadLeads();
     loadMarketingEmployeesForCampaign();

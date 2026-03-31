@@ -141,8 +141,12 @@ function generateSourceCode(): string {
 
 export const createMarketingSource = async (req: Request, res: Response) => {
   try {
-    const { code, name, description, isActive } = req.body;
     const actor = (req as any).user;
+    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS')) {
+      return res.status(403).json({ message: 'Bạn không có quyền quản lý nền tảng marketing' });
+    }
+
+    const { code, name, description, isActive } = req.body;
 
     const trimmedName = typeof name === 'string' ? name.trim() : '';
     const trimmedDesc = typeof description === 'string' ? description.trim() : '';
@@ -192,6 +196,10 @@ export const updateMarketingSource = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const { code, name, description, isActive } = req.body;
     const actor = (req as any).user;
+
+    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS')) {
+      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa nền tảng marketing' });
+    }
 
     const existing = await prisma.marketingSource.findUnique({
       where: { id },
@@ -272,7 +280,7 @@ export const deleteMarketingSource = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const actor = (req as any).user;
 
-    const hasPermission = userHasCatalogPermission(actor, 'DELETE_MARKETING_CATALOG');
+    const hasPermission = userHasCatalogPermission(actor, 'MANAGE_MARKETING_PLATFORMS');
     if (!hasPermission) {
       return res.status(403).json({ message: 'Bạn không có quyền xóa nền tảng marketing' });
     }
@@ -370,8 +378,11 @@ function generateCampaignCode(): string {
 
 export const createMarketingCampaign = async (req: Request, res: Response) => {
   try {
-    const { code, name, description, status, startDate, endDate, totalBudget, sourceId } = req.body;
     const actor = (req as any).user;
+    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_CATALOG')) {
+      return res.status(403).json({ message: 'Bạn không có quyền quản lý chiến dịch marketing' });
+    }
+    const { code, name, description, status, startDate, endDate, totalBudget, sourceId } = req.body;
 
     if (!actor) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -456,6 +467,10 @@ export const updateMarketingCampaign = async (req: Request, res: Response) => {
     const id = req.params.id as string;
     const { code, name, description, status, startDate, endDate, totalBudget, sourceId, employeeIds, createdByEmployeeId } = req.body;
     const actor = (req as any).user;
+
+    if (!userHasCatalogPermission(actor, 'MANAGE_MARKETING_CATALOG')) {
+      return res.status(403).json({ message: 'Bạn không có quyền chỉnh sửa chiến dịch marketing' });
+    }
 
     const existing = await prisma.marketingCampaign.findUnique({ where: { id } });
     if (!existing) {
@@ -620,9 +635,9 @@ export const deleteMarketingCampaign = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Chiến dịch không tồn tại' });
     }
 
-    // Quyền xóa: Người tạo hoặc nhóm quyền có DELETE_MARKETING_CATALOG
+    // Quyền xóa: Người tạo hoặc nhóm quyền có MANAGE_MARKETING_CATALOG
     const isCreator = existing.createdByEmployeeId === actor.id;
-    const hasPermission = userHasCatalogPermission(actor, 'DELETE_MARKETING_CATALOG');
+    const hasPermission = userHasCatalogPermission(actor, 'MANAGE_MARKETING_CATALOG');
     
     if (!isCreator && !hasPermission) {
       return res.status(403).json({ message: 'Bạn không có quyền xóa chiến dịch này' });

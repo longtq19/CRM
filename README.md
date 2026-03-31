@@ -436,7 +436,7 @@ Các nhánh nghiệp vụ:
 
 - **Nền tảng** (sources — bảng `marketing_sources`; nhãn UI: «Nền tảng»):
   - `GET/POST/PUT/DELETE /api/marketing/sources`
-  - Quyền: `GET` một trong `VIEW_MARKETING_PLATFORMS` | `MANAGE_MARKETING_PLATFORMS` | `MANAGE_CUSTOMERS`; `POST/PUT/DELETE` cần `MANAGE_MARKETING_PLATFORMS` hoặc `MANAGE_CUSTOMERS` (quản trị hệ thống bypass theo quy ước dự án).
+  - Quyền: `GET` một trong `VIEW_MARKETING_PLATFORMS` | `MANAGE_MARKETING_PLATFORMS` | `MANAGE_CUSTOMERS` (GET cho dropdown lead/chiến dịch/import khi chỉ có quyền Marketing khách); **`POST`/`PUT`/`DELETE` chỉ `MANAGE_MARKETING_PLATFORMS`** — gán trong **Hệ thống → Nhóm quyền** (quản trị hệ thống bypass theo quy ước dự án).
   - Chặn xóa nếu nền tảng đang dùng bởi campaign.
 - Campaign:
   - `GET/POST/PUT /api/marketing/campaigns`

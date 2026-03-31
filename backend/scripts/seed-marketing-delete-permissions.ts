@@ -5,9 +5,10 @@ const prisma = new PrismaClient();
 async function main() {
   const permissions = [
     {
-      code: 'DELETE_MARKETING_CATALOG',
-      name: 'Xóa danh mục Marketing',
-      description: 'Quyền xóa Nền tảng (Source) và Chiến dịch (Campaign) Marketing (Xóa an toàn)',
+      code: 'MANAGE_MARKETING_CATALOG',
+      name: 'Quản lý danh mục Marketing',
+      description:
+        'Quyền bổ sung cho chiến dịch Marketing trong controller (tạo/sửa; xóa khi không phải người tạo). CRUD danh mục Nền tảng dùng MANAGE_MARKETING_PLATFORMS trong catalog.',
     },
     {
       code: 'PERMANENT_DELETE_CUSTOMER',
