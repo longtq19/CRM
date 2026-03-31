@@ -2183,38 +2183,59 @@ export const pushLeadsToDataPool = async (req: Request, res: Response) => {
 export const updateMarketingLeadStatus = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const { leadStatus } = req.body;
+    const { leadStatus, campaignId, leadSourceId } = req.body;
 
     const validStatuses = ['NEW', 'CONTACTED', 'QUALIFIED', 'NEGOTIATING', 'WON', 'LOST', 'INVALID', 'CONVERTED'];
-    if (!leadStatus || !validStatuses.includes(leadStatus)) {
-      return res.status(400).json({ message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}` });
+    
+    const updateData: any = {};
+    if (leadStatus) {
+      if (!validStatuses.includes(leadStatus)) {
+        return res.status(400).json({ message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}` });
+      }
+      updateData.leadStatus = leadStatus;
     }
 
-    const customer = await prisma.customer.findUnique({ where: { id }, select: { id: true, createdByRole: true } });
+    if (campaignId !== undefined) {
+      updateData.campaignId = campaignId || null;
+    }
+    if (leadSourceId !== undefined) {
+      updateData.leadSourceId = leadSourceId || null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'Không có dữ liệu cập nhật' });
+    }
+
+    const customer = await prisma.customer.findUnique({ where: { id }, select: { id: true, createdByRole: true, campaignId: true, leadSourceId: true } });
     if (!customer) {
       return res.status(404).json({ message: 'Không tìm thấy khách hàng' });
     }
 
     const updated = await prisma.customer.update({
       where: { id },
-      data: { leadStatus },
+      data: updateData,
     });
 
     const actor = (req as any).user;
     if (actor) {
       const intCount = await prisma.customerInteraction.count();
+      let content = '';
+      if (leadStatus) content += `Cập nhật trạng thái lead: ${leadStatus}. `;
+      if (campaignId !== undefined) content += `Cập nhật chiến dịch: ${campaignId || 'Gỡ gán'}. `;
+      if (leadSourceId !== undefined) content += `Cập nhật nền tảng: ${leadSourceId || 'Gỡ gán'}. `;
+
       await prisma.customerInteraction.create({
         data: {
           code: `INT-${String(intCount + 1).padStart(6, '0')}`,
           customerId: id,
           employeeId: actor.id,
-          type: 'STATUS_CHANGE',
-          content: `Cập nhật trạng thái lead: ${leadStatus}`,
+          type: 'FIELD_UPDATE',
+          content: content.trim(),
         },
       });
     }
 
-    res.json({ message: 'Cập nhật thành công', leadStatus: updated.leadStatus });
+    res.json({ message: 'Cập nhật thành công', updatedFields: Object.keys(updateData) });
   } catch (error) {
     console.error('Update marketing lead status error:', error);
     res.status(500).json({ message: 'Lỗi khi cập nhật trạng thái' });

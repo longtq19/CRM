@@ -466,16 +466,20 @@ const Marketing = () => {
     }
   };
 
-  const handleUpdateLeadStatus = async (customerId: string, newStatus: string) => {
+  const handleUpdateLeadFields = async (customerId: string, fields: any) => {
     try {
-      await apiClient.put(`/marketing/leads/${customerId}/status`, { leadStatus: newStatus });
+      await apiClient.put(`/marketing/leads/${customerId}/status`, fields);
       if (leadDetailData && leadDetailData.id === customerId) {
-        setLeadDetailData({ ...leadDetailData, leadStatus: newStatus });
+        setLeadDetailData({ ...leadDetailData, ...fields });
       }
-      fetchLeads();
+      void loadLeads();
     } catch (err: any) {
-      alert(err.message || 'Lỗi khi cập nhật trạng thái');
+      alert(err.message || 'Lỗi khi cập nhật khách hàng');
     }
+  };
+
+  const handleUpdateLeadStatus = (customerId: string, newStatus: string) => {
+    handleUpdateLeadFields(customerId, { leadStatus: newStatus });
   };
 
   const handleExportLeads = async () => {
@@ -3238,8 +3242,8 @@ const Marketing = () => {
                     <div className="ml-auto flex items-center gap-2">
                       <select
                         value={leadDetailData.leadStatus || 'NEW'}
-                        onChange={(e) => handleUpdateLeadStatus(leadDetailData.id, e.target.value)}
-                        className={clsx('px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer appearance-none pr-6',
+                        onChange={(e) => handleUpdateLeadFields(leadDetailData.id, { leadStatus: e.target.value })}
+                        className={clsx('px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer appearance-none pr-6 shadow-sm',
                           leadDetailData.leadStatus === 'NEW' && 'bg-blue-100 text-blue-700',
                           leadDetailData.leadStatus === 'CONTACTED' && 'bg-cyan-100 text-cyan-700',
                           leadDetailData.leadStatus === 'QUALIFIED' && 'bg-green-100 text-green-700',
@@ -3293,18 +3297,36 @@ const Marketing = () => {
                         </span>
                       </div>
                     )}
-                    {leadDetailData.leadSource && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Target size={14} className="text-gray-400" />
-                        Nền tảng: <span className="font-medium">{leadDetailData.leadSource.name}</span>
-                      </div>
-                    )}
-                    {leadDetailData.campaign && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Megaphone size={14} className="text-gray-400" />
-                        Chiến dịch: <span className="font-medium">{leadDetailData.campaign.name}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Target size={14} className="text-gray-400" />
+                      Nền tảng:
+                      <select
+                        value={leadDetailData.leadSourceId || ''}
+                        onChange={(e) => handleUpdateLeadFields(leadDetailData.id, { leadSourceId: e.target.value })}
+                        className="bg-transparent border-0 border-b border-gray-200 text-sm font-medium focus:ring-0 py-0 pr-6"
+                      >
+                        <option value="">— Chưa chọn —</option>
+                        {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <Megaphone size={14} className="text-gray-400" />
+                      Chiến dịch:
+                      <select
+                        value={leadDetailData.campaignId || ''}
+                        onChange={(e) => handleUpdateLeadFields(leadDetailData.id, { campaignId: e.target.value })}
+                        className="bg-transparent border-0 border-b border-gray-200 text-sm font-medium focus:ring-0 py-0 pr-6"
+                        disabled={!leadDetailData.leadSourceId}
+                      >
+                        <option value="">
+                          {!leadDetailData.leadSourceId ? 'Chọn nền tảng trước' : '— Chưa chọn —'}
+                        </option>
+                        {campaigns
+                          .filter(c => !leadDetailData.leadSourceId || c.sourceId === leadDetailData.leadSourceId)
+                          .map(c => <option key={c.id} value={c.id}>{c.name}</option>)
+                        }
+                      </select>
+                    </div>
                     {leadDetailData.marketingOwner && (
                       <div className="bg-blue-50 rounded-lg p-3 space-y-2">
                         <div className="flex items-center gap-2 text-gray-700">

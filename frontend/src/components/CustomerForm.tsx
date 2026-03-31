@@ -206,7 +206,11 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
           return false;
         });
         setMarketingEmployees(
-          filtered.map((e: any) => ({ id: e.id, fullName: e.fullName || e.code || e.id }))
+          filtered.map((e: any) => ({ 
+            id: e.id, 
+            fullName: e.fullName || e.code || e.id,
+            phone: e.phone || ''
+          }))
         );
       })
       .catch(() => {});
@@ -403,9 +407,13 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
       return;
     }
 
-    if (!form.salesChannel) {
-      alert('Vui lòng chọn hoặc nhập kênh tiếp cận khách hàng');
-      setExpandedSections(prev => ({ ...prev, salesChannel: true }));
+    if (!form.marketingOwnerId && !form.salesChannel) {
+      alert('Bắt buộc nhập MỘT TRONG HAI nhóm: Gán Marketing HOẶC Kênh tiếp cận.');
+      setExpandedSections(prev => ({ ...prev, marketing: true, salesChannel: true }));
+      return;
+    }
+    if (form.marketingOwnerId && form.salesChannel) {
+      alert('Chỉ được chọn MỘT TRONG HAI nhóm: Gán Marketing HOẶC Kênh tiếp cận. Vui lòng bỏ chọn một nhóm.');
       return;
     }
 
@@ -1177,56 +1185,62 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                       </label>
                       <select
                         value={form.marketingOwnerId}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value;
                           setForm({
                             ...form,
-                            marketingOwnerId: e.target.value,
+                            marketingOwnerId: val,
                             campaignId: '',
                             leadSourceId: '',
-                          })
-                        }
+                            // Clear Sales Channel if Marketing Employee is selected
+                            salesChannel: val ? '' : form.salesChannel,
+                          });
+                        }}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
                       >
                         <option value="">— Không gán —</option>
-                        {marketingEmployees.map((emp) => (
+                        {marketingEmployees.map((emp: any) => (
                           <option key={emp.id} value={emp.id}>
-                            {emp.fullName}
+                            {emp.fullName} {emp.phone ? `- ${emp.phone}` : ''}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Chiến dịch
-                      </label>
-                      <select
-                        value={form.campaignId}
-                        disabled={!form.marketingOwnerId}
-                        onChange={(e) => {
-                          const cid = e.target.value;
-                          const c = marketingCampaigns.find((x) => x.id === cid);
-                          setForm({
-                            ...form,
-                            campaignId: cid,
-                            leadSourceId: c?.sourceId || '',
-                          });
-                        }}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
-                      >
-                        <option value="">
-                          {form.marketingOwnerId
-                            ? marketingCampaigns.length
-                              ? 'Chọn chiến dịch'
-                              : 'Đang tải / không có chiến dịch'
-                            : 'Chọn NV Marketing trước'}
-                        </option>
-                        {marketingCampaigns.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
+                    {/* Sales không chọn trường chiến dịch - ẩn đi */}
+                    {false && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Chiến dịch
+                        </label>
+                        <select
+                          value={form.campaignId}
+                          disabled={!form.marketingOwnerId}
+                          onChange={(e) => {
+                            const cid = e.target.value;
+                            const c = marketingCampaigns.find((x) => x.id === cid);
+                            setForm({
+                              ...form,
+                              campaignId: cid,
+                              leadSourceId: c?.sourceId || '',
+                            });
+                          }}
+                          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                        >
+                          <option value="">
+                            {form.marketingOwnerId
+                              ? marketingCampaigns.length
+                                ? 'Chọn chiến dịch'
+                                : 'Đang tải / không có chiến dịch'
+                              : 'Chọn NV Marketing trước'}
                           </option>
-                        ))}
-                      </select>
-                    </div>
+                          {marketingCampaigns.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1258,11 +1272,19 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                         <select
                           value={form.salesChannel}
                           onChange={(e) => {
-                            if (e.target.value === '__custom__') {
+                            const val = e.target.value;
+                            if (val === '__custom__') {
                               setUseCustomChannel(true);
                               setForm({ ...form, salesChannel: '' });
                             } else {
-                              setForm({ ...form, salesChannel: e.target.value });
+                              setForm({ 
+                                ...form, 
+                                salesChannel: val,
+                                // Clear Marketing Assignment if Sales Channel is selected
+                                marketingOwnerId: val ? '' : form.marketingOwnerId,
+                                campaignId: val ? '' : form.campaignId,
+                                leadSourceId: val ? '' : form.leadSourceId,
+                              });
                             }
                           }}
                           className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
