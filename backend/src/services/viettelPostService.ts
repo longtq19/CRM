@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { prisma } from '../config/database';
+import { parseVtpDate } from '../utils/vtpDateParser';
 
 interface ViettelPostConfig {
   apiUrl: string;
@@ -197,7 +198,7 @@ class ViettelPostService {
             statusCode: String(order.ORDER_STATUS),
             description: order.STATUS_NAME,
             location: order.RECEIVER_PROVINCE || '',
-            timestamp: new Date(order.LAST_UPDATE || new Date()),
+            timestamp: parseVtpDate(order.LAST_UPDATE || new Date()),
           });
         }
 

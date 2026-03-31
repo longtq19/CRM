@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { getIO } from '../socket';
 import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/leadDuplicateService';
+import { parseVtpDate } from '../utils/vtpDateParser';
 
 /**
  * =====================================================
@@ -205,7 +206,7 @@ export const handleVTPWebhook = async (req: Request, res: Response) => {
           note: noteWithLocation,
           vtpOrderCode: vtpOrderCode || undefined,
           rawData: JSON.stringify(item),
-          timestamp: new Date(updateTime)
+          timestamp: parseVtpDate(updateTime)
         }
       });
 
