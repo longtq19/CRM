@@ -124,8 +124,8 @@ export const DICTIONARY: Record<string, string> = {
   'View Settings': 'Xem cấu hình hệ thống', 
   'Edit Settings': 'Chỉnh sửa cấu hình hệ thống',
   
-  // Permission Codes — 66 quyền, 10 nhóm (đồng bộ `backend/src/constants/permissionsCatalog.ts`)
-  // ── 1. Hệ thống ──
+  // Permission Codes — 74 quyền, 15 nhóm module (đồng bộ `backend/src/constants/permissionsCatalog.ts`, `RoleGroupManager.tsx` PERMISSION_GROUPS)
+  // ── 01. Hệ thống ──
   'FULL_ACCESS': 'Toàn quyền hệ thống',
   'MANAGE_SYSTEM': 'Quản lý hệ thống',
   'VIEW_LOGS': 'Xem nhật ký hoạt động',
@@ -135,11 +135,11 @@ export const DICTIONARY: Record<string, string> = {
   'STAFF_LOCK': 'Khóa / mở khóa tài khoản',
   'VIEW_ROLE_GROUPS': 'Xem nhóm quyền (RBAC)',
   'MANAGE_ROLE_GROUPS': 'Quản lý nhóm quyền (menu, quyền, phạm vi xem)',
-  // ── 2. Dashboard & Báo cáo ──
+  // ── 02. Dashboard & Báo cáo ──
   'VIEW_DASHBOARD': 'Xem Dashboard',
   'VIEW_REPORTS': 'Xem báo cáo',
   'VIEW_PERFORMANCE': 'Xem hiệu suất làm việc',
-  // ── 3. Nhân sự ──
+  // ── 03. Nhân sự ──
   'MANAGE_HR': 'Quản lý nhân sự',
   'VIEW_HR': 'Xem nhân sự (theo phạm vi)',
   'VIEW_EMPLOYEE_TYPE_CATALOG': 'Xem danh mục loại nhân viên',
@@ -148,7 +148,7 @@ export const DICTIONARY: Record<string, string> = {
   'VIEW_LEAVE_REQUESTS': 'Xem đơn nghỉ phép',
   'MANAGE_LEAVE_REQUESTS': 'Quản lý đơn nghỉ phép',
   'DELETE_LEAVE_REQUESTS': 'Xóa đơn nghỉ phép',
-  // ── 4. Kho số & Phân bổ ──
+  // ── 04. Kho số & Phân bổ ──
   'VIEW_FLOATING_POOL': 'Xem kho số thả nổi',
   'VIEW_MANAGED_UNIT_POOL': 'Xem kho số theo đơn vị quản lý',
   'RECALL_MANAGED_UNIT_LEADS': 'Thu hồi lead trong phạm vi đơn vị quản lý',
@@ -163,29 +163,34 @@ export const DICTIONARY: Record<string, string> = {
   'VIEW_CSKH_POOL': 'Xem kho số CSKH',
   'MANAGE_CSKH_POOL': 'Quản lý kho số CSKH',
   'DISTRIBUTE_SALES_CROSS_ORG': 'Phân kho Sales/CSKH cho bất kỳ khối/đơn vị/NV',
-  // ── 5. Kinh doanh ──
+  // ── 05. Khách hàng ──
   'VIEW_CUSTOMERS': 'Xem khách hàng',
   'VIEW_ALL_COMPANY_CUSTOMERS': 'Xem toàn bộ khách hàng công ty',
   'MANAGE_CUSTOMERS': 'Quản lý khách hàng & Marketing',
   'DELETE_CUSTOMER': 'Xóa khách hàng',
-  'VIEW_MARKETING_CAMPAIGNS': 'Xem chiến dịch marketing',
-  'CREATE_MARKETING_CAMPAIGN': 'Tạo chiến dịch marketing',
-  'UPDATE_MARKETING_CAMPAIGN': 'Sửa chiến dịch marketing',
-  'DELETE_MARKETING_CAMPAIGN': 'Xóa chiến dịch marketing',
-  'MANAGE_MARKETING_GROUPS': 'Quản lý nhóm Marketing',
+  // ── 06. Marketing ──
   'VIEW_MARKETING_PLATFORMS': 'Xem tab quản trị danh mục nền tảng (Marketing)',
   'CREATE_MARKETING_PLATFORM': 'Tạo nền tảng marketing',
   'UPDATE_MARKETING_PLATFORM': 'Sửa nền tảng marketing',
   'DELETE_MARKETING_PLATFORM': 'Xóa nền tảng marketing',
+  'MANAGE_MARKETING_GROUPS': 'Quản lý nhóm Marketing',
+  'VIEW_MARKETING_CAMPAIGNS': 'Xem chiến dịch marketing',
+  'CREATE_MARKETING_CAMPAIGN': 'Tạo chiến dịch marketing',
+  'UPDATE_MARKETING_CAMPAIGN': 'Sửa chiến dịch marketing',
+  'DELETE_MARKETING_CAMPAIGN': 'Xóa chiến dịch marketing',
+  // ── 07. Sales ──
   'VIEW_SALES': 'Xem Sales',
   'MANAGE_SALES': 'Quản lý Sales',
+  'VIEW_SALES_EFFECTIVENESS': 'Xem báo cáo hiệu quả & xếp hạng Sales',
+  // ── 08. CSKH ──
   'VIEW_RESALES': 'Xem CSKH',
   'MANAGE_RESALES': 'Quản lý CSKH',
-  'VIEW_SALES_EFFECTIVENESS': 'Xem báo cáo hiệu quả & xếp hạng Sales',
   'VIEW_CSKH_EFFECTIVENESS': 'Xem báo cáo hiệu quả & xếp hạng CSKH',
+  // ── 09. Sản phẩm ──
   'MANAGE_PRODUCTS': 'Quản lý sản phẩm',
+  // ── 10. Hỗ trợ ──
   'MANAGE_SUPPORT_TICKETS': 'Quản lý ticket hỗ trợ',
-  // ── 6. Đơn hàng & Vận chuyển ──
+  // ── 11. Đơn hàng & Vận chuyển ──
   'VIEW_ORDERS': 'Xem đơn hàng',
   'VIEW_ALL_COMPANY_ORDERS': 'Xem toàn bộ đơn hàng công ty',
   'CREATE_ORDER': 'Tạo đơn hàng (của bản thân)',
@@ -193,17 +198,17 @@ export const DICTIONARY: Record<string, string> = {
   'MANAGE_SHIPPING': 'Quản lý vận đơn',
   'ASSIGN_SHIPPING_DAILY_QUOTA': 'Gán chỉ tiêu xử lý vận đơn theo ngày',
   'CREATE_ORDER_OUTSIDE_SYSTEM': 'Tạo đơn ngoài hệ thống',
-  // ── 7. Kho vận ──
+  // ── 12. Kho vận ──
   'MANAGE_WAREHOUSE': 'Quản lý kho',
   // ── 8. Kế toán ──
   'VIEW_ACCOUNTING': 'Xem kế toán',
   'MANAGE_ACCOUNTING': 'Quản lý kế toán',
-  // ── 9. Vận hành & Cơ cấu ──
+  // ── 14. Vận hành & Cơ cấu ──
   'CONFIG_OPERATIONS': 'Cấu hình Vận hành',
   'CONFIG_ORG_STRUCTURE': 'Cấu hình cơ cấu tổ chức',
   'CONFIG_DATA_FLOW': 'Cấu hình luồng dữ liệu',
   'VIEW_DIVISIONS': 'Xem khối / cấu trúc tổ chức',
-  // ── 10. Tiện ích ──
+  // ── 15. Tiện ích ──
   'MANAGE_NOTIFICATIONS': 'Quản lý thông báo',
   'CREATE_DRAFT_NOTIFICATION': 'Tạo thông báo nháp',
   'MANAGE_DOCUMENTS': 'Quản lý tài liệu',

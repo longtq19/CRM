@@ -1,6 +1,7 @@
 /**
  * Catalog quyền chính thức (đồng bộ DB khi `syncDefaultMenus` / `ensureDefaultPermissionsCatalog`).
  * `description` dùng làm hướng dẫn ngắn trên UI Nhóm quyền (tooltip).
+ * Nhóm theo **module** (comment `01.`–`15.`) khớp `PERMISSION_GROUPS` trong `frontend/src/components/RoleGroupManager.tsx`.
  */
 export type PermissionCatalogEntry = {
   code: string;
@@ -10,7 +11,7 @@ export type PermissionCatalogEntry = {
 };
 
 export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
-  // ── 1. Hệ thống ──
+  // ── 01. Hệ thống ──
   {
     code: 'FULL_ACCESS',
     name: 'Toàn quyền hệ thống',
@@ -60,7 +61,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Tạo/sửa/xóa nhóm quyền, gán menu & quyền, cập nhật phạm vi xem HR/Khách hàng.',
   },
 
-  // ── 2. Dashboard & Báo cáo ──
+  // ── 02. Dashboard & Báo cáo ──
   {
     code: 'VIEW_DASHBOARD',
     name: 'Xem Dashboard',
@@ -120,7 +121,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Xóa vĩnh viễn bản ghi đơn nghỉ phép (API permanent-delete; không thay cho MANAGE_LEAVE_REQUESTS).',
   },
 
-  // ── 4. Kho số & Phân bổ ──
+  // ── 04. Kho số & Phân bổ ──
   {
     code: 'VIEW_FLOATING_POOL',
     name: 'Xem kho số thả nổi',
@@ -192,7 +193,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Phân lead cho mọi khối/đơn vị/nhân viên (quyền phân phối rộng).',
   },
 
-  // ── 5. Kinh doanh ──
+  // ── 05. Khách hàng ──
   {
     code: 'VIEW_CUSTOMERS',
     name: 'Xem khách hàng',
@@ -209,6 +210,13 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description:
       'Sửa khách, lead Marketing, chi phí chiến dịch (khi đủ quyền chiến dịch), tag khách; xem nền tảng cho dropdown cần VIEW_MARKETING_PLATFORMS hoặc quyền tạo/sửa/xóa nền tảng; CRUD chiến dịch dùng VIEW/CREATE/UPDATE/DELETE_MARKETING_CAMPAIGN; không gồm xóa khách (DELETE_CUSTOMER).',
   },
+  {
+    code: 'DELETE_CUSTOMER',
+    name: 'Xóa khách hàng',
+    description: 'Xóa vĩnh viễn bản ghi khách (API DELETE customer).',
+  },
+
+  // ── 06. Marketing ──
   {
     code: 'VIEW_MARKETING_PLATFORMS',
     name: 'Xem tab quản trị danh mục nền tảng (Marketing)',
@@ -229,11 +237,6 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'DELETE_MARKETING_PLATFORM',
     name: 'Xóa nền tảng marketing',
     description: 'DELETE nền tảng khi đủ điều kiện nghiệp vụ (marketing_sources).',
-  },
-  {
-    code: 'DELETE_CUSTOMER',
-    name: 'Xóa khách hàng',
-    description: 'Xóa vĩnh viễn bản ghi khách (API DELETE customer).',
   },
   {
     code: 'MANAGE_MARKETING_GROUPS',
@@ -262,6 +265,8 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Xóa chiến dịch marketing',
     description: 'DELETE chiến dịch (gỡ gán khách, xóa chi phí/cơ hội gắn chiến dịch khi đủ điều kiện nghiệp vụ).',
   },
+
+  // ── 07. Sales ──
   {
     code: 'VIEW_SALES',
     name: 'Xem Sales',
@@ -273,6 +278,13 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Cập nhật trạng thái/ưu tiên lead, tương tác Sales; tạo khách nếu route cho phép.',
   },
   {
+    code: 'VIEW_SALES_EFFECTIVENESS',
+    name: 'Xem báo cáo hiệu quả & xếp hạng Sales',
+    description: 'Tab báo cáo hiệu quả / xếp hạng trong module Sales (performance API).',
+  },
+
+  // ── 08. CSKH ──
+  {
     code: 'VIEW_RESALES',
     name: 'Xem CSKH',
     description: 'Xem khách CSKH, lịch chăm sóc, tương tác (API resales).',
@@ -283,27 +295,26 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Cập nhật khách CSKH, tương tác, chuyển khách, ưu tiên lead.',
   },
   {
-    code: 'VIEW_SALES_EFFECTIVENESS',
-    name: 'Xem báo cáo hiệu quả & xếp hạng Sales',
-    description: 'Tab báo cáo hiệu quả / xếp hạng trong module Sales (performance API).',
-  },
-  {
     code: 'VIEW_CSKH_EFFECTIVENESS',
     name: 'Xem báo cáo hiệu quả & xếp hạng CSKH',
     description: 'Tab báo cáo hiệu quả / xếp hạng trong module CSKH (performance API).',
   },
+
+  // ── 09. Sản phẩm ──
   {
     code: 'MANAGE_PRODUCTS',
     name: 'Quản lý sản phẩm',
     description: 'CRUD sản phẩm, danh mục gắn bán hàng (product routes).',
   },
+
+  // ── 10. Hỗ trợ ──
   {
     code: 'MANAGE_SUPPORT_TICKETS',
     name: 'Quản lý ticket hỗ trợ',
     description: 'Quản lý ticket module Hỗ trợ (support routes).',
   },
 
-  // ── 6. Đơn hàng & Vận chuyển ──
+  // ── 11. Đơn hàng & Vận chuyển ──
   {
     code: 'VIEW_ORDERS',
     name: 'Xem đơn hàng',
@@ -341,14 +352,14 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Ghi nhận đơn phát sinh ngoài CRM (outside-system).',
   },
 
-  // ── 7. Kho vận ──
+  // ── 12. Kho vận ──
   {
     code: 'MANAGE_WAREHOUSE',
     name: 'Quản lý kho',
     description: 'Nhập/xuất/tồn, quản lý kho vận (inventory routes).',
   },
 
-  // ── 8. Kế toán ──
+  // ── 13. Kế toán ──
   {
     code: 'VIEW_ACCOUNTING',
     name: 'Xem kế toán',
@@ -360,7 +371,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Ghi/sửa chứng từ, bảng lương, hóa đơn kế toán (theo route).',
   },
 
-  // ── 9. Vận hành & Cơ cấu ──
+  // ── 14. Vận hành & Cơ cấu ──
   {
     code: 'CONFIG_OPERATIONS',
     name: 'Cấu hình Vận hành',
@@ -382,7 +393,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Xem cấu trúc khối/đơn vị trong báo cáo và màn Vận hành (đọc).',
   },
 
-  // ── 10. Tiện ích ──
+  // ── 15. Tiện ích ──
   {
     code: 'MANAGE_NOTIFICATIONS',
     name: 'Quản lý thông báo',

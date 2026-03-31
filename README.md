@@ -274,7 +274,7 @@ Các key (chỉnh khi có quyền `CONFIG_OPERATIONS` hoặc `EDIT_SETTINGS`, ho
 ### 3.7 Ngôn ngữ hiển thị trên FE (tiếng Việt)
 
 - Sidebar hiển thị trực tiếp `menus.label` từ DB (FE không tự map menu). `syncDefaultMenus()` trong `backend/src/controllers/authController.ts` cập nhật `label` theo `path` để đảm bảo nhãn menu hiển thị tiếng Việt (ví dụ: `Bảng điều khiển`, `Tiếp thị`, `Kinh doanh`).
-- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **10 nhóm** trên UI: Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Kinh doanh, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **67 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
+- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **15 nhóm theo module** trên UI (tiền tố `01.`–`15.` để sắp thứ tự): Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Khách hàng, Marketing, Sales, CSKH, Sản phẩm, Hỗ trợ, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **74 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
 - **Địa danh hành chính (tỉnh/thành, quận/huyện, phường/xã):** FE hiển thị dạng Title Case (mỗi từ viết hoa đầu, `vi-VN`) qua `administrativeTitleCase` / `formatAdminGeoLine` trong `frontend/src/utils/addressDisplayFormat.ts`; bản đồ phân bố khách dùng `matchAdministrativeNameKey` để khớp tên tỉnh từ API (có thể chữ thường) với bảng tọa độ cố định.
 
 ## 4. Nghiệp vụ theo chức năng chính
@@ -650,17 +650,22 @@ Nghiệp vụ:
   - view scopes:
     - `GET/PUT /api/role-groups/view-scopes`
 - Nhóm quản trị kỹ thuật (`system_administrator` và legacy `ADM`): **luôn** gắn đủ mọi menu và mọi quyền trong catalog, phạm vi xem HR & Khách hàng là **COMPANY** (toàn công ty) — đồng bộ mỗi lần `syncDefaultMenus` (khởi động backend). **Không** chỉnh sửa nhóm này trên UI (tab **Hệ thống → Nhóm quyền**) và không đổi/xóa qua API; khi thêm quyền mới vào `DEFAULT_PERMISSIONS`, lần khởi động sau sẽ tự gán cho nhóm đó.
-- **Danh sách 70 quyền trong catalog** (10 nhóm, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`):
+- **Danh sách 74 quyền trong catalog** (15 nhóm theo module, `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`; UI: `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`):
   1. **Hệ thống (9):** `FULL_ACCESS`, `MANAGE_SYSTEM`, `VIEW_LOGS`, `VIEW_SETTINGS`, `EDIT_SETTINGS`, `STAFF_LOGOUT`, `STAFF_LOCK`, `VIEW_ROLE_GROUPS`, `MANAGE_ROLE_GROUPS`
   2. **Dashboard & Báo cáo (3):** `VIEW_DASHBOARD`, `VIEW_REPORTS`, `VIEW_PERFORMANCE`
   3. **Nhân sự (8):** `MANAGE_HR`, `VIEW_HR`, `VIEW_EMPLOYEE_TYPE_CATALOG`, `MANAGE_EMPLOYEE_TYPE_CATALOG`, `VIEW_CONTRACTS`, `VIEW_LEAVE_REQUESTS`, `MANAGE_LEAVE_REQUESTS`, `DELETE_LEAVE_REQUESTS`
   4. **Kho số & Phân bổ (14):** `VIEW_FLOATING_POOL`, `MANAGE_DATA_POOL`, `DATA_POOL_CONFIG`, `CONFIG_DISTRIBUTION`, `CLAIM_LEAD`, `ASSIGN_LEAD`, `DISTRIBUTE_FLOATING_POOL`, `DISTRIBUTE_FLOATING_CROSS_ORG`, `CLAIM_FLOATING_POOL`, `VIEW_CSKH_POOL`, `MANAGE_CSKH_POOL`, `VIEW_MANAGED_UNIT_POOL`, `RECALL_MANAGED_UNIT_LEADS`, `DISTRIBUTE_SALES_CROSS_ORG`
-  5. **Kinh doanh (21):** `VIEW_CUSTOMERS`, `VIEW_ALL_COMPANY_CUSTOMERS`, `MANAGE_CUSTOMERS`, `VIEW_MARKETING_PLATFORMS`, `CREATE_MARKETING_PLATFORM`, `UPDATE_MARKETING_PLATFORM`, `DELETE_MARKETING_PLATFORM`, `DELETE_CUSTOMER`, `MANAGE_MARKETING_GROUPS`, `VIEW_MARKETING_CAMPAIGNS`, `CREATE_MARKETING_CAMPAIGN`, `UPDATE_MARKETING_CAMPAIGN`, `DELETE_MARKETING_CAMPAIGN`, `VIEW_SALES`, `MANAGE_SALES`, `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_SALES_EFFECTIVENESS`, `VIEW_CSKH_EFFECTIVENESS`, `MANAGE_PRODUCTS`, `MANAGE_SUPPORT_TICKETS`
-  6. **Đơn hàng & Vận chuyển (7):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`, `CREATE_ORDER_OUTSIDE_SYSTEM`
-  7. **Kho vận (1):** `MANAGE_WAREHOUSE`
-  8. **Kế toán (2):** `VIEW_ACCOUNTING`, `MANAGE_ACCOUNTING`
-  9. **Vận hành & Cơ cấu (4):** `CONFIG_OPERATIONS`, `CONFIG_ORG_STRUCTURE`, `CONFIG_DATA_FLOW`, `VIEW_DIVISIONS`
-  10. **Tiện ích (5):** `MANAGE_NOTIFICATIONS`, `CREATE_DRAFT_NOTIFICATION`, `MANAGE_DOCUMENTS`, `MANAGE_INTERNAL_NOTES`, `DELETE_CONVERSATION`
+  5. **Khách hàng (4):** `VIEW_CUSTOMERS`, `VIEW_ALL_COMPANY_CUSTOMERS`, `MANAGE_CUSTOMERS`, `DELETE_CUSTOMER`
+  6. **Marketing (9):** `VIEW_MARKETING_PLATFORMS`, `CREATE_MARKETING_PLATFORM`, `UPDATE_MARKETING_PLATFORM`, `DELETE_MARKETING_PLATFORM`, `MANAGE_MARKETING_GROUPS`, `VIEW_MARKETING_CAMPAIGNS`, `CREATE_MARKETING_CAMPAIGN`, `UPDATE_MARKETING_CAMPAIGN`, `DELETE_MARKETING_CAMPAIGN`
+  7. **Sales (3):** `VIEW_SALES`, `MANAGE_SALES`, `VIEW_SALES_EFFECTIVENESS`
+  8. **CSKH (3):** `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_CSKH_EFFECTIVENESS`
+  9. **Sản phẩm (1):** `MANAGE_PRODUCTS`
+  10. **Hỗ trợ (1):** `MANAGE_SUPPORT_TICKETS`
+  11. **Đơn hàng & Vận chuyển (7):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`, `CREATE_ORDER_OUTSIDE_SYSTEM`
+  12. **Kho vận (1):** `MANAGE_WAREHOUSE`
+  13. **Kế toán (2):** `VIEW_ACCOUNTING`, `MANAGE_ACCOUNTING`
+  14. **Vận hành & Cơ cấu (4):** `CONFIG_OPERATIONS`, `CONFIG_ORG_STRUCTURE`, `CONFIG_DATA_FLOW`, `VIEW_DIVISIONS`
+  15. **Tiện ích (5):** `MANAGE_NOTIFICATIONS`, `CREATE_DRAFT_NOTIFICATION`, `MANAGE_DOCUMENTS`, `MANAGE_INTERNAL_NOTES`, `DELETE_CONVERSATION`
 - Khi cần thêm quyền mới: thêm vào `DEFAULT_PERMISSIONS` trong `backend/src/constants/permissionsCatalog.ts` (kèm `description`), map nhóm trong `PERMISSION_GROUPS` (FE `RoleGroupManager.tsx`), và nhãn trong `DICTIONARY` (FE `dictionary.ts`). Sau khi thêm vào catalog, `ensureTechnicalAdminsHaveAllPermissions` trong `syncDefaultMenus` gán quyền mới cho `system_administrator` / `ADM`. Các nhóm khác (kể cả `crm_administrator`) **không** được tự động gắn `CONFIG_ORG_STRUCTURE` / `CONFIG_DATA_FLOW` khi sync — gán qua **Nhóm quyền** khi cần.
 
 ### 4.12. Documents & Internal Notes
