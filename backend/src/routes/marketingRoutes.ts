@@ -31,6 +31,13 @@ import {
 
 const router = Router();
 
+/** Chi phí / hiệu quả / xếp hạng NV Marketing: NV Tiếp thị có VIEW hoặc UPDATE chiến dịch phải gọi được API; phạm vi từng chiến dịch do controller (`canAccessMarketingCampaignByCreator`, …). Không chỉ `MANAGE_CUSTOMERS` (Kinh doanh). */
+const CAMPAIGN_COSTS_AND_MARKETING_REPORTS = [
+  'VIEW_MARKETING_CAMPAIGNS',
+  'UPDATE_MARKETING_CAMPAIGN',
+  'MANAGE_CUSTOMERS',
+] as const;
+
 // Sources — nền tảng (marketing_sources): danh mục chung công ty — GET chỉ cần đăng nhập; POST/PUT/DELETE theo quyền CRUD
 router.get('/marketing/sources', authMiddleware, getMarketingSources);
 router.post(
@@ -74,17 +81,52 @@ router.put('/marketing/leads/:id/status', authMiddleware, checkPermission('MANAG
 router.post('/marketing/leads', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), createMarketingLead);
 
 // Campaign Costs
-router.get('/marketing/campaigns/:campaignId/costs', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getCampaignCosts);
-router.post('/marketing/campaigns/:campaignId/costs', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), createCampaignCost);
-router.put('/marketing/costs/:costId', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), updateCampaignCost);
-router.delete('/marketing/costs/:costId', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), deleteCampaignCost);
+router.get(
+  '/marketing/campaigns/:campaignId/costs',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  getCampaignCosts
+);
+router.post(
+  '/marketing/campaigns/:campaignId/costs',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  createCampaignCost
+);
+router.put(
+  '/marketing/costs/:costId',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  updateCampaignCost
+);
+router.delete(
+  '/marketing/costs/:costId',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  deleteCampaignCost
+);
 
 // Effectiveness Reports
-router.get('/marketing/effectiveness', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingEffectiveness);
-router.get('/marketing/campaigns/:campaignId/effectiveness', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getCampaignEffectiveness);
+router.get(
+  '/marketing/effectiveness',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  getMarketingEffectiveness
+);
+router.get(
+  '/marketing/campaigns/:campaignId/effectiveness',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  getCampaignEffectiveness
+);
 
 // Employee Rankings
-router.get('/marketing/employee-rankings', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getEmployeeRankings);
+router.get(
+  '/marketing/employee-rankings',
+  authMiddleware,
+  checkPermission([...CAMPAIGN_COSTS_AND_MARKETING_REPORTS]),
+  getEmployeeRankings
+);
 
 // File Upload for marketing costs
 router.post('/upload/marketing-costs', authMiddleware, marketingCostUpload.array('files', 10), (req: Request, res: Response) => {
