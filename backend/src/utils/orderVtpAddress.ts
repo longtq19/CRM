@@ -4,21 +4,63 @@ import { prisma } from '../config/database';
  * Viettel Post getPrice/createOrder bắt buộc RECEIVER_DISTRICT.
  * Với địa chỉ sau sáp nhập (2 cấp), UI có thể chỉ chọn Tỉnh + Xã; mã huyện VTP lấy từ `wards.vtp_district_id` (đồng bộ từ listWardsNew).
  */
+/**
+ * Viettel Post getPrice/createOrder bắt buộc RECEIVER_DISTRICT.
+ * Với địa chỉ sau sáp nhập (2 cấp), UI có thể chỉ chọn Tỉnh + Xã; mã huyện VTP lấy từ `wards.vtp_district_id` (đồng bộ từ listWardsNew).
+ */
 export async function resolveReceiverVtpDistrictId(order: {
   receiverDistrictId: number | null;
   receiverWardId: number | null;
 }): Promise<number | null> {
   const d = order.receiverDistrictId;
-  if (d != null && !Number.isNaN(Number(d))) {
+  if (d != null && !Number.isNaN(Number(d)) && Number(d) > 0) {
     return Number(d);
   }
   const wId = order.receiverWardId;
   if (wId == null) return null;
+  
+  return getWardVtpDistrictId(String(wId));
+}
+
+/**
+ * Trả về mã quận/huyện VTP cho một phường/xã.
+ * Với địa chỉ sau sáp nhập (districtId = null), mã này được lưu ở `vtpDistrictId`.
+ * Fallback: nếu bản ghi hiện tại không có vtpDistrictId, tìm bản ghi khác cùng tên+tỉnh (vị trí cũ/mới) để lấy mã.
+ */
+export async function getWardVtpDistrictId(wardId: string): Promise<number | null> {
   const w = await prisma.ward.findUnique({
-    where: { id: String(wId) },
+    where: { id: wardId },
+    select: { vtpDistrictId: true, name: true, provinceId: true, districtId: true },
+  });
+  if (!w) return null;
+  if (w.vtpDistrictId != null) return w.vtpDistrictId;
+
+  // Nếu bản ghi hiện tại không có, thử tìm xem có bản ghi "trùng tên" nào trong cùng tỉnh có mã này không
+  const fallback = await prisma.ward.findFirst({
+    where: {
+      provinceId: w.provinceId,
+      name: w.name,
+      vtpDistrictId: { not: null },
+    },
     select: { vtpDistrictId: true },
   });
-  return w?.vtpDistrictId ?? null;
+  if (fallback?.vtpDistrictId != null) return fallback.vtpDistrictId;
+
+  // Nếu vẫn không có, thử lấy district_id của bản ghi hệ cũ
+  const fallbackOld = await prisma.ward.findFirst({
+    where: {
+      provinceId: w.provinceId,
+      name: w.name,
+      districtId: { not: null },
+    },
+    select: { districtId: true },
+  });
+  if (fallbackOld?.districtId) {
+    const d = parseInt(fallbackOld.districtId, 10);
+    if (!Number.isNaN(d) && d > 0) return d;
+  }
+
+  return null;
 }
 
 /**
@@ -73,14 +115,18 @@ export async function resolveWarehouseVtpSender(warehouseId: string): Promise<Wa
   if (!Number.isFinite(pProv) || !Number.isFinite(pWard) || pProv <= 0 || pWard <= 0) {
     return null;
   }
-  let pDist: number;
+  
+  let pDist: number | null = null;
   if (wh.districtId && wh.district) {
     const d = parseInt(String(wh.district.id).trim(), 10);
-    pDist = Number.isFinite(d) && d > 0 ? d : wh.ward.vtpDistrictId ?? NaN;
-  } else {
-    pDist = wh.ward.vtpDistrictId ?? NaN;
+    if (!Number.isNaN(d) && d > 0) pDist = d;
   }
-  if (!Number.isFinite(pDist) || pDist <= 0) {
+  
+  if (pDist === null) {
+    pDist = await getWardVtpDistrictId(wh.wardId);
+  }
+
+  if (pDist === null || pDist <= 0) {
     return null;
   }
   const phone = (wh.contactPhone || '').trim();
@@ -104,3 +150,4 @@ export async function resolveWarehouseVtpSender(warehouseId: string): Promise<Wa
     senderWard: pWard,
   };
 }
+

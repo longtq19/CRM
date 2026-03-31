@@ -819,24 +819,33 @@ export const createVTPOrder = async (req: Request, res: Response) => {
     // ORDER_PAYMENT: 1=Không thu hộ, 2=Thu hộ hàng+cước, 3=Thu hộ tiền hàng, 4=Thu hộ tiền cước
     const ORDER_PAYMENT = orderPayment ?? (moneyCollection > 0 ? 3 : 1);
     
+    let resolvedReceiverDist = Number(receiverDistrict);
+    if ((!resolvedReceiverDist || resolvedReceiverDist <= 0) && receiverWard) {
+        const resDist = await resolveReceiverVtpDistrictId({
+            receiverDistrictId: null,
+            receiverWardId: Number(receiverWard) || null
+        });
+        if (resDist) resolvedReceiverDist = resDist;
+    }
+
     const payload = {
       ORDER_NUMBER: orderCode,
       SENDER_FULLNAME: senderName,
       SENDER_PHONE: senderPhone,
       SENDER_ADDRESS: senderAddress,
-      SENDER_PROVINCE: senderProvince,
-      SENDER_DISTRICT: senderDistrict,
-      SENDER_WARD: senderWard,
+      SENDER_PROVINCE: Number(senderProvince),
+      SENDER_DISTRICT: Number(senderDistrict),
+      SENDER_WARD: Number(senderWard),
       RECEIVER_FULLNAME: receiverName,
       RECEIVER_PHONE: receiverPhone,
       RECEIVER_ADDRESS: receiverAddress,
-      RECEIVER_PROVINCE: receiverProvince,
-      RECEIVER_DISTRICT: receiverDistrict,
-      RECEIVER_WARD: receiverWard,
+      RECEIVER_PROVINCE: Number(receiverProvince),
+      RECEIVER_DISTRICT: resolvedReceiverDist,
+      RECEIVER_WARD: Number(receiverWard),
       PRODUCT_NAME: productName,
-      PRODUCT_WEIGHT: productWeight || 500,
-      PRODUCT_PRICE: productPrice || 0,
-      MONEY_COLLECTION: moneyCollection || 0,
+      PRODUCT_WEIGHT: Number(productWeight) || 500,
+      PRODUCT_PRICE: Number(productPrice) || 0,
+      MONEY_COLLECTION: Number(moneyCollection) || 0,
       ORDER_PAYMENT,
       ORDER_SERVICE: serviceType || 'VCN', // VCN: Vận chuyển nhanh
       ORDER_NOTE: note || ''

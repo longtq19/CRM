@@ -1302,13 +1302,13 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                       onChange={(e) => {
                         const w = dbWards.find((x) => x.id === e.target.value);
                         const wn = w?.name ? administrativeTitleCase(w.name) : '';
-                        const vtpD = w?.vtpDistrictId;
+                        const vtpD = (w as any)?.vtpDistrictId;
                         setReceiverInfo((prev) => ({
                           ...prev,
                           receiverWardId: e.target.value,
                           receiverWardName: wn,
                           receiverDistrictId:
-                            vtpD != null && vtpD !== undefined ? String(vtpD) : prev.receiverDistrictId,
+                            vtpD != null && vtpD !== undefined ? String(vtpD) : '',
                           receiverDistrictName: '',
                         }));
                         setShippingServices([]);
