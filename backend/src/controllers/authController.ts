@@ -63,6 +63,7 @@ const SUPER_ADMIN_DEFAULT_PASSWORD = 'matkhau12345';
 /**
  * Menu sidebar: nhãn hiển thị lưu trực tiếp (tiếng Việt) trong DB — FE chỉ hiển thị `label` từ API, không map menu.* tại FE.
  * Kagri AI: `/ai`. Tin nhắn (chat nội bộ): `/chat`, ngay sau Tài liệu.
+ * Thứ tự `order`: Marketing trước Kho số thả nổi; Kho vận trước Đơn hàng (đồng bộ README mục 4.1).
  */
 const DEFAULT_MENUS = [
   { label: 'Dashboard', path: '/', icon: 'LayoutDashboard', order: 1 },
@@ -71,13 +72,13 @@ const DEFAULT_MENUS = [
   { label: 'Tài liệu', path: '/documents', icon: 'Book', order: 4 },
   { label: 'Tin nhắn', path: '/chat', icon: 'MessageSquare', order: 5 },
   { label: 'Nhân sự', path: '/hr', icon: 'Users', order: 6 },
-  { label: 'Kho số thả nổi', path: '/data-pool', icon: 'Database', order: 7 },
-  { label: 'Marketing', path: '/marketing', icon: 'Megaphone', order: 8 },
+  { label: 'Marketing', path: '/marketing', icon: 'Megaphone', order: 7 },
+  { label: 'Kho số thả nổi', path: '/data-pool', icon: 'Database', order: 8 },
   { label: 'Sales', path: '/sales', icon: 'Phone', order: 9 },
   { label: 'CSKH', path: '/resales', icon: 'UserCheck', order: 10 },
   { label: 'Sản phẩm', path: '/products', icon: 'Package', order: 11 },
-  { label: 'Đơn hàng', path: '/orders', icon: 'ShoppingCart', order: 12 },
-  { label: 'Kho vận', path: '/inventory', icon: 'Warehouse', order: 13 },
+  { label: 'Kho vận', path: '/inventory', icon: 'Warehouse', order: 12 },
+  { label: 'Đơn hàng', path: '/orders', icon: 'ShoppingCart', order: 13 },
   { label: 'Bảo hành', path: '/warranty', icon: 'ShieldCheck', order: 14 },
   { label: 'Kế toán', path: '/accounting', icon: 'Calculator', order: 15 },
   { label: 'Vận hành', path: '/operations', icon: 'Settings', order: 16 },

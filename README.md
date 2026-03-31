@@ -312,7 +312,7 @@ Các key (chỉnh khi có quyền `CONFIG_OPERATIONS` hoặc `EDIT_SETTINGS`, ho
   - Sidebar (`Sidebar.tsx`) hiển thị trực tiếp `menu.label` từ API — không map menu tại FE.
   - **Hai module tách route:** Kagri AI → SPA `/ai` (menu path `/ai`). Tin nhắn (chat nội bộ) → SPA `/chat` (menu path `/chat`), **xếp ngay sau Tài liệu**.
   - Role đã có menu `/chat` được tự bổ sung `/ai` khi sync (tránh mất module AI). Nhóm `system_administrator` / `ADM` được gán lại **đủ** menu trong DB sau mỗi lần sync.
-  - Thứ tự hiển thị: Bảng điều khiển → Báo cáo → Kagri AI → Tài liệu → **Tin nhắn** → Nhân sự → **Kho số thả nổi** → Tiếp thị → Kinh doanh → CSKH → Sản phẩm → Đơn hàng → Kho vận → Bảo hành → Kế toán → Vận hành → Hệ thống → Hỗ trợ → Cài đặt.
+  - Thứ tự hiển thị: Bảng điều khiển → Báo cáo → Kagri AI → Tài liệu → **Tin nhắn** → Nhân sự → Tiếp thị → **Kho số thả nổi** → Kinh doanh → CSKH → Sản phẩm → Kho vận → Đơn hàng → Bảo hành → Kế toán → Vận hành → Hệ thống → Hỗ trợ → Cài đặt.
 
 ### 4.2. Customer (Khách hàng), tag, farm và import/export Excel
 
