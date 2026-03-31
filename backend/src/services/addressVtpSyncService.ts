@@ -105,10 +105,9 @@ export async function clearAddressCatalogForReseed(): Promise<void> {
     await tx.customer.updateMany({ data: { provinceId: null, districtId: null, wardId: null } });
     await tx.customerFarm.updateMany({ data: { provinceId: null, districtId: null, wardId: null } });
     await tx.warehouse.updateMany({ data: { provinceId: null, districtId: null, wardId: null } });
-    await tx.customerAddress.deleteMany();
-    await tx.ward.deleteMany();
-    await tx.district.deleteMany();
-    await tx.province.deleteMany();
+    
+    // Using TRUNCATE CASCADE to clean all address-related tables safely
+    await tx.$executeRawUnsafe(`TRUNCATE TABLE "customer_addresses", "wards", "districts", "provinces" CASCADE`);
   });
 }
 
