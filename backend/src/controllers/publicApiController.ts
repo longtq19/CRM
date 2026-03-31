@@ -15,6 +15,7 @@ import { pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
 import { canAccessMarketingCampaignByCreator } from '../utils/viewScopeHelper';
+import { isPastCampaignEndDateInclusiveVietnam } from '../utils/campaignSchedule';
 
 /** Trường JSON public lead: chỉ SĐT bắt buộc; ghi chú / họ tên / địa chỉ (dòng chữ) là tùy chọn theo chiến dịch. */
 export const PUBLIC_LEAD_FIELD_CODES = ['phone', 'name', 'address', 'note'] as const;
@@ -369,12 +370,12 @@ export const receivePublicLead = async (req: Request, res: Response) => {
       });
     }
 
-    // Kiểm tra thời gian chiến dịch
+    // Kiểm tra thời gian chiến dịch (ngày kết thúc trên form = còn hiệu lực đến hết ngày đó theo giờ VN — không cắt sau 07:00 sáng ngày cuối)
     const now = new Date();
-    if (campaign.endDate && now > campaign.endDate) {
-      return res.status(400).json({ 
+    if (isPastCampaignEndDateInclusiveVietnam(now, campaign.endDate)) {
+      return res.status(400).json({
         success: false,
-        message: 'Chiến dịch đã kết thúc' 
+        message: 'Chiến dịch đã kết thúc',
       });
     }
 

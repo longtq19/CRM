@@ -490,7 +490,7 @@ Luồng:
    - Key do hệ thống cấp có dạng cố định `mkt_` + 48 ký tự hex; nếu **không khớp định dạng**, API trả **401** ngay (không gọi DB) — tránh phụ thuộc DB cho key rõ ràng sai.
    - Body JSON chỉ gồm các trường đã cấu hình (`acceptedFields`), tối điểu `phone`. Mẫu cURL / JavaScript / HTML trong modal Marketing và phản hồi `GET .../api-info` / `POST .../api-key` / `PUT .../api-integration` dùng `buildPublicLeadSampleCode` / `buildSampleLeadBody`.
 3. Backend xử lý:
-   - kiểm tra campaign tồn tại + campaign active + chưa hết hạn endDate
+   - kiểm tra campaign tồn tại + campaign active + **chưa quá ngày kết thúc** (`endDate` trên form được coi là còn hiệu lực đến hết **23:59:59 giờ Việt Nam** của ngày đó — `isPastCampaignEndDateInclusiveVietnam` trong `backend/src/utils/campaignSchedule.ts`; tránh lỗi cũ so sánh với nửa đêm UTC khiến sau ~07:00 sáng VN ngày cuối đã báo «Chiến dịch đã kết thúc»)
    - chuẩn hóa phone
    - kiểm trùng:
      - nếu trùng và là duplicate:
