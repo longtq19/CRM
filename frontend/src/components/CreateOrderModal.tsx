@@ -959,80 +959,80 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                         className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     </div>
-                  </>
-                )}
 
-                {warehouseId && productsLoading && (
-                  <div className="mt-3 flex items-center justify-center gap-2 py-10 text-gray-500 text-sm">
-                    <RefreshCw className="animate-spin w-5 h-5" />
-                    Đang tải danh sách sản phẩm…
-                  </div>
-                )}
+                    {productsLoading && (
+                      <div className="mt-3 flex items-center justify-center gap-2 py-10 text-gray-500 text-sm">
+                        <RefreshCw className="animate-spin w-5 h-5" />
+                        Đang tải danh sách sản phẩm…
+                      </div>
+                    )}
 
-                {!productsLoading && products.length > 0 && (
-                  <>
-                    <div className="mt-3 border-2 border-gray-200 rounded-xl divide-y divide-gray-100 max-h-72 overflow-y-auto">
-                      {products.map((product) => {
-                        const stockTotal = getProductStockTotal(product);
-                        const inCartQty = orderItems.find(i => i.product.id === product.id)?.quantity ?? 0;
-                        const canAddMore = inCartQty < stockTotal;
-                        return (
-                        <button
-                          key={product.id}
-                          type="button"
-                          disabled={!canAddMore}
-                          onClick={() => canAddMore && addProduct(product)}
-                          title={!canAddMore ? (stockTotal <= 0 ? 'Không còn tồn kho' : 'Đã đủ số lượng tồn kho') : undefined}
-                          className={`w-full p-3 text-left flex items-center justify-between transition-colors ${
-                            canAddMore ? 'hover:bg-gray-50' : 'opacity-60 cursor-not-allowed bg-gray-50/80'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {product.thumbnail ? (
-                              <img src={resolveUploadUrl(product.thumbnail)} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                                <Package size={20} className="text-gray-400" />
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <div className="font-medium text-gray-900 truncate">{product.name}</div>
-                              <div className="text-xs text-gray-500">
-                                {product.code}
-                                <span className="mx-1">·</span>
-                                Tồn kho: <span className={stockTotal <= 0 ? 'text-red-600 font-medium' : 'text-gray-700'}>{stockTotal}</span>
-                                {inCartQty > 0 && (
-                                  <span className="text-primary"> (trong giỏ: {inCartQty})</span>
+                    {!productsLoading && products.length > 0 && (
+                      <>
+                        <div className="mt-3 border-2 border-gray-200 rounded-xl divide-y divide-gray-100 max-h-72 overflow-y-auto">
+                          {products.map((product) => {
+                            const stockTotal = getProductStockTotal(product);
+                            const inCartQty = orderItems.find(i => i.product.id === product.id)?.quantity ?? 0;
+                            const canAddMore = inCartQty < stockTotal;
+                            return (
+                            <button
+                              key={product.id}
+                              type="button"
+                              disabled={!canAddMore}
+                              onClick={() => canAddMore && addProduct(product)}
+                              title={!canAddMore ? (stockTotal <= 0 ? 'Không còn tồn kho' : 'Đã đủ số lượng tồn kho') : undefined}
+                              className={`w-full p-3 text-left flex items-center justify-between transition-colors ${
+                                canAddMore ? 'hover:bg-gray-50' : 'opacity-60 cursor-not-allowed bg-gray-50/80'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                {product.thumbnail ? (
+                                  <img src={resolveUploadUrl(product.thumbnail)} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                    <Package size={20} className="text-gray-400" />
+                                  </div>
                                 )}
+                                <div className="min-w-0">
+                                  <div className="font-medium text-gray-900 truncate">{product.name}</div>
+                                  <div className="text-xs text-gray-500">
+                                    {product.code}
+                                    <span className="mx-1">·</span>
+                                    Tồn kho: <span className={stockTotal <= 0 ? 'text-red-600 font-medium' : 'text-gray-700'}>{stockTotal}</span>
+                                    {inCartQty > 0 && (
+                                      <span className="text-primary"> (trong giỏ: {inCartQty})</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          <div className="text-primary font-semibold shrink-0 ml-2">{formatCurrency(product.listPriceNet || 0)}</div>
-                        </button>
-                        );
-                      })}
-                    </div>
-                    {(productTotalPages > 1 || productTotal > productLimit) && (
-                      <PaginationBar
-                        page={productPage}
-                        limit={productLimit}
-                        total={productTotal}
-                        totalPages={productTotalPages}
-                        onPageChange={setProductPage}
-                        itemLabel="sản phẩm"
-                        showLimitSelector={false}
-                      />
+                              <div className="text-primary font-semibold shrink-0 ml-2">{formatCurrency(product.listPriceNet || 0)}</div>
+                            </button>
+                            );
+                          })}
+                        </div>
+                        {(productTotalPages > 1 || productTotal > productLimit) && (
+                          <PaginationBar
+                            page={productPage}
+                            limit={productLimit}
+                            total={productTotal}
+                            totalPages={productTotalPages}
+                            onPageChange={setProductPage}
+                            itemLabel="sản phẩm"
+                            showLimitSelector={false}
+                          />
+                        )}
+                      </>
+                    )}
+
+                    {!productsLoading && products.length === 0 && (
+                      <div className="mt-3 text-center py-8 text-gray-500 text-sm">
+                        <Package size={40} className="mx-auto mb-2 text-gray-300" />
+                        {debouncedProductSearch.trim().length >= 2
+                          ? 'Không tìm thấy sản phẩm phù hợp.'
+                          : 'Chưa có sản phẩm nào trên trang này.'}
+                      </div>
                     )}
                   </>
-                )}
-
-                {!productsLoading && products.length === 0 && (
-                  <div className="mt-3 text-center py-8 text-gray-500 text-sm">
-                    <Package size={40} className="mx-auto mb-2 text-gray-300" />
-                    {debouncedProductSearch.trim().length >= 2
-                      ? 'Không tìm thấy sản phẩm phù hợp.'
-                      : 'Chưa có sản phẩm nào trên trang này.'}
-                  </div>
                 )}
               </div>
 
