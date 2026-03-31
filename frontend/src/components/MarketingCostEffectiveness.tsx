@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient } from '../api/client';
 import {
@@ -162,7 +162,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
     costDate: new Date().toISOString().split('T')[0],
     amount: '',
     costType: 'AD_SPEND',
-    platform: '',
     impressions: '',
     clicks: '',
     reach: '',
@@ -171,7 +170,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
   });
   
   const [useCustomCostType, setUseCustomCostType] = useState(false);
-  const [useCustomPlatform, setUseCustomPlatform] = useState(false);
   const [costFiles, setCostFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
@@ -193,26 +191,15 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
   useEffect(() => {
     if (selectedCampaignId && activeSubTab === 'costs') {
       loadCosts();
-      // Auto-populate platform for new costs
-      if (!editingCost) {
-        const camp = campaigns.find(c => c.id === selectedCampaignId);
-        if (camp?.source?.name) {
-          // Normalize source name to one of our PLATFORMS values if possible, 
-          // or just use the name directly if it's a custom one.
-          const sourceName = camp.source.name.toLowerCase();
-          const matchedPlatform = PLATFORMS.find(p => p.value === sourceName || p.label.toLowerCase() === sourceName);
-          
-          if (matchedPlatform) {
-            setCostForm(prev => ({ ...prev, platform: matchedPlatform.value }));
-            setUseCustomPlatform(false);
-          } else {
-            setCostForm(prev => ({ ...prev, platform: camp.source!.name }));
-            setUseCustomPlatform(true);
-          }
-        }
-      }
     }
-  }, [selectedCampaignId, activeSubTab, campaigns]);
+  }, [selectedCampaignId, activeSubTab]);
+
+  const selectedCampaign = useMemo(
+    () => campaigns.find((c) => c.id === selectedCampaignId),
+    [campaigns, selectedCampaignId],
+  );
+  const campaignSourceLabel = selectedCampaign?.source?.name?.trim() || '';
+  const canRecordCostForSelectedCampaign = Boolean(selectedCampaignId && campaignSourceLabel);
 
   useEffect(() => {
     loadMarketingEmployees();
@@ -294,6 +281,10 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
       alert('Vui lòng chọn hoặc nhập loại chi phí');
       return;
     }
+    if (!canRecordCostForSelectedCampaign) {
+      alert('Chiến dịch chưa gắn nền tảng; không thể ghi chi phí. Hãy cập nhật chiến dịch hoặc chọn chiến dịch khác.');
+      return;
+    }
 
     try {
       setCostSubmitting(true);
@@ -322,7 +313,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
         costDate: costForm.costDate,
         amount: parseFloat(rawAmount),
         costType: costForm.costType,
-        platform: costForm.platform?.trim() ? costForm.platform.trim() : null,
         impressions: parseOptInt(costForm.impressions),
         clicks: parseOptInt(costForm.clicks),
         reach: parseOptInt(costForm.reach),
@@ -366,7 +356,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
       costDate: new Date().toISOString().split('T')[0],
       amount: '',
       costType: 'AD_SPEND',
-      platform: '',
       impressions: '',
       clicks: '',
       reach: '',
@@ -374,7 +363,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
       employeeIds: [],
     });
     setUseCustomCostType(false);
-    setUseCustomPlatform(false);
     setCostFiles([]);
   };
 
@@ -385,7 +373,6 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
       costDate: cost.costDate.split('T')[0],
       amount: cost.amount.toString(),
       costType: cost.costType,
-      platform: cost.platform || '',
       impressions: cost.impressions?.toString() || '',
       clicks: cost.clicks?.toString() || '',
       reach: cost.reach?.toString() || '',
@@ -650,8 +637,16 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
             </select>
             {selectedCampaignId && (
               <button
+                type="button"
+                title={
+                  !canRecordCostForSelectedCampaign
+                    ? 'Chiến dịch chưa gắn nền tảng — không thể thêm chi phí'
+                    : undefined
+                }
+                disabled={!canRecordCostForSelectedCampaign}
                 onClick={() => {
                   try {
+                    if (!canRecordCostForSelectedCampaign) return;
                     setEditingCost(null);
                     resetCostForm();
                     setCostModalOpen(true);
@@ -660,7 +655,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                     alert('Không thể mở form. Vui lòng thử lại.');
                   }
                 }}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Thêm chi phí
@@ -732,7 +727,10 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                               {COST_TYPES.find((t) => t.value === cost.costType)?.label || cost.costType}
                             </td>
                             <td className="px-4 py-3 text-sm">
-                              {cost.platform ? PLATFORMS.find((p) => p.value === cost.platform)?.label || cost.platform : '-'}
+                              {cost.source?.name ||
+                                (cost.platform
+                                  ? PLATFORMS.find((p) => p.value === cost.platform)?.label || cost.platform
+                                  : '—')}
                             </td>
                             <td className="px-4 py-3 text-right text-red-600 font-medium">
                               {formatCurrency(cost.amount)}
@@ -798,7 +796,9 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
               <h3 className="text-lg font-semibold">
                 {editingCost ? 'Sửa chi phí' : 'Thêm chi phí mới'}
               </h3>
-              <p className="text-xs text-gray-500 mt-1">Bắt buộc: ngày chi phí, số tiền, loại chi phí. Chiến dịch chọn ở danh sách phía trên. Các trường khác tùy chọn.</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Bắt buộc: ngày chi phí, số tiền, loại chi phí. Chiến dịch chọn ở danh sách phía trên. Nền tảng lấy theo chiến dịch (không đổi). Các trường khác tùy chọn.
+              </p>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
@@ -857,28 +857,14 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nền tảng <span className="text-gray-400 text-xs">(tùy chọn — đã gắn qua chiến dịch nếu cần)</span>
+                    Nền tảng <span className="text-gray-400 text-xs">(theo chiến dịch — không đổi)</span>
                   </label>
-                  {useCustomPlatform ? (
-                    <div className="flex gap-1">
-                      <input type="text" value={costForm.platform}
-                        onChange={(e) => setCostForm({ ...costForm, platform: e.target.value })}
-                        className="w-full border rounded-lg px-3 py-2" placeholder="Nhập tên nền tảng cụ thể..." />
-                      <button type="button" onClick={() => { setUseCustomPlatform(false); setCostForm({ ...costForm, platform: '' }); }}
-                        className="px-2 text-gray-500 hover:text-gray-700">✕</button>
-                    </div>
-                  ) : (
-                    <select value={costForm.platform}
-                      onChange={(e) => {
-                        if (e.target.value === '__custom__') { setUseCustomPlatform(true); setCostForm({ ...costForm, platform: '' }); }
-                        else setCostForm({ ...costForm, platform: e.target.value });
-                      }}
-                      className="w-full border rounded-lg px-3 py-2">
-                      <option value="">-- Chọn nền tảng --</option>
-                      {PLATFORMS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-                      <option value="__custom__">Không có trong danh sách (nhập tùy chỉnh)...</option>
-                    </select>
-                  )}
+                  <div
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-800 min-h-[42px] flex items-center"
+                    title="Nền tảng trùng với nền tảng của chiến dịch đã chọn"
+                  >
+                    {campaignSourceLabel || '—'}
+                  </div>
                 </div>
               </div>
 
@@ -973,7 +959,7 @@ const MarketingCostEffectiveness = ({ campaigns }: MarketingCostEffectivenessPro
             <div className="p-6 border-t flex justify-end space-x-3">
               <button onClick={() => { setCostModalOpen(false); setEditingCost(null); resetCostForm(); }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-50">Hủy</button>
-              <button onClick={handleSubmitCost} disabled={costSubmitting}
+              <button onClick={handleSubmitCost} disabled={costSubmitting || !canRecordCostForSelectedCampaign}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
                 {costSubmitting && <Loader className="w-4 h-4 animate-spin" />}
                 {uploadingFiles ? 'Đang tải file...' : editingCost ? 'Cập nhật' : 'Thêm chi phí'}

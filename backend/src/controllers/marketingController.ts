@@ -91,6 +91,25 @@ const MK_COST_LABELS: Record<string, string> = {
   employeeGroupId: 'Nhóm nhân viên (ID)',
 };
 
+/** Chuỗi `platform` lưu DB (khớp bảng chi phí / lọc) — đồng bộ với nền tảng chiến dịch, không nhận từ client. */
+function deriveCostPlatformFromMarketingSource(source: { name: string; code: string }): string {
+  const nameLower = source.name.toLowerCase();
+  const known = [
+    'facebook',
+    'google',
+    'tiktok',
+    'zalo',
+    'youtube',
+    'instagram',
+    'shopee',
+    'lazada',
+  ] as const;
+  for (const k of known) {
+    if (nameLower.includes(k)) return k;
+  }
+  return source.code?.trim() || source.name.trim();
+}
+
 function mkCostPlain(c: any) {
   return {
     costDate: c.costDate ? new Date(c.costDate).toISOString().split('T')[0] : null,
@@ -1664,29 +1683,37 @@ export const createCampaignCost = async (req: Request, res: Response) => {
       costDate,
       amount,
       costType,
-      platform,
       adAccountId,
       impressions,
       clicks,
       reach,
       description,
       attachmentUrl,
-      sourceId,
     } = req.body;
 
     if (!costDate || !amount) {
       return res.status(400).json({ message: 'Ngày và số tiền là bắt buộc' });
     }
 
-    // Lấy thông tin chiến dịch để kiểm tra quyền và lấy người tạo
+    // Chiến dịch bắt buộc có nền tảng; chi phí kế thừa sourceId + platform từ chiến dịch (không gửi từ client).
     const campaign = await prisma.marketingCampaign.findUnique({
       where: { id: campaignId },
-      select: { createdByEmployeeId: true }
+      select: {
+        createdByEmployeeId: true,
+        sourceId: true,
+        source: { select: { id: true, name: true, code: true } },
+      },
     });
 
     if (!campaign) {
       return res.status(404).json({ message: 'Không tìm thấy chiến dịch' });
     }
+    if (!campaign.sourceId || !campaign.source) {
+      return res
+        .status(400)
+        .json({ message: 'Chiến dịch chưa gắn nền tảng; không thể thêm chi phí.' });
+    }
+    const platformResolved = deriveCostPlatformFromMarketingSource(campaign.source);
 
     // Kiểm tra quyền: chỉ người tạo chiến dịch hoặc admin
     const isCreator = actor.id === campaign.createdByEmployeeId;
@@ -1712,14 +1739,14 @@ export const createCampaignCost = async (req: Request, res: Response) => {
         costDate: new Date(costDate),
         amount: new Decimal(amount),
         costType: costType || 'AD_SPEND',
-        platform: platform || null,
+        platform: platformResolved,
         adAccountId: adAccountId || null,
         impressions: impressions ? parseInt(impressions) : null,
         clicks: clicks ? parseInt(clicks) : null,
         reach: reach ? parseInt(reach) : null,
         description: description || null,
         attachmentUrl: attachmentUrl || null,
-        sourceId: sourceId || null,
+        sourceId: campaign.sourceId,
         createdById: actor.id,
         assignedEmployees: {
           create: assignedEmployeeIds.map(empId => ({
@@ -1782,13 +1809,29 @@ export const updateCampaignCost = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Không tìm thấy chi phí' });
     }
 
+    const campaignForCost = await prisma.marketingCampaign.findUnique({
+      where: { id: beforeCost.campaignId },
+      select: {
+        sourceId: true,
+        source: { select: { id: true, name: true, code: true } },
+      },
+    });
+    if (!campaignForCost?.sourceId || !campaignForCost.source) {
+      return res
+        .status(400)
+        .json({ message: 'Chiến dịch chưa gắn nền tảng; không thể cập nhật chi phí.' });
+    }
+    const platformResolved = deriveCostPlatformFromMarketingSource(campaignForCost.source);
+    // Không cho client đổi nền tảng / sourceId — luôn theo chiến dịch
+    const { platform: _ignorePlat, sourceId: _ignoreSrc, ...updatesRest } = updates;
+
     // Nếu thay đổi nhân viên/nhóm hoặc số tiền, cần cập nhật lại phân bổ
-    const needReassign = updates.employeeGroupId !== undefined || 
-                         updates.employeeIds !== undefined || 
-                         updates.amount !== undefined;
+    const needReassign = updatesRest.employeeGroupId !== undefined || 
+                         updatesRest.employeeIds !== undefined || 
+                         updatesRest.amount !== undefined;
 
     let assignedEmployeeIds: string[] = [];
-    let newAmount = updates.amount;
+    let newAmount = updatesRest.amount;
 
     if (needReassign) {
       // Get current cost if amount not provided
@@ -1800,13 +1843,13 @@ export const updateCampaignCost = async (req: Request, res: Response) => {
       }
 
       // Determine employees to assign
-      if (updates.employeeGroupId) {
+      if (updatesRest.employeeGroupId) {
         const groupMembers = await prisma.marketingEmployeeGroupMember.findMany({
-          where: { groupId: updates.employeeGroupId }
+          where: { groupId: updatesRest.employeeGroupId }
         });
         assignedEmployeeIds = groupMembers.map(m => m.employeeId);
-      } else if (updates.employeeIds?.length) {
-        assignedEmployeeIds = updates.employeeIds;
+      } else if (updatesRest.employeeIds?.length) {
+        assignedEmployeeIds = updatesRest.employeeIds;
       } else {
         // Keep existing assignments
         const existingAssignments = await prisma.marketingCostAssignment.findMany({
@@ -1836,18 +1879,18 @@ export const updateCampaignCost = async (req: Request, res: Response) => {
     const cost = await prisma.marketingCampaignCost.update({
       where: { id: costId },
       data: {
-        ...(updates.costDate && { costDate: new Date(updates.costDate) }),
-        ...(updates.amount !== undefined && { amount: new Decimal(updates.amount) }),
-        ...(updates.costType && { costType: updates.costType }),
-        ...(updates.platform !== undefined && { platform: updates.platform }),
-        ...(updates.adAccountId !== undefined && { adAccountId: updates.adAccountId }),
-        ...(updates.impressions !== undefined && { impressions: updates.impressions ? parseInt(updates.impressions) : null }),
-        ...(updates.clicks !== undefined && { clicks: updates.clicks ? parseInt(updates.clicks) : null }),
-        ...(updates.reach !== undefined && { reach: updates.reach ? parseInt(updates.reach) : null }),
-        ...(updates.description !== undefined && { description: updates.description }),
-        ...(updates.attachmentUrl !== undefined && { attachmentUrl: updates.attachmentUrl }),
-        ...(updates.sourceId !== undefined && { sourceId: updates.sourceId }),
-        ...(updates.employeeGroupId !== undefined && { employeeGroupId: updates.employeeGroupId || null })
+        platform: platformResolved,
+        sourceId: campaignForCost.sourceId,
+        ...(updatesRest.costDate && { costDate: new Date(updatesRest.costDate) }),
+        ...(updatesRest.amount !== undefined && { amount: new Decimal(updatesRest.amount) }),
+        ...(updatesRest.costType && { costType: updatesRest.costType }),
+        ...(updatesRest.adAccountId !== undefined && { adAccountId: updatesRest.adAccountId }),
+        ...(updatesRest.impressions !== undefined && { impressions: updatesRest.impressions ? parseInt(updatesRest.impressions, 10) : null }),
+        ...(updatesRest.clicks !== undefined && { clicks: updatesRest.clicks ? parseInt(updatesRest.clicks, 10) : null }),
+        ...(updatesRest.reach !== undefined && { reach: updatesRest.reach ? parseInt(updatesRest.reach, 10) : null }),
+        ...(updatesRest.description !== undefined && { description: updatesRest.description }),
+        ...(updatesRest.attachmentUrl !== undefined && { attachmentUrl: updatesRest.attachmentUrl }),
+        ...(updatesRest.employeeGroupId !== undefined && { employeeGroupId: updatesRest.employeeGroupId || null })
       },
       include: {
         source: { select: { id: true, name: true } },
