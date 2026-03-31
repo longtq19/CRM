@@ -101,6 +101,7 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
   const [loadingAddress, setLoadingAddress] = useState(false);
   const [orderAddressType, setOrderAddressType] = useState<'OLD' | 'NEW'>('OLD');
   const [dbProvinces, setDbProvinces] = useState<Array<{id: string; name: string}>>([]);
+  const [dbProvincesNew, setDbProvincesNew] = useState<Array<{id: string; name: string}>>([]);
   const [dbWards, setDbWards] = useState<Array<{id: string; name: string}>>([]);
 
   const [receiverInfo, setReceiverInfo] = useState({
@@ -261,8 +262,12 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
           const response: any = await apiClient.get('/vtp/provinces');
           if (response.success && response.data) setProvinces(response.data);
         }
-        const dbRes: any = await apiClient.get('/address/provinces');
-        if (Array.isArray(dbRes)) setDbProvinces(dbRes);
+        const [dbAll, dbNew] = await Promise.all([
+          apiClient.get('/address/provinces'),
+          apiClient.get('/address/provinces?directOnly=1')
+        ]);
+        if (Array.isArray(dbAll)) setDbProvinces(dbAll);
+        if (Array.isArray(dbNew)) setDbProvincesNew(dbNew);
       } catch (error) {
         console.error('Error fetching provinces:', error);
       }
@@ -1171,14 +1176,14 @@ const CreateOrderModal = ({ onClose, onSuccess, isOutsideSystem = false }: Creat
                     <select
                       value={receiverInfo.receiverProvinceId}
                       onChange={(e) => {
-                        const prov = dbProvinces.find(p => p.id === e.target.value);
+                        const prov = dbProvincesNew.find(p => p.id === e.target.value);
                         const pn = prov?.name ? administrativeTitleCase(prov.name) : '';
                         setReceiverInfo(prev => ({...prev, receiverProvinceId: e.target.value, receiverProvinceName: pn, receiverDistrictId: '', receiverDistrictName: '', receiverWardId: '', receiverWardName: ''}));
                       }}
                       className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20"
                     >
                       <option value="">-- Chọn Tỉnh/TP --</option>
-                      {dbProvinces.map((p) => (
+                      {dbProvincesNew.map((p) => (
                         <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>
                       ))}
                     </select>

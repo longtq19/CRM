@@ -406,11 +406,17 @@ export const syncAddressFromJson = async (req: Request, res: Response) => {
  */
 export const getProvinces = async (req: Request, res: Response) => {
   try {
-    const { search } = req.query;
+    const { search, directOnly } = req.query;
     
     const where: any = {};
     if (search) {
       where.name = { contains: String(search), mode: 'insensitive' };
+    }
+    
+    if (directOnly === '1' || directOnly === 'true') {
+      where.wards = {
+        some: { districtId: null }
+      };
     }
     
     const provinces = await prisma.province.findMany({

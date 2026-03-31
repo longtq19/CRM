@@ -124,6 +124,8 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const [provincesNew, setProvincesNew] = useState<Province[]>([]);
+
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [useCustomChannel, setUseCustomChannel] = useState(false);
@@ -179,6 +181,8 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
     campaignId: '',
     leadSourceId: '',
   });
+
+  const activeProvinces = form.addressType === 'NEW' ? provincesNew : provinces;
 
   const [marketingEmployees, setMarketingEmployees] = useState<{ id: string; fullName: string }[]>([]);
   const [marketingCampaigns, setMarketingCampaigns] = useState<
@@ -281,8 +285,12 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
 
   const loadInitialData = async () => {
     try {
-      const provincesData = await apiClient.get('/address/provinces');
-      setProvinces(provincesData || []);
+      const [all, onlyNew] = await Promise.all([
+        apiClient.get('/address/provinces'),
+        apiClient.get('/address/provinces?directOnly=1')
+      ]);
+      setProvinces(all || []);
+      setProvincesNew(onlyNew || []);
     } catch (error) {
       console.error('Load initial data error:', error);
     }
@@ -768,7 +776,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                           className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
                         >
                           <option value="">Chọn tỉnh/thành</option>
-                          {provinces.map(p => (
+                          {activeProvinces.map(p => (
                             <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>
                           ))}
                         </select>
@@ -826,7 +834,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                           className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
                         >
                           <option value="">Chọn tỉnh/thành</option>
-                          {provinces.map(p => (
+                          {activeProvinces.map(p => (
                             <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>
                           ))}
                         </select>

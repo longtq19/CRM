@@ -91,6 +91,7 @@ const KNOWN_CROP_SET = new Set(CROP_DEFS.map((c) => c.value));
 const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefreshSignal = 0 }: Props) => {
   const [saving, setSaving] = useState(false);
   const [provinces, setProvinces] = useState<Province[]>([]);
+  const [provincesNew, setProvincesNew] = useState<Province[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const wardNameDupKeys = useMemo(() => buildWardDuplicateNameKeys(wards), [wards]);
@@ -141,12 +142,20 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
     tagIds: [],
   });
 
+  const activeProvinces = form.addressType === 'NEW' ? provincesNew : provinces;
+
   const filteredCampaigns = form.leadSourceId
     ? campaigns.filter(c => c.sourceId === form.leadSourceId)
     : [];
 
   useEffect(() => {
-    apiClient.get('/address/provinces').then(d => setProvinces(d || [])).catch(() => {});
+    Promise.all([
+      apiClient.get('/address/provinces'),
+      apiClient.get('/address/provinces?directOnly=1')
+    ]).then(([all, onlyNew]) => {
+      setProvinces(all || []);
+      setProvincesNew(onlyNew || []);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -436,7 +445,7 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
                         <label className="block text-sm font-medium text-gray-700 mb-1">Tỉnh/Thành phố</label>
                         <select value={form.provinceId} onChange={e => setForm({ ...form, provinceId: e.target.value, districtId: '', wardId: '' })} className={selectCls}>
                           <option value="">Chọn tỉnh/thành</option>
-                          {provinces.map(p => <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>)}
+                          {activeProvinces.map(p => <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>)}
                         </select>
                       </div>
                       <div>
@@ -467,7 +476,7 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
                         <label className="block text-sm font-medium text-gray-700 mb-1">Tỉnh/Thành phố</label>
                         <select value={form.provinceId} onChange={e => setForm({ ...form, provinceId: e.target.value, wardId: '' })} className={selectCls}>
                           <option value="">Chọn tỉnh/thành</option>
-                          {provinces.map(p => <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>)}
+                          {activeProvinces.map(p => <option key={p.id} value={p.id}>{administrativeTitleCase(p.name)}</option>)}
                         </select>
                       </div>
                       <div>
