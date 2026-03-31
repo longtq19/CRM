@@ -25,6 +25,8 @@ import {
   Layers,
   UserPlus,
   BarChart3,
+  Trash2,
+  Clock,
 } from 'lucide-react';
 import CustomerForm from '../components/CustomerForm';
 import { CustomerImpactHistoryModal } from '../components/CustomerImpactHistoryModal';
@@ -514,11 +516,32 @@ const Resales = () => {
 
   const handleProcessingStatusUpdate = async (dataPoolId: string, status: string) => {
     try {
-      await apiClient.put('/data-pool/processing-status', { dataPoolId, processingStatus: status });
+      await apiClient.put('/data-pool/processing-status', {
+        dataPoolId,
+        processingStatus: status,
+      });
       loadCustomers();
       loadStats();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Lỗi cập nhật trạng thái');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Xóa vĩnh viễn khách hàng "${
+          name || 'không tên'
+        }" khỏi hệ thống? Phân tích và lịch sử cũng sẽ bị xóa. Bạn có chắc không?`
+      )
+    )
+      return;
+    try {
+      await apiClient.delete(`/customers/${id}`);
+      loadCustomers();
+      loadStats();
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa khách hàng');
     }
   };
 
@@ -1189,6 +1212,19 @@ const Resales = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          {hasPermission('PERMANENT_DELETE_CUSTOMER') && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteCustomer(customer.id, customer.name);
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded inline-flex"
+                              title="Xóa vĩnh viễn"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

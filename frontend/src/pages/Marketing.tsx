@@ -618,13 +618,29 @@ const Marketing = () => {
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg.includes('Not Found') || msg.includes('404')) {
-        alert('Không tìm thấy API xóa nền tảng. Vui lòng build lại và triển khai backend, sau đó thử lại.');
+        await loadSources();
       } else {
-        alert(msg || 'Không thể xóa nền tảng');
+        alert(msg || 'Lỗi khi xóa nền tảng');
       }
     }
   };
 
+  const handleDeleteLead = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Xóa vĩnh viễn khách hàng "${
+          name || 'không tên'
+        }" khỏi hệ thống? Phân tích và lịch sử cũng sẽ bị xóa. Bạn có chắc không?`
+      )
+    )
+      return;
+    try {
+      await apiClient.delete(`/customers/${id}`);
+      await loadLeads();
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa khách hàng');
+    }
+  };
   const handleOpenSourceModal = (source?: MarketingSource) => {
     if (!canManageMarketingPlatforms) return;
     if (source) {
@@ -1223,6 +1239,19 @@ const Marketing = () => {
                       <Eye size={14} />
                       Chi tiết
                     </button>
+                    {hasPermission('PERMANENT_DELETE_CUSTOMER') && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLead(lead.id, lead.name);
+                        }}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={14} />
+                        Xóa
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

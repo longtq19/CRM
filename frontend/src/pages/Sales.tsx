@@ -5,7 +5,7 @@ import {
   Phone, Search, RefreshCcw, Loader,
   TrendingUp, Target, Users, MessageSquare, Eye,
   Handshake, Layers, UserPlus, Plus, Settings, Edit, Send,
-  BarChart3,
+  BarChart3, Trash2, Clock,
 } from 'lucide-react';
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
@@ -392,6 +392,24 @@ const Sales = () => {
       loadStats();
     } catch (e: any) {
       alert(e.message || 'Lỗi');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string, name: string) => {
+    if (
+      !confirm(
+        `Xóa vĩnh viễn khách hàng "${
+          name || 'không tên'
+        }" khỏi hệ thống? Phân tích và lịch sử cũng sẽ bị xóa. Bạn có chắc không?`
+      )
+    )
+      return;
+    try {
+      await apiClient.delete(`/customers/${id}`);
+      loadLeads();
+      loadStats();
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa khách hàng');
     }
   };
 
@@ -899,6 +917,19 @@ const Sales = () => {
                         }}
                       >
                         <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                    {hasPermission('PERMANENT_DELETE_CUSTOMER') && (
+                      <button
+                        type="button"
+                        className="p-1 text-red-600 hover:bg-red-50 rounded inline-flex ml-1"
+                        title="Xóa vĩnh viễn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCustomer(lead.customer.id, lead.customer.name);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </td>
