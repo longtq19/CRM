@@ -14,7 +14,8 @@ import {
   calculateShippingFee,
   createVTPOrder,
   trackVTPOrder,
-  cancelVTPOrder
+  cancelVTPOrder,
+  printVTPOrder
 } from '../controllers/viettelPostController';
 
 const router = Router();
@@ -43,5 +44,6 @@ router.post('/vtp/calculate-fee', authMiddleware, calculateShippingFee);
 router.post('/vtp/create-order', authMiddleware, checkPermission('MANAGE_ORDERS'), createVTPOrder);
 router.get('/vtp/track/:orderCode', authMiddleware, trackVTPOrder);
 router.post('/vtp/cancel-order', authMiddleware, checkPermission('MANAGE_ORDERS'), cancelVTPOrder);
+router.post('/vtp/print-order', authMiddleware, printVTPOrder);
 
 export default router;

@@ -896,3 +896,26 @@ export const cancelVTPOrder = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Lỗi hủy đơn hàng' });
   }
 };
+
+/**
+ * Lấy mã/link in vận đơn từ Viettel Post
+ */
+export const printVTPOrder = async (req: Request, res: Response) => {
+  try {
+    const { orderCode } = req.body;
+    if (!orderCode) {
+      return res.status(400).json({ success: false, message: 'Thiếu mã vận đơn (trackingNumber)' });
+    }
+
+    const payload = {
+      EXPIRY_TIME: Date.now() + 24 * 60 * 60 * 1000, // 24h
+      ORDER_ARRAY: [String(orderCode).trim()]
+    };
+
+    const data = await callVTPApi('/order/printing-code', 'POST', payload);
+    res.json(data);
+  } catch (error) {
+    console.error('VTP Print error:', error);
+    res.status(500).json({ success: false, message: 'Lỗi khi lấy link in vận đơn' });
+  }
+};

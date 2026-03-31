@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
-  RefreshCw, Calendar, User, Phone, MapPin, ChevronLeft, ChevronRight,
+  RefreshCw, User, MapPin, 
   X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader,
-  BarChart3, Settings2, ListChecks
+  BarChart3, Settings2, ListChecks, Printer
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
+import type { OrderFilters } from '../api/orderApi';
 import CreateOrderModal from '../components/CreateOrderModal';
 import PaginationBar from '../components/PaginationBar';
-import { translate } from '../utils/dictionary';
 import { useAuthStore } from '../context/useAuthStore';
 import type { Order, OrderStats } from '../types';
 import { resolveUploadUrl } from '../utils/assetsUrl';
@@ -63,7 +63,6 @@ const todayVnYmd = () =>
 
 const Orders = () => {
   const { hasPermission } = useAuthStore();
-  const canManageOrders = hasPermission('MANAGE_ORDERS');
   const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
   const canManageShipping = hasPermission('MANAGE_SHIPPING');
   const canAssignShippingQuota = hasPermission('ASSIGN_SHIPPING_DAILY_QUOTA');
@@ -83,7 +82,7 @@ const Orders = () => {
     orderStatus: 'all'
   });
   const handleLimitChange = (limit: number) => {
-    setFilters(prev => ({ ...prev, limit, page: 1 }));
+    setFilters((prev: OrderFilters) => ({ ...prev, limit, page: 1 }));
   };
   const [showFilters, setShowFilters] = useState(false);
 
@@ -205,15 +204,15 @@ const Orders = () => {
 
   // Handlers
   const handleSearch = (value: string) => {
-    setFilters(prev => ({ ...prev, search: value, page: 1 }));
+    setFilters((prev: OrderFilters) => ({ ...prev, search: value, page: 1 }));
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+    setFilters((prev: OrderFilters) => ({ ...prev, [key]: value, page: 1 }));
   };
 
   const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }));
+    setFilters((prev: OrderFilters) => ({ ...prev, page }));
   };
 
   const handleDistributePendingConfirm = async () => {
@@ -296,7 +295,12 @@ const Orders = () => {
         order.orderDate,
         order.warehouseId ? { warehouseId: order.warehouseId } : undefined
       );
-      alert(`${result.message}\nMã vận đơn: ${result.trackingNumber}`);
+      if (window.confirm(`${result.message}\nMã vận đơn: ${result.trackingNumber}\n\nBạn có muốn IN VẬN ĐƠN ngay không?`)) {
+        const printRes = await orderApi.printViettelPost(result.trackingNumber);
+        if (printRes.data?.PRINT_URL) {
+          window.open(printRes.data.PRINT_URL, '_blank');
+        }
+      }
       fetchOrders();
       fetchStats();
       if (selectedOrder?.id === order.id) {
@@ -305,6 +309,26 @@ const Orders = () => {
       }
     } catch (error: any) {
       alert(error.message || 'Lỗi khi đẩy đơn hàng');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handlePrintVTP = async (order: Order) => {
+    if (!order.trackingNumber) {
+      alert('Đơn hàng chưa có mã vận đơn');
+      return;
+    }
+    try {
+      setActionLoading(order.id);
+      const res = await orderApi.printViettelPost(order.trackingNumber);
+      if (res.data?.PRINT_URL) {
+        window.open(res.data.PRINT_URL, '_blank');
+      } else {
+        alert('Không lấy được link in từ Viettel Post');
+      }
+    } catch (error: any) {
+      alert(error.message || 'Lỗi khi lấy link in vận đơn');
     } finally {
       setActionLoading(null);
     }
@@ -891,6 +915,17 @@ const Orders = () => {
                                 <Ban size={18} />
                               </button>
                             )}
+
+                          {order.trackingNumber && order.shippingProvider === 'VIETTEL_POST' && (
+                            <button
+                              onClick={() => handlePrintVTP(order)}
+                              disabled={actionLoading === order.id}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                              title="In vận đơn"
+                            >
+                              <Printer size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -924,6 +959,7 @@ const Orders = () => {
           onConfirm={handleConfirmOrder}
           onPushVTP={handlePushToVTP}
           onCancelVTP={handleCancelViettelPost}
+          onPrintVTP={handlePrintVTP}
           onUpdateStatus={handleUpdateShippingStatus}
           canManageShipping={canManageShipping}
           actionLoading={actionLoading}
@@ -948,12 +984,13 @@ interface OrderDetailModalProps {
   onConfirm: (order: Order) => void;
   onPushVTP: (order: Order) => void;
   onCancelVTP: (order: Order) => void;
+  onPrintVTP: (order: Order) => void;
   onUpdateStatus: (order: Order, status: string) => void;
   canManageShipping: boolean;
   actionLoading: string | null;
 }
 
-const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, onUpdateStatus, canManageShipping, actionLoading }: OrderDetailModalProps) => {
+const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, onPrintVTP, onUpdateStatus, canManageShipping, actionLoading }: OrderDetailModalProps) => {
   const shippingConfig = SHIPPING_STATUS_CONFIG[order.shippingStatus] || SHIPPING_STATUS_CONFIG.PENDING;
   const orderConfig = ORDER_STATUS_CONFIG[order.orderStatus] || ORDER_STATUS_CONFIG.DRAFT;
   const paymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING;
@@ -1222,6 +1259,17 @@ const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, o
                   Hủy trên Viettel Post
                 </button>
               )}
+
+            {order.trackingNumber && order.shippingProvider === 'VIETTEL_POST' && (
+              <button
+                onClick={() => onPrintVTP(order)}
+                disabled={actionLoading === order.id}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+              >
+                <Printer size={18} />
+                In vận đơn
+              </button>
+            )}
             
             {['PENDING', 'CONFIRMED'].includes(order.shippingStatus) && (
               <button

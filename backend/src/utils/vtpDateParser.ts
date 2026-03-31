@@ -29,14 +29,16 @@ export function parseVtpDate(raw: any): Date {
     const minStr = match[5] || '0';
     const secStr = match[6] || '0';
 
-    const date = new Date(
+    // VTP returns ICT (GMT+7). We parse it as UTC first, then adjust by -7 hours
+    // so that the resulting Date object correctly represents the point in time in GMT+7.
+    const date = new Date(Date.UTC(
       parseInt(yStr, 10),
-      parseInt(mStr, 10) - 1, // Month is 0-indexed (0=Jan, 11=Dec)
+      parseInt(mStr, 10) - 1,
       parseInt(dStr, 10),
-      parseInt(hStr, 10),
+      parseInt(hStr, 10) - 7, // GMT+7 offset
       parseInt(minStr, 10),
       parseInt(secStr, 10)
-    );
+    ));
 
     if (!isNaN(date.getTime())) return date;
   }

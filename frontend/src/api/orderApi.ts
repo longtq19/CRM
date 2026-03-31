@@ -188,4 +188,13 @@ export const orderApi = {
   }): Promise<{ ok: boolean; workDate: string; updated: number }> => {
     return apiClient.put('/shipping/daily-quotas', body) as Promise<any>;
   },
+
+  printViettelPost: async (trackingNumber: string): Promise<{
+    error: boolean;
+    message: string;
+    data: { MESS_HTTP: string; MONITOR_TOKEN: string; PRINT_URL: string };
+  }> => {
+    const response = await apiClient.post('/vtp/print-order', { orderCode: trackingNumber });
+    return response as any;
+  },
 };
