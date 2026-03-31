@@ -366,7 +366,7 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 
 **Quyền xem API:** `VIEW_FLOATING_POOL` (thay mã cũ `VIEW_DATA_POOL`, migration `20260328200000_rbac_floating_pool_orders_permissions`). Một số route cho phép `VIEW_SALES` để tương thích đọc kho `SALES_OPEN` (xem `dataPoolRoutes.ts`).
 
-**Marketing → Sales:** sau khi tạo bản ghi `SALES_OPEN`, nếu `department.autoDistributeLead`, hệ thống ưu tiên **cân bằng tỉ lệ** (`teamRatioDistributionService.assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` khi không đủ cấu hình. **Phân xong:** gửi `user_notifications` (loại `NEW_LEAD`) + socket `new_lead` + Web Push tới **NV Sales được gán** (`notifySalesLeadFromMarketing.ts`). Nếu `autoDistributeLead` tắt, lead ở `AVAILABLE` (không gọi phân tỉ lệ). **Lưu ý kỹ thuật:** phần dư sau khi chia theo % phải chỉ gán vào các đơn vị **còn có nhân viên đang làm việc** (trước đây vòng xử lý dư luôn lấy team đầu danh sách nên nếu team đó không có NV, số có thể vẫn `AVAILABLE` dù team khác còn NV).
+**Marketing → Sales:** sau khi tạo bản ghi `SALES_OPEN`, nếu bật tự phân (`auto_distribute_lead` trên đơn vị NV hoặc NV chưa gán đơn vị — vẫn thử phân), thứ tự là **(1)** `pickNextSalesEmployeeId` (luồng khối `dataFlowShares`, chia đều NV trong đơn vị lá Sales qua `MKT_SALES_EMPLOYEE_IN_LEAF`); **(2)** fallback `assignLeadsUsingTeamRatios` (bảng `team_distribution_ratios`). **Phân xong:** gửi `user_notifications` (loại `NEW_LEAD`) + socket `new_lead` + Web Push tới **NV Sales được gán** (`notifySalesLeadFromMarketing.ts`). Nếu tắt auto phân, lead ở `AVAILABLE`. **Lưu ý kỹ thuật:** phần dư khi chia theo `team_distribution_ratios` chỉ gán vào đơn vị còn NV `WORKING` (xem `teamRatioDistributionService`).
 
 **Cron nhắc thu hồi:** `backend/src/cron/leadDistribution.ts` — hàm `deadlineReminder` tạo `userNotification` khi `deadline` lead rơi vào **ngày mai** (nhắc trước khi thu hồi tự động).
 
@@ -473,7 +473,7 @@ Các nhánh nghiệp vụ:
 - `pushLeadsToDataPool` tạo các `dataPool` mới:
   - `status=AVAILABLE`, `priority=1`, `source=MARKETING`
   - bỏ qua nếu customer đã có trong pool.
-  - **Chỉ khi** `department.autoDistributeLead` của **NV Marketing thao tác** bật: phân NV Sales bằng **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` (anchor = NV Marketing) nếu còn lead `AVAILABLE`; sau đó thông báo realtime cho NV Sales được gán (như trên). Nếu tắt auto phân, lead nằm ở kho chưa phân — không gọi phân tỉ lệ. Có `logAudit`; response có `autoDistributeApplied`, `ratioAssigned` (số lead đã `ASSIGNED`).
+  - **Chỉ khi** bật tự phân (cùng quy tắc `shouldTryAutoAssignMarketingSales`): với **từng** lead mới, gọi `assignSingleMarketingPoolToSales` — **trước** `pickNextSalesEmployeeId` (khối), **sau** `assignLeadsUsingTeamRatios` (tỉ lệ team). Sau đó thông báo realtime cho NV Sales được gán (như trên). Nếu tắt auto phân, lead nằm ở kho chưa phân. Có `logAudit`; response có `autoDistributeApplied`, `ratioAssigned` (số lead đã `ASSIGNED`).
 
 ### 4.7. Public API nhận lead từ website (API Key)
 
@@ -503,7 +503,7 @@ Luồng:
        - trả `success=true` + `duplicate=true` + `customerId`
    - Nếu không trùng:
      - tạo customer (marketingOwnerId = owner chiến dịch; `employeeId` ban đầu `null`); ghi tên / địa chỉ dòng chữ / ghi chú theo `acceptedFields` (không upsert `customer_addresses` từ public lead).
-     - tạo `dataPool` nguồn `MARKETING`, `status=AVAILABLE` — **giống lead Marketing tạo thủ công** (`createMarketingLead`): nếu đơn vị (`departments`) của **người tạo chiến dịch** có `auto_distribute_lead = true` (mặc định true) và NV có `department_id`, hệ thống ưu tiên **cân bằng tỉ lệ** (`assignLeadsUsingTeamRatios`), fallback `pickNextSalesEmployeeId` (anchor = owner), rồi có thể gán ngay Sales (`dataPool` → `ASSIGNED`, `customer.employeeId` = NV Sales, `lead_distribution_history`). Nếu tắt auto phân, NV tạo chiến dịch chưa gán đơn vị, hoặc không chọn được NV Sales, lead nằm **kho Sales chưa phân** (`SALES_OPEN`, `AVAILABLE`) để nhận / phân tay như các số Marketing khác.
+     - tạo `dataPool` nguồn `MARKETING`, `status=AVAILABLE` — **giống lead Marketing tạo thủ công** (`createMarketingLead`): khi bật tự phân (`auto_distribute_lead` trên đơn vị NV, hoặc NV chưa gán đơn vị vận hành thì vẫn thử phân), thứ tự là **(1)** luồng khối — `pickNextSalesEmployeeId` (anchor = owner): định tuyến theo `dataFlowShares` trên khối (`marketingToSalesPct`, khối con, …) và **chia đều NV trong đơn vị lá Sales** (đếm `MKT_SALES_EMPLOYEE_IN_LEAF`); **(2)** nếu không gán được, fallback **`team_distribution_ratios`** (`assignLeadsUsingTeamRatios`). Kết quả: `dataPool` → `ASSIGNED`, `customer.employeeId` = NV Sales, `lead_distribution_history`. Nếu tắt auto phân hoặc không chọn được NV Sales, lead nằm **kho Sales chưa phân** (`SALES_OPEN`, `AVAILABLE`).
      - tăng `marketingCampaign.leadCount`
      - tạo notifications (database) + emit socket `new_lead` + gửi Web Push.
 
@@ -897,7 +897,7 @@ Các luồng đã áp dụng org-aware routing:
 - **autoDistribute** (`dataPoolController`): với mỗi lead, `pickNextSalesEmployeeId` (anchor = `marketingOwnerId`) — có tôn trọng `external_sales_division_id` (trên khối gửi) và `externalMarketingToSalesPct` (lưu trên **khối Sales đích**) khi khối Marketing không có Sales
 - **claimFromFloatingPool**: ưu tiên lead cùng division với NV đang nhận
 - **distributeFromFloatingPool**: resolve NV từ `targetDepartmentId` qua org routing, fallback NV bất kỳ trong dept
-- **createMarketingLead** + **pushLeadsToDataPool**: tự động phân cho Sales nếu dept có `autoDistributeLead = true` — ưu tiên `assignLeadsUsingTeamRatios`, fallback `pickNextSalesEmployeeId` (anchor = NV Marketing); thông báo `NEW_LEAD` + socket + push cho NV Sales được gán
+- **createMarketingLead** + **pushLeadsToDataPool** + **public lead**: `marketingLeadAutoAssignService` — **trước** `pickNextSalesEmployeeId` (luồng khối), **sau** `assignLeadsUsingTeamRatios`; thông báo `NEW_LEAD` + socket + push cho NV Sales được gán
 - **autoDistributeCustomerToResales** (`orderController`): resolve CSKH đích từ Sales dept, fallback logic cũ
 - **leadRoutingService** (`pickNextSalesEmployeeId`/`pickNextResalesEmployeeId`): config-first — kiểm tra `targetSalesUnitId`/`targetCsUnitId` trước; `external_*` trên khối gốc NV, rồi khối anh em, rồi **`external_*` trên từng khối cha (DIVISION)** cho khớp `orgRoutingService`
 - **Cron jobs** (`leadDistribution.ts`): sử dụng `leadRoutingService` đã có config-first

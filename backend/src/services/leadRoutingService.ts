@@ -5,6 +5,7 @@
 import { prisma } from '../config/database';
 import {
   pickWeightedDeficitTargetAndRecord,
+  pickFairSalesEmployeeInLeaf,
   ROUTING_COUNTER_KIND,
 } from './divisionFlowRoutingCounterService';
 
@@ -362,6 +363,15 @@ async function pickFromExternalSalesDivision(
   );
   if (leafFromTree) {
     const inTree = extEmps.filter((e) => e.departmentId === leafFromTree);
+    const eligibleExt = inTree.map((e) => e.id).filter((id) => !exclude.has(id));
+    if (eligibleExt.length > 0) {
+      const fairExt = await pickFairSalesEmployeeInLeaf({
+        organizationId: receiver.organizationId,
+        scopeDivisionId: receiver.id,
+        employeeIds: eligibleExt,
+      });
+      if (fairExt) return fairExt;
+    }
     const pTree = pickFromCandidates(inTree, exclude, seed + ':extws');
     if (pTree) return pTree;
   }
@@ -479,8 +489,15 @@ export async function pickNextSalesEmployeeId(opts: {
         },
         select: { id: true },
       });
-      const p1w = pickFromCandidates(inWeighted, exclude, opts.seed + ':block');
-      if (p1w) return p1w;
+      const eligibleW = inWeighted.map((e) => e.id).filter((id) => !exclude.has(id));
+      if (eligibleW.length > 0) {
+        const fairW = await pickFairSalesEmployeeInLeaf({
+          organizationId: divisionInfo.organizationId,
+          scopeDivisionId: divisionInfo.divisionId,
+          employeeIds: eligibleW,
+        });
+        if (fairW) return fairW;
+      }
     }
     const inBlock = await prisma.employee.findMany({
       where: {
