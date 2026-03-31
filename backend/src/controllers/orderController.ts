@@ -1530,3 +1530,55 @@ export const processReturnedOrder = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Lỗi khi xử lý hàng hoàn' });
   }
 };
+
+/**
+ * Xóa vĩnh viễn đơn hàng
+ */
+export const deleteOrder = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { id, orderDate } = req.params as { id: string; orderDate: string };
+
+    if (!user.permissions.includes('DELETE_ORDER')) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa vĩnh viễn đơn hàng' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: {
+        id_orderDate: { id, orderDate: new Date(orderDate) }
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+    }
+
+    // Xóa đơn hàng (Prisma cascade đã cấu hình xóa OrderItem và OrderShippingLog)
+    // Các bảng không có FK cứng cần xóa thủ công
+    await prisma.$transaction([
+      prisma.shippingLog.deleteMany({
+        where: { orderId: id, orderDate: new Date(orderDate) }
+      }),
+      prisma.order.delete({
+        where: {
+          id_orderDate: { id, orderDate: new Date(orderDate) }
+        }
+      })
+    ]);
+
+    await logAudit({
+      ...getAuditUser(req),
+      action: 'DELETE',
+      object: 'ORDER',
+      objectId: id,
+      result: 'SUCCESS',
+      details: `Deleted order ${order.code} permanently`,
+      req
+    });
+
+    res.json({ message: 'Đã xóa đơn hàng vĩnh viễn' });
+  } catch (error) {
+    console.error('Delete order error:', error);
+    res.status(500).json({ message: 'Lỗi khi xóa đơn hàng' });
+  }
+};

@@ -12,7 +12,8 @@ import {
   updateShippingStatus,
   getOrderStats,
   shippingEditOrder,
-  processReturnedOrder
+  processReturnedOrder,
+  deleteOrder
 } from '../controllers/orderController';
 import { authMiddleware, checkPermission } from '../middleware/authMiddleware';
 
@@ -63,5 +64,8 @@ router.get('/:id/:orderDate/shipping-status', checkPermission('VIEW_ORDERS'), ge
 
 // Cập nhật trạng thái vận chuyển
 router.put('/:id/:orderDate/shipping-status', checkPermission('MANAGE_SHIPPING'), updateShippingStatus);
+
+// Xóa vĩnh viễn đơn hàng
+router.delete('/:id/:orderDate', checkPermission('DELETE_ORDER'), deleteOrder);
 
 export default router;

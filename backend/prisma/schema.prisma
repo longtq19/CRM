@@ -1945,7 +1945,7 @@ model OrderShippingLog {
   rawData      String?  @map("raw_data")
   timestamp    DateTime @default(now())
   createdAt    DateTime @default(now()) @map("created_at")
-  order        Order    @relation(fields: [orderId, orderDate], references: [id, orderDate])
+  order        Order    @relation(fields: [orderId, orderDate], references: [id, orderDate], onDelete: Cascade)
 
   @@index([orderId, orderDate])
   @@index([timestamp])

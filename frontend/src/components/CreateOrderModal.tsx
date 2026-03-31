@@ -213,6 +213,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
         const params = new URLSearchParams({
           page: String(productPage),
           limit: String(productLimit),
+          warehouseId: warehouseId || '', // Filter by selected warehouse
         });
         if (debouncedProductSearch.trim().length >= 2) {
           params.set('search', debouncedProductSearch.trim());
@@ -242,7 +243,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     return () => {
       cancelled = true;
     };
-  }, [step, productPage, productLimit, debouncedProductSearch]);
+  }, [step, productPage, productLimit, debouncedProductSearch, warehouseId]);
 
   useEffect(() => {
     if (!stockWarning) return;
@@ -685,7 +686,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   const canProceed = () => {
     switch (step) {
       case 1: return !!selectedCustomer;
-      case 2: return orderItems.length > 0;
+      case 2: return !!warehouseId && orderItems.length > 0;
       case 3: {
         if (!warehouseId) return false;
         const base =
@@ -885,35 +886,81 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
               <>
               <div>
                 <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                  <Package className="text-primary" size={20} />
-                  Thêm sản phẩm
+                  <Building2 className="text-primary" size={20} />
+                  Chọn kho & sẩn phẩm
                 </h3>
-                <p className="text-xs text-gray-500 mb-3">
-                  Danh sách tải theo trang từ máy chủ. Gõ từ 2 ký tự để lọc theo tên hoặc mã. Số lượng đặt không vượt tổng tồn kho.
+                <p className="text-xs text-gray-500 mb-4">
+                  Bắt buộc chọn kho trước khi thêm sản phẩm. Sản phẩm hiển thị sẽ được lọc theo kho đã chọn.
                 </p>
 
-                {stockWarning && (
-                  <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    <AlertCircle className="shrink-0 mt-0.5" size={18} />
-                    <span>{stockWarning}</span>
+                {/* Warehouse Selector */}
+                <div className="mb-6 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Building2 size={16} />
+                    Kho gửi hàng <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={warehouseId}
+                      onChange={(e) => {
+                        if (orderItems.length > 0 && e.target.value !== warehouseId) {
+                          if (!window.confirm('Thay đổi kho sẽ làm mới giỏ hàng (vì sản phẩm gắn liền với kho). Tiếp tục?')) return;
+                          setOrderItems([]);
+                        }
+                        setWarehouseId(e.target.value);
+                      }}
+                      className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    >
+                      <option value="" disabled>-- Chọn kho gửi (bắt buộc) --</option>
+                      {warehouses.map((w) => (
+                        <option key={w.id} value={w.id}>{w.code} — {w.name}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
-
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Tìm sản phẩm theo tên hoặc mã (từ 2 ký tự)…"
-                    value={searchProduct}
-                    onChange={(e) => {
-                      setSearchProduct(e.target.value);
-                      setProductPage(1);
-                    }}
-                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                  />
+                  {warehouseId && (
+                    <div className="mt-2 text-xs text-primary flex items-center gap-1">
+                      <Check size={14} />
+                      Đã chọn kho. Bạn có thể tìm sản phẩm bên dưới.
+                    </div>
+                  )}
                 </div>
 
-                {productsLoading && (
+                {!warehouseId ? (
+                  <div className="py-12 text-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
+                    <Building2 className="mx-auto h-12 w-12 text-gray-300 mb-3" />
+                    <h4 className="text-gray-500 font-medium">Vui lòng chọn kho để bắt đầu</h4>
+                    <p className="text-xs text-gray-400 mt-1">Sản phẩm thuộc kho nào mới có thể xuất từ kho đó</p>
+                  </div>
+                ) : (
+                  <>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Package size={16} />
+                      Thêm sản phẩm từ kho đã chọn
+                    </h4>
+                    {stockWarning && (
+                      <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        <AlertCircle className="shrink-0 mt-0.5" size={18} />
+                        <span>{stockWarning}</span>
+                      </div>
+                    )}
+
+                    <div className="relative mb-4">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="text"
+                        placeholder="Tìm sản phẩm trong kho này..."
+                        value={searchProduct}
+                        onChange={(e) => {
+                          setSearchProduct(e.target.value);
+                          setProductPage(1);
+                        }}
+                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {warehouseId && productsLoading && (
                   <div className="mt-3 flex items-center justify-center gap-2 py-10 text-gray-500 text-sm">
                     <RefreshCw className="animate-spin w-5 h-5" />
                     Đang tải danh sách sản phẩm…
@@ -1127,32 +1174,19 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                 )}
               </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
-                <label className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
+              <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
+                <h4 className="font-semibold text-gray-800 mb-2 flex items-center gap-2">
                   <Building2 size={18} className="text-primary" />
-                  Kho gửi hàng (Viettel Post) <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  value={warehouseId}
-                  onChange={(e) => {
-                    setWarehouseId(e.target.value);
-                    setShippingServices([]);
-                    setSelectedService(null);
-                  }}
-                  className="w-full max-w-lg rounded-xl border-2 border-gray-200 px-4 py-2.5 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                >
-                  <option value="" disabled>
-                    -- Chọn kho gửi (bắt buộc) --
-                  </option>
-                  {warehouses.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.code} — {w.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Điểm gửi tính cước và tạo vận đơn lấy từ địa chỉ kho trong hệ thống (không dùng biến môi trường). Kho cần có đủ địa chỉ, SĐT; xã sau sáp nhập cần đồng bộ VTP để có mã huyện (vtp_district_id).
+                  Kho gửi hàng đã chọn
+                </h4>
+                <div className="text-sm text-gray-700">
+                  {warehouseId 
+                    ? warehouses.find(w => w.id === warehouseId)?.name || 'N/A'
+                    : 'Chưa chọn kho (vui lòng quay lại bước 2)'
+                  }
+                </div>
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Địa chỉ kho được dùng làm điểm gửi khi tạo vận đơn Viettel Post.
                 </p>
               </div>
 

@@ -197,4 +197,9 @@ export const orderApi = {
     const response = await apiClient.post('/vtp/print-order', { orderCode: trackingNumber });
     return response as any;
   },
+
+  deleteOrder: async (id: string, orderDate: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete(`/orders/${id}/${orderDate}`);
+    return response as { message: string };
+  },
 };

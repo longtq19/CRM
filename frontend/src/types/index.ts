@@ -503,7 +503,7 @@ export interface Order {
   receiverDistrictId?: number | null;
   receiverWardId?: number | null;
   warehouseId?: string | null;
-  warehouse?: { id: string; code: string; name: string } | null;
+  warehouse?: { id: string; code: string; name: string; address?: string | null; detailAddress?: string | null } | null;
   
   note?: string;
   

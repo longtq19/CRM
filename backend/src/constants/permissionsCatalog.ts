@@ -414,4 +414,9 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Xóa cuộc trò chuyện',
     description: 'Xóa nhóm chat / cuộc trò chuyện trong Tin nhắn nội bộ.',
   },
+  {
+    code: 'DELETE_ORDER',
+    name: 'Xóa đơn hàng (vĩnh viễn)',
+    description: 'Xóa vĩnh viễn bản ghi đơn hàng khỏi hệ thống (kết hợp VIEW_ORDERS).',
+  },
 ];

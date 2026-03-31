@@ -3,7 +3,7 @@ import {
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
   RefreshCw, User, MapPin, 
   X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader,
-  BarChart3, Settings2, ListChecks, Printer
+  BarChart3, Settings2, ListChecks, Printer, Trash2, Building2
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
 import type { OrderFilters } from '../api/orderApi';
@@ -66,6 +66,7 @@ const Orders = () => {
   const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
   const canManageShipping = hasPermission('MANAGE_SHIPPING');
   const canAssignShippingQuota = hasPermission('ASSIGN_SHIPPING_DAILY_QUOTA');
+  const canDeleteOrder = hasPermission('DELETE_ORDER');
 
   // State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -213,6 +214,29 @@ const Orders = () => {
 
   const handlePageChange = (page: number) => {
     setFilters((prev: OrderFilters) => ({ ...prev, page }));
+  };
+
+  const handleOrderDelete = async (id: string, orderDate: string, code: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn hàng ${code}? Thao tác này không thể hoàn tác.`)) {
+      return;
+    }
+
+    try {
+      setActionLoading(id);
+      await orderApi.deleteOrder(id, orderDate);
+      
+      // Refresh list
+      fetchOrders();
+      fetchStats();
+      
+      if (showDetailModal && selectedOrder?.id === id) {
+        setShowDetailModal(false);
+      }
+    } catch (error: any) {
+      alert(error.message || 'Lỗi khi xóa đơn hàng');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleDistributePendingConfirm = async () => {
@@ -916,9 +940,26 @@ const Orders = () => {
                               </button>
                             )}
 
+                          {canDeleteOrder && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOrderDelete(order.id, order.orderDate, order.code);
+                              }}
+                              disabled={actionLoading === order.id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50 disabled:opacity-50"
+                              title="Xóa vĩnh viễn"
+                            >
+                              {actionLoading === order.id ? <Loader className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                            </button>
+                          )}
+
                           {order.trackingNumber && order.shippingProvider === 'VIETTEL_POST' && (
                             <button
-                              onClick={() => handlePrintVTP(order)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintVTP(order);
+                              }}
                               disabled={actionLoading === order.id}
                               className="p-1.5 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
                               title="In vận đơn"
@@ -961,7 +1002,9 @@ const Orders = () => {
           onCancelVTP={handleCancelViettelPost}
           onPrintVTP={handlePrintVTP}
           onUpdateStatus={handleUpdateShippingStatus}
+          onDelete={handleOrderDelete}
           canManageShipping={canManageShipping}
+          canDeleteOrder={canDeleteOrder}
           actionLoading={actionLoading}
         />
       )}
@@ -986,11 +1029,16 @@ interface OrderDetailModalProps {
   onCancelVTP: (order: Order) => void;
   onPrintVTP: (order: Order) => void;
   onUpdateStatus: (order: Order, status: string) => void;
+  onDelete: (id: string, orderDate: string, code: string) => void;
   canManageShipping: boolean;
+  canDeleteOrder: boolean;
   actionLoading: string | null;
 }
 
-const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, onPrintVTP, onUpdateStatus, canManageShipping, actionLoading }: OrderDetailModalProps) => {
+const OrderDetailModal = ({ 
+  order, onClose, onConfirm, onPushVTP, onCancelVTP, onPrintVTP, onUpdateStatus, onDelete,
+  canManageShipping, canDeleteOrder, actionLoading 
+}: OrderDetailModalProps) => {
   const shippingConfig = SHIPPING_STATUS_CONFIG[order.shippingStatus] || SHIPPING_STATUS_CONFIG.PENDING;
   const orderConfig = ORDER_STATUS_CONFIG[order.orderStatus] || ORDER_STATUS_CONFIG.DRAFT;
   const paymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING;
@@ -1061,6 +1109,18 @@ const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, o
                 {order.receiverProvince && (
                   <p><span className="text-gray-500">Tỉnh/TP:</span> {administrativeTitleCase(order.receiverProvince)}</p>
                 )}
+              </div>
+            </div>
+
+            <div className="bg-orange-50 rounded-lg p-4">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Building2 size={18} />
+                Thông tin kho gửi
+              </h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="text-gray-500">Kho:</span> {order.warehouse?.name || 'Chưa chọn kho'}</p>
+                <p><span className="text-gray-500">Mã kho:</span> {order.warehouse?.code || '-'}</p>
+                <p><span className="text-gray-500">Địa chỉ:</span> {order.warehouse?.address || order.warehouse?.detailAddress || '-'}</p>
               </div>
             </div>
           </div>
@@ -1223,6 +1283,17 @@ const OrderDetailModal = ({ order, onClose, onConfirm, onPushVTP, onCancelVTP, o
               >
                 <Send size={18} />
                 Đẩy Viettel Post
+              </button>
+            )}
+
+            {canDeleteOrder && (
+              <button
+                onClick={() => onDelete(order.id, order.orderDate, order.code)}
+                disabled={actionLoading === order.id}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 ml-auto"
+              >
+                {actionLoading === order.id ? <Loader className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                Xóa vĩnh viễn
               </button>
             )}
             
