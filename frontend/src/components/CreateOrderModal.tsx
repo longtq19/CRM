@@ -802,8 +802,20 @@ const CreateOrderModal = ({
       };
       await orderApi.createOrder(data);
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || 'Lỗi khi tạo đơn hàng');
+    } catch (err: unknown) {
+      let msg = 'Lỗi khi tạo đơn hàng';
+      if (err instanceof ApiHttpError) {
+        msg = (err.message && err.message.trim()) || msg;
+        if (
+          err.status >= 500 &&
+          !/migrate deploy|mục 5\.5\.1/i.test(msg)
+        ) {
+          msg = `${msg} Nếu admin vừa deploy bản mới, trên máy chủ cần chạy npx prisma migrate deploy trong thư mục backend (sau backup). Xem README mục 5.5.1.`;
+        }
+      } else if (err instanceof Error && err.message) {
+        msg = err.message;
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -897,15 +909,6 @@ const CreateOrderModal = ({
             <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center gap-2 text-gray-600">
               <RefreshCw className="animate-spin" size={22} />
               <span>Đang tải khách hàng…</span>
-            </div>
-          )}
-          {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-3">
-              <AlertCircle size={20} />
-              <span>{error}</span>
-              <button onClick={() => setError(null)} className="ml-auto p-1 hover:bg-red-100 rounded">
-                <X size={16} />
-              </button>
             </div>
           )}
 
@@ -1677,6 +1680,21 @@ const CreateOrderModal = ({
             </div>
           )}
         </div>
+
+        {error && (
+          <div className="px-6 py-3 border-t border-red-200 bg-red-50 text-red-800 text-sm flex items-start gap-3 shrink-0">
+            <AlertCircle className="shrink-0 mt-0.5" size={20} />
+            <span className="flex-1 min-w-0 break-words">{error}</span>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="shrink-0 p-1 hover:bg-red-100 rounded"
+              aria-label="Đóng thông báo lỗi"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">

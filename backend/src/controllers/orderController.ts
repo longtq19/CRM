@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
@@ -634,6 +635,12 @@ export const createOrder = async (req: Request, res: Response) => {
     res.status(201).json(order);
   } catch (error) {
     console.error('Create order error:', error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
+      return res.status(500).json({
+        message:
+          'Cơ sở dữ liệu chưa có cột cần thiết (thường gặp sau khi cập nhật code mà chưa chạy migration). Quản trị cần chạy npx prisma migrate deploy trong thư mục backend trên máy chủ, sau khi backup — xem README mục 5.5.1.',
+      });
+    }
     res.status(500).json({ message: 'Lỗi khi tạo đơn hàng' });
   }
 };
