@@ -40,6 +40,7 @@ import { assignSingleMarketingPoolToSales } from '../services/marketingLeadAutoA
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { DEFAULT_LEAD_PROCESSING_STATUS_CODE } from '../constants/operationParams';
 import { notifySalesMarketingLeadAssigned } from '../utils/notifySalesLeadFromMarketing';
+import { formatICTDate } from '../utils/dateFormatter';
 import {
   isPastCampaignEndDateInclusiveVietnam,
   isStrictCampaignStartBeforeEnd,
@@ -1098,12 +1099,12 @@ export const exportMarketingLeads = async (req: Request, res: Response) => {
         regionRank: lead.regionRank?.name || lead.regionRankCode || '',
         isValidLead: lead.isValidLead != null ? (lead.isValidLead ? 'Có' : 'Không') : '',
         invalidReason: (lead.invalidReason || '').slice(0, 200),
-        joinedDate: lead.joinedDate ? new Date(lead.joinedDate).toLocaleDateString('vi-VN') : '',
-        attributionExpiredAt: lead.attributionExpiredAt ? new Date(lead.attributionExpiredAt).toLocaleDateString('vi-VN') : '',
+        joinedDate: formatICTDate(lead.joinedDate),
+        attributionExpiredAt: formatICTDate(lead.attributionExpiredAt),
         createdByRole: lead.createdByRole || '',
         totalOrders: lead.totalOrders != null ? lead.totalOrders : '',
         totalOrdersValue: lead.totalOrdersValue != null ? lead.totalOrdersValue : '',
-        lastOrderAt: lead.lastOrderAt ? new Date(lead.lastOrderAt).toLocaleDateString('vi-VN') : '',
+        lastOrderAt: formatICTDate(lead.lastOrderAt),
       });
     });
 

@@ -13,6 +13,7 @@ import {
 } from '../constants/customerExcelColumns';
 
 import { logAudit, getAuditUser } from '../utils/auditLog';
+import { formatICTDate, formatICTTime } from '../utils/dateFormatter';
 import { describeCustomerAuditDiff } from '../utils/vietnameseAuditDiff';
 import { CUSTOMER_FIELD_LABELS, formatValueForHistory } from '../constants/customerFieldLabels';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
@@ -684,8 +685,8 @@ export const createCustomer = async (req: Request, res: Response) => {
     if (createdByRole === 'SALES' || createdByRole === 'RESALES') {
       const intCount = await prisma.customerInteraction.count();
       const now = new Date();
-      const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
-      const dateStr = now.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = formatICTTime(now);
+      const dateStr = formatICTDate(now);
       const actorName = (actor as any).fullName || (actor as any).name || 'N/A';
       const roleVi = createdByRole === 'SALES' ? 'Kinh doanh' : 'CSKH';
       const noteLine = emptyToNull(note) ? `\nNội dung nhập / ghi chú: ${String(note).trim()}` : '';
@@ -1701,7 +1702,7 @@ export const exportCustomersExcel = async (req: Request, res: Response) => {
         phone: c.phone || '',
         email: c.email || '',
         gender: c.gender || '',
-        dateOfBirth: c.dateOfBirth ? new Date(c.dateOfBirth).toLocaleDateString('vi-VN') : '',
+        dateOfBirth: formatICTDate(c.dateOfBirth),
         address: c.address || '',
         province: c.province?.name || '',
         district: c.district?.name || '',
@@ -1736,11 +1737,11 @@ export const exportCustomersExcel = async (req: Request, res: Response) => {
         regionRank: c.regionRank?.name || c.regionRankCode || '',
         isValidLead: c.isValidLead != null ? (c.isValidLead ? 'Có' : 'Không') : '',
         invalidReason: (c.invalidReason || '').slice(0, 200),
-        joinedDate: c.joinedDate ? new Date(c.joinedDate).toLocaleDateString('vi-VN') : '',
-        attributionExpiredAt: c.attributionExpiredAt ? new Date(c.attributionExpiredAt).toLocaleDateString('vi-VN') : '',
+        joinedDate: formatICTDate(c.joinedDate),
+        attributionExpiredAt: formatICTDate(c.attributionExpiredAt),
         totalOrders: c.totalOrders != null ? c.totalOrders : '',
         totalOrdersValue: c.totalOrdersValue != null ? c.totalOrdersValue : '',
-        lastOrderAt: c.lastOrderAt ? new Date(c.lastOrderAt).toLocaleDateString('vi-VN') : '',
+        lastOrderAt: formatICTDate(c.lastOrderAt),
       });
     });
 

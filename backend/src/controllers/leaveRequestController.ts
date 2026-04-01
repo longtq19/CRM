@@ -4,6 +4,7 @@ import { prisma } from '../config/database';
 import { getIO } from '../socket';
 import { getDirectManager, getSubordinateIds } from '../utils/viewScopeHelper';
 import { isTechnicalAdminRoleCode } from '../constants/rbac';
+import { formatICTDate } from '../utils/dateFormatter';
 import { getAuditUser, logAudit } from '../utils/auditLog';
 import { createUserNotification } from './userNotificationController';
 
@@ -39,7 +40,7 @@ async function getHrEmployeeIdsForLeaveNotify(): Promise<string[]> {
 }
 
 function formatDateVi(d: Date): string {
-  return d.toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return formatICTDate(d);
 }
 
 /** Gọi sau khi ghi `user_notifications` để chuông thông báo cập nhật realtime. */
