@@ -21,6 +21,10 @@ export interface OrderFilters {
   shippingStatus?: string;
   customerId?: string;
   employeeId?: string;
+  confirmedById?: string;
+  warehouseId?: string;
+  paymentStatus?: string;
+  isPrinted?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -210,4 +214,14 @@ export const orderApi = {
     const response = await apiClient.delete(`/orders/${id}/${orderDate}`);
     return response as { message: string };
   },
+
+  getWarehouses: async (): Promise<Array<{ id: string; code: string; name: string }>> => {
+    const response = await apiClient.get('/warehouses');
+    return Array.isArray(response) ? response : (response as any).data || [];
+  },
+
+  getAllEmployees: async (): Promise<Array<{ id: string; code: string; fullName: string }>> => {
+    const response = await apiClient.get('/employees');
+    return Array.isArray(response) ? response : (response as any).data || [];
+  }
 };

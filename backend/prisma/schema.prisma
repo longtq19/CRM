@@ -401,6 +401,8 @@ model Employee {
   createdCampaigns               MarketingCampaign[]            @relation("EmployeeCreatedCampaigns")
   orders                         Order[]
   ordersShippingDeclined         Order[]                        @relation("OrderShippingDeclinedBy")
+  ordersConfirmed                Order[]                        @relation("OrderConfirmedBy")
+  orderPrintLogs                 OrderPrintLog[]
   approvedPayrolls               Payroll[]                      @relation("PayrollApprover")
   createdPayrolls                Payroll[]                      @relation("PayrollCreator")
   payrolls                       Payroll[]
@@ -950,7 +952,9 @@ model Order {
   customer             Customer           @relation(fields: [customerId], references: [id])
   employee             Employee?          @relation(fields: [employeeId], references: [id])
   shippingDeclinedBy   Employee?          @relation("OrderShippingDeclinedBy", fields: [shippingDeclinedById], references: [id])
+  confirmedBy          Employee?          @relation("OrderConfirmedBy", fields: [confirmedById], references: [id])
   warehouse            Warehouse?         @relation(fields: [warehouseId], references: [id])
+  printLogs            OrderPrintLog[]
 
   @@id([id, orderDate])
   @@unique([code, orderDate])
@@ -1003,6 +1007,21 @@ model OrderItem {
   @@index([orderId, orderDate])
   @@index([productId])
   @@map("order_items")
+}
+
+model OrderPrintLog {
+  id         String   @id @default(uuid())
+  orderId    String   @map("order_id")
+  orderDate  DateTime @map("order_date")
+  employeeId String   @map("employee_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  order      Order    @relation(fields: [orderId, orderDate], references: [id, orderDate], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, orderDate])
+  @@index([employeeId])
+  @@map("order_print_logs")
 }
 
 model CustomerInteraction {

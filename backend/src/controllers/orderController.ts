@@ -202,7 +202,7 @@ const autoDistributeCustomerToResales = async (customerId: string, salesDeptId: 
 export const getOrders = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { search, orderStatus, shippingStatus, customerId, employeeId, startDate, endDate } = req.query;
+    const { search, orderStatus, shippingStatus, customerId, employeeId, confirmedById, warehouseId, paymentStatus, isPrinted, startDate, endDate } = req.query;
     const { page, limit, skip } = getPaginationParams(req.query);
 
     const where: any = {};
@@ -215,7 +215,9 @@ export const getOrders = async (req: Request, res: Response) => {
         { customer: { name: { contains: String(search), mode: 'insensitive' } } },
         { customer: { phone: { contains: String(search), mode: 'insensitive' } } },
         { receiverName: { contains: String(search), mode: 'insensitive' } },
-        { receiverPhone: { contains: String(search), mode: 'insensitive' } }
+        { receiverPhone: { contains: String(search), mode: 'insensitive' } },
+        { employee: { fullName: { contains: String(search), mode: 'insensitive' } } },
+        { confirmedBy: { fullName: { contains: String(search), mode: 'insensitive' } } }
       ];
     }
 
@@ -229,6 +231,22 @@ export const getOrders = async (req: Request, res: Response) => {
 
     if (customerId) {
       where.customerId = customerId;
+    }
+
+    if (confirmedById && confirmedById !== 'all') {
+      where.confirmedById = confirmedById;
+    }
+
+    if (warehouseId && warehouseId !== 'all') {
+      where.warehouseId = warehouseId;
+    }
+
+    if (paymentStatus && paymentStatus !== 'all') {
+      where.paymentStatus = paymentStatus;
+    }
+
+    if (isPrinted !== undefined && isPrinted !== 'all') {
+      where.isPrinted = isPrinted === 'true';
     }
 
     const scopeUser = {
@@ -281,6 +299,21 @@ export const getOrders = async (req: Request, res: Response) => {
               fullName: true,
               avatarUrl: true
             }
+          },
+          confirmedBy: {
+            select: {
+              id: true,
+              code: true,
+              fullName: true,
+              avatarUrl: true
+            }
+          },
+          printLogs: {
+            include: {
+              employee: { select: { fullName: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 3
           },
           items: {
             include: {
@@ -336,6 +369,21 @@ export const getOrderById = async (req: Request, res: Response) => {
             avatarUrl: true,
             phone: true
           }
+        },
+        confirmedBy: {
+          select: {
+            id: true,
+            code: true,
+            fullName: true,
+            avatarUrl: true,
+            phone: true
+          }
+        },
+        printLogs: {
+          include: {
+            employee: { select: { id: true, code: true, fullName: true } }
+          },
+          orderBy: { createdAt: 'desc' }
         },
         items: {
           include: {

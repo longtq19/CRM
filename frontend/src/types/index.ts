@@ -509,12 +509,19 @@ export interface Order {
   note?: string;
   
   confirmedById?: string;
+  confirmedBy?: Employee;
   confirmedAt?: string;
   shippedAt?: string;
   deliveredAt?: string;
   
   items: OrderItem[];
   shippingLogs?: ShippingLog[];
+  printLogs?: Array<{
+    id: string;
+    employeeId: string;
+    createdAt: string;
+    employee: { fullName: string; code: string };
+  }>;
   
   createdAt: string;
   updatedAt: string;

@@ -919,14 +919,31 @@ export const printVTPOrder = async (req: Request, res: Response) => {
     // Theo tài liệu VTP V2: Nếu thành công (status 200), mã in nằm trong trường 'message', trường 'data' là null.
     // Cần tự dựng link in từ mã này.
     if (data.status === 200 && data.message && typeof data.message === 'string' && data.message.length > 10) {
-      // Đánh dấu các đơn này đã in
+      // Đánh dấu các đơn này đã in và ghi log
       try {
-        await prisma.order.updateMany({
+        const user = (req as any).user;
+        const targetOrders = await prisma.order.findMany({
           where: { trackingNumber: { in: codes } },
-          data: { isPrinted: true }
+          select: { id: true, orderDate: true }
         });
+
+        if (targetOrders.length > 0) {
+          await prisma.$transaction([
+            prisma.order.updateMany({
+              where: { trackingNumber: { in: codes } },
+              data: { isPrinted: true }
+            }),
+            prisma.orderPrintLog.createMany({
+              data: targetOrders.map(o => ({
+                orderId: o.id,
+                orderDate: o.orderDate,
+                employeeId: user.id
+              }))
+            })
+          ]);
+        }
       } catch (err) {
-        console.error('Update isPrinted error:', err);
+        console.error('Track print history error:', err);
       }
 
       const type = printType || '1'; // 1=A5, 2=A6, 100=A7
