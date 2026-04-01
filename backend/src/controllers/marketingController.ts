@@ -1255,6 +1255,7 @@ export const getMarketingLeadImportTemplate = async (_req: Request, res: Respons
     noteHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
     const notes = [
       ['Số điện thoại (*)', 'Có', 'Không trùng trong hệ thống'],
+      ['Ghi chú (*)', 'Có', 'Mô tả ngắn gọn về khách hàng'],
       ['Họ và tên', 'Không', ''],
       ['Chiến dịch/Nền tảng', 'Không', 'Có thể chọn khi Import (form) thay vì ghi trong file'],
       ['Cây trồng chính', 'Không', 'Cách nhau dấu phẩy'],
@@ -1395,22 +1396,25 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
         const mainCropsRaw = getVal('mainCrops');
         const mainCrops = mainCropsRaw ? mainCropsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
 
-        if (mainCrops.length === 0) {
-          throw new Error('Cây trồng chính là bắt buộc');
+        const rowNote = getVal('note');
+        if (!rowNote) {
+          throw new Error('Ghi chú là bắt buộc');
         }
 
-        const selectedRootCrops = mainCrops.filter((c) => ROOT_COUNTABLE_CROPS.has(c));
         let mainCropsRootCounts: Record<string, number> = {};
-        if (selectedRootCrops.length > 0) {
-          const rootCountRaw = getVal('mainCropsRootCounts');
-          const rootCount = rootCountRaw ? parseInt(rootCountRaw) : NaN;
-          if (!Number.isFinite(rootCount) || rootCount <= 0) {
-            throw new Error(
-              `Số gốc là bắt buộc và phải > 0 cho các cây: ${selectedRootCrops.join(', ')}`
-            );
-          }
+        if (mainCrops.length > 0) {
+          const selectedRootCrops = mainCrops.filter((c) => ROOT_COUNTABLE_CROPS.has(c));
+          if (selectedRootCrops.length > 0) {
+            const rootCountRaw = getVal('mainCropsRootCounts');
+            const rootCount = rootCountRaw ? parseInt(rootCountRaw) : NaN;
+            if (!Number.isFinite(rootCount) || rootCount <= 0) {
+              throw new Error(
+                `Số gốc là bắt buộc và phải > 0 cho các cây: ${selectedRootCrops.join(', ')}`
+              );
+            }
 
-          for (const crop of selectedRootCrops) mainCropsRootCounts[crop] = rootCount;
+            for (const crop of selectedRootCrops) mainCropsRootCounts[crop] = rootCount;
+          }
         }
 
         const validation = validateMainCropsAndRootCounts({
@@ -1430,7 +1434,7 @@ export const importMarketingLeads = async (req: Request, res: Response) => {
             gender,
             dateOfBirth,
             address: getVal('address') || null,
-            note: getVal('note') || null,
+            note: rowNote,
             businessType: getVal('businessType') || null,
             farmArea: getVal('farmArea') ? parseFloat(getVal('farmArea')!) : null,
             farmAreaUnit: getVal('farmAreaUnit') || null,
@@ -1510,9 +1514,6 @@ export const createMarketingLead = async (req: Request, res: Response) => {
 
     const campaignIdStr =
       typeof campaignId === 'string' && campaignId.trim() ? campaignId.trim() : '';
-    if (!campaignIdStr) {
-      return res.status(400).json({ message: 'Chiến dịch là bắt buộc khi tạo lead Marketing.' });
-    }
 
     const noteTrim =
       note !== undefined && note !== null && String(note).trim() !== '' ? String(note).trim() : '';

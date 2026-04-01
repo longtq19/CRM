@@ -198,8 +198,6 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
     e.preventDefault();
 
     if (!form.phone.trim()) { alert('Số điện thoại là bắt buộc'); return; }
-    if (!form.leadSourceId?.trim()) { alert('Nền tảng là bắt buộc'); return; }
-    if (!form.campaignId?.trim()) { alert('Chiến dịch là bắt buộc'); return; }
     if (!form.note.trim()) { alert('Ghi chú là bắt buộc'); return; }
 
     if (form.mainCrops.length > 0) {
@@ -594,7 +592,7 @@ const MarketingCustomerForm = ({ onClose, onSaved, sources, campaigns, tagRefres
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Cây trồng chính <span className="text-red-500">*</span>
+                      Cây trồng chính
                     </label>
                     <div className="space-y-4">
                       {CROP_GROUPS_ORDER.map((group) => {
