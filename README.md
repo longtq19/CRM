@@ -8,7 +8,12 @@ Tài liệu này mô tả tổng quan dự án, luồng vận hành hệ thống
 
 File tài liệu chính của repo nằm tại **thư mục gốc dự án**: `README.md` (cùng cấp với `backend/` và `frontend/`).
 
-### 1.1. Quy tắc đọc và cập nhật README (nghiệp vụ & phát triển)
+### 1.1. Giao diện Responsive (Mobile Friendly):
+- **Bảng dữ liệu:** Sử dụng utility class `.responsive-table-container` (trong `index.css`) bọc ngoài các thẻ `<table>` để hỗ trợ cuộn ngang mượt mà trên mobile mà không phá vỡ layout.
+- **Modal:** Các modal phức tạp (như chi tiết đơn hàng, chi tiết khách hàng) được cấu hình full-screen trên mobile (`w-full h-[90vh] rounded-t-xl`) và trở lại kích thước chuẩn trên desktop (`max-w-* rounded-xl`).
+- **Sidebar:** Sidebar danh mục (ở module Sản phẩm) tự động ẩn trên mobile để tối ưu không gian hiển thị danh sách.
+
+### 1.2. Quy tắc đọc và cập nhật README (nghiệp vụ & phát triển)
 
 - **Trước** khi làm bất kỳ yêu cầu thay đổi nghiệp vụ, luật hệ thống, luồng dùng hoặc cấu hình: **đọc README** (ít nhất các mục liên quan) để khớp với mô tả hiện tại và tránh mâu thuẫn tài liệu.
 - **Sau** khi hoàn tất thay đổi đó: **cập nhật README** (thêm / sửa / xóa đoạn tương ứng) để tài liệu gốc luôn phản ánh hành vi thật của hệ thống. Không để code đã đổi mà README còn mô tả cũ.

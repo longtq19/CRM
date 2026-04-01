@@ -616,8 +616,8 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-0 md:p-4">
+      <div className="bg-white rounded-none md:rounded-xl shadow-xl w-full max-w-3xl h-full md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-green-500 to-emerald-600">
           <h2 className="text-xl font-semibold text-white">
@@ -634,7 +634,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
             <div className="border-b">
               <SectionHeader title="Thông tin cơ bản" icon={User} section="basic" />
               {expandedSections.basic && (
-                <div className="pb-4 grid grid-cols-2 gap-4">
+                <div className="pb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Họ và tên
@@ -775,7 +775,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                   </div>
 
                   {form.addressType === 'OLD' && (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Tỉnh/Thành phố
@@ -833,7 +833,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                   )}
 
                   {form.addressType === 'NEW' && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Tỉnh/Thành phố
@@ -881,7 +881,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
               <SectionHeader title="Thông tin nông nghiệp" icon={Sprout} section="farming" required />
               {expandedSections.farming && (
                 <div className="pb-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Tên vườn/trang trại
@@ -1130,7 +1130,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
             <div className="border-b">
               <SectionHeader title="Thông tin kinh doanh" icon={Building2} section="business" required />
               {expandedSections.business && (
-                <div className="pb-4 grid grid-cols-2 gap-4">
+                <div className="pb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Loại hình <span className="text-red-500">*</span>
@@ -1222,7 +1222,7 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                     </div>
 
                     {attributionMode === 'MARKETING' ? (
-                      <div className="grid grid-cols-1 gap-4 p-3 border rounded-lg border-blue-100">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border rounded-lg border-blue-100">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Nhân viên Marketing <span className="text-red-500">*</span>
@@ -1248,9 +1248,37 @@ const CustomerForm = ({ customerId, onClose, onSaved, tagRefreshSignal = 0 }: Pr
                             ))}
                           </select>
                         </div>
+                        {marketingCampaigns.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Chiến dịch Marketing <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={form.campaignId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const camp = marketingCampaigns.find((c) => c.id === val);
+                                setForm({
+                                  ...form,
+                                  campaignId: val,
+                                  leadSourceId: camp?.sourceId || '',
+                                });
+                              }}
+                              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              required
+                            >
+                              <option value="">— Chọn chiến dịch —</option>
+                              {marketingCampaigns.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-4 p-3 border rounded-lg border-blue-100">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border rounded-lg border-blue-100">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Kênh tiếp cận khách hàng <span className="text-red-500">*</span>

@@ -988,8 +988,8 @@ const Sales = () => {
       />
 
       {nameModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50">
+          <div className="bg-white rounded-t-xl md:rounded-xl shadow-xl w-full max-w-md p-6 h-[90vh] md:h-auto overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4">Đổi tên khách hàng</h3>
             <input
               type="text"

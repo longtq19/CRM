@@ -558,42 +558,46 @@ const DataPool = () => {
       )}
 
       {detailCustomer && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40" onClick={() => setDetailCustomer(null)}>
+          <div className="bg-white rounded-t-xl md:rounded-xl shadow-xl w-full max-w-2xl overflow-hidden h-[90vh] md:h-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center p-6 border-b">
               <h3 className="text-lg font-semibold">Chi tiết khách hàng</h3>
               <button type="button" className="text-gray-400 hover:text-gray-600" onClick={() => setDetailCustomer(null)}>✕</button>
             </div>
-            {detailLoading ? (
-              <div className="flex justify-center py-8"><Loader className="w-6 h-6 animate-spin" /></div>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-4">
-                  <div><span className="text-gray-500">Mã:</span> <span className="font-medium">{detailCustomer.code}</span></div>
-                  <div><span className="text-gray-500">Tên:</span> <span className="font-medium">{detailCustomer.name}</span></div>
-                  <div><span className="text-gray-500">SĐT:</span> {detailCustomer.phone}</div>
-                  <div><span className="text-gray-500">Email:</span> {detailCustomer.email || '—'}</div>
-                  <div className="col-span-2"><span className="text-gray-500">Địa chỉ:</span> {detailCustomer.address || '—'}</div>
-                  {detailCustomer.province && (
-                    <div><span className="text-gray-500">Tỉnh/TP:</span> {detailCustomer.province?.name ? administrativeTitleCase(detailCustomer.province.name) : '—'}</div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)] md:max-h-[70vh]">
+              {detailLoading ? (
+                <div className="flex justify-center py-8"><Loader className="w-6 h-6 animate-spin" /></div>
+              ) : (
+                <div className="space-y-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Mã khách hàng</span> <span className="font-semibold text-gray-900">{detailCustomer.code}</span></div>
+                    <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Họ và tên</span> <span className="font-semibold text-gray-900">{detailCustomer.name}</span></div>
+                    <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Số điện thoại</span> <span className="text-gray-900">{detailCustomer.phone}</span></div>
+                    <div><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Email</span> <span className="text-gray-900">{detailCustomer.email || '—'}</span></div>
+                    <div className="md:col-span-2"><span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Địa chỉ</span> <span className="text-gray-900">{detailCustomer.address || '—'}</span></div>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <span className="text-gray-500 block text-xs uppercase tracking-wider mb-2">Thẻ phân loại</span>
+                    {detailCustomer.tags?.length > 0 ? (
+                      <CustomerTagBadges
+                        vibrant
+                        tags={detailCustomer.tags?.map((t: any) => ({ tag: t.tag || t })) || []}
+                      />
+                    ) : (
+                      <span className="text-gray-400 text-sm">Chưa có thẻ</span>
+                    )}
+                  </div>
+
+                  {detailCustomer.note && (
+                    <div className="pt-4 border-t">
+                      <span className="text-gray-500 block text-xs uppercase tracking-wider mb-1">Ghi chú</span>
+                      <p className="text-gray-900 whitespace-pre-wrap">{detailCustomer.note}</p>
+                    </div>
                   )}
                 </div>
-                <div className="col-span-2">
-                  <span className="text-gray-500">Thẻ:</span>{' '}
-                  {detailCustomer.tags?.length > 0 ? (
-                    <CustomerTagBadges
-                      vibrant
-                      tags={detailCustomer.tags?.map((t: any) => ({ tag: t.tag || t })) || []}
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-sm">Chưa có thẻ</span>
-                  )}
-                </div>
-                {detailCustomer.note && (
-                  <div><span className="text-gray-500">Ghi chú:</span> {detailCustomer.note}</div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

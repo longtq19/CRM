@@ -614,7 +614,7 @@ const Products = () => {
     <div className="flex h-[calc(100vh-64px)]">
       {/* Sidebar - Category List */}
       <div className={clsx(
-        "bg-white border-r border-gray-200 flex flex-col transition-all duration-300",
+        "hidden lg:flex bg-white border-r border-gray-200 flex-col transition-all duration-300",
         isCollapsed ? "w-16" : "w-64"
       )}>
         {/* Sidebar Header */}

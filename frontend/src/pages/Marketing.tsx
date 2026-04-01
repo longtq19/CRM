@@ -2848,7 +2848,7 @@ const Marketing = () => {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border">
-          <div className="overflow-x-auto">
+          <div className="responsive-table-container">
             <table className="w-full text-left">
               <thead className="bg-gray-50 border-b">
                 <tr>
@@ -3103,8 +3103,8 @@ const Marketing = () => {
 
       {/* Import Excel Modal */}
       {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setImportModalOpen(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/50" onClick={() => setImportModalOpen(false)}>
+          <div className="bg-white rounded-t-xl md:rounded-xl shadow-2xl w-full max-w-lg overflow-hidden h-[90vh] md:h-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <FileSpreadsheet size={20} className="text-blue-500" />

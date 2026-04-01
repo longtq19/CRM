@@ -988,7 +988,7 @@ const Orders = () => {
                 <p>Không có đơn hàng nào</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="responsive-table-container">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -1402,8 +1402,8 @@ function OrderDetailModal({
   const paymentConfig = PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-none md:rounded-xl shadow-xl w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
           <div>
@@ -1489,7 +1489,7 @@ function OrderDetailModal({
               <Package size={18} />
               Sản phẩm ({order.items?.length || 0})
             </h3>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>

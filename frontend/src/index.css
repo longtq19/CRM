@@ -40,6 +40,26 @@
   .btn-primary {
     @apply btn-toolbar-primary;
   }
+
+  .responsive-table-container {
+    @apply w-full overflow-x-auto relative rounded-xl border border-gray-200 shadow-sm;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .responsive-table-container table {
+    @apply min-w-full divide-y divide-gray-200;
+  }
+
+  /* Optional: Custom scrollbar styling for the container */
+  .responsive-table-container::-webkit-scrollbar {
+    height: 6px;
+  }
+  .responsive-table-container::-webkit-scrollbar-track {
+    @apply bg-gray-50;
+  }
+  .responsive-table-container::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
 }
 
 @keyframes fade-in-up {

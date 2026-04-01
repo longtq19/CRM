@@ -455,7 +455,7 @@ const Dashboard = () => {
             <Map size={18} className="text-green-600" />
             <h3 className="font-semibold">Bản đồ phân bố khách hàng</h3>
           </div>
-          <div className="h-[550px] relative z-0">
+          <div className="h-[350px] md:h-[550px] relative z-0">
             <GoogleMapsVietnam data={data.distribution.topProvinces} maxMarkers={63} />
           </div>
         </div>

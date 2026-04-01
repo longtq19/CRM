@@ -216,7 +216,7 @@ const Reports = () => {
         {revenueData.byDivision && revenueData.byDivision.length > 0 && (
           <div className="bg-white p-6 rounded-xl border">
             <h3 className="text-lg font-semibold mb-4">Doanh thu theo KHỐI</h3>
-            <div className="overflow-x-auto">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -251,7 +251,7 @@ const Reports = () => {
         {revenueData.byPeriod && revenueData.byPeriod.length > 0 && (
           <div className="bg-white p-6 rounded-xl border">
             <h3 className="text-lg font-semibold mb-4">Doanh thu theo thời gian</h3>
-            <div className="overflow-x-auto">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -412,7 +412,7 @@ const Reports = () => {
         {growthData.customerGrowth && growthData.customerGrowth.length > 0 && (
           <div className="bg-white p-6 rounded-xl border">
             <h3 className="text-lg font-semibold mb-4">Tăng trưởng khách hàng theo tháng</h3>
-            <div className="overflow-x-auto">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -726,7 +726,7 @@ const Reports = () => {
         {businessTypesData.topCompanies && businessTypesData.topCompanies.length > 0 && (
           <div className="bg-white p-6 rounded-xl border">
             <h3 className="text-lg font-semibold mb-4">Top Doanh nghiệp</h3>
-            <div className="overflow-x-auto">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -764,7 +764,7 @@ const Reports = () => {
         {businessTypesData.topCooperatives && businessTypesData.topCooperatives.length > 0 && (
           <div className="bg-white p-6 rounded-xl border">
             <h3 className="text-lg font-semibold mb-4">Top Hợp tác xã</h3>
-            <div className="overflow-x-auto">
+            <div className="responsive-table-container">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>

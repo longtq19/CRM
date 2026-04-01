@@ -1044,7 +1044,7 @@ const Resales = () => {
                 <p>Chưa có khách hàng nào</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="responsive-table-container">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b text-gray-600">
                     <tr>
