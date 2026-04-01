@@ -12,6 +12,7 @@ import { resolveReceiverVtpDistrictId, resolveWarehouseVtpSender } from '../util
 import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/leadDuplicateService';
 import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
+import { userHasCatalogPermission } from '../constants/rbac';
 
 async function getAllSubordinates(employeeId: string): Promise<string[]> {
   return getSubordinateIds(employeeId);
@@ -468,7 +469,7 @@ export const createOrder = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
     }
 
-    // Quyền tạo đơn: nhân viên chỉ được tạo đơn cho khách của mình; cấp trên được tạo đơn cho khách của mình và của cấp dưới
+    // Phạm vi khách khi tạo đơn: mặc định chỉ khách của bản thân / cấp dưới; bỏ giới hạn khi có quyền catalog CREATE_ORDER_COMPANY, FULL_ACCESS, hoặc nhóm quản trị hệ thống (system_administrator / ADM) — xem userHasCatalogPermission.
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
       select: { id: true, employeeId: true }
@@ -476,17 +477,20 @@ export const createOrder = async (req: Request, res: Response) => {
     if (!customer) {
       return res.status(404).json({ message: 'Không tìm thấy khách hàng' });
     }
-    const allowedEmployeeIds = [user.id, ...(await getAllSubordinates(user.id))];
-    const customerOwnerId = customer.employeeId;
-    if (customerOwnerId == null) {
-      return res.status(403).json({
-        message: 'Chỉ được tạo đơn cho khách hàng đã được phân công (khách của bạn hoặc của cấp dưới).'
-      });
-    }
-    if (!allowedEmployeeIds.includes(customerOwnerId)) {
-      return res.status(403).json({
-        message: 'Bạn chỉ được tạo đơn cho khách hàng của mình hoặc khách hàng của cấp dưới trực tiếp/gián tiếp.'
-      });
+    const bypassOrderCustomerScope = userHasCatalogPermission(user, 'CREATE_ORDER_COMPANY');
+    if (!bypassOrderCustomerScope) {
+      const allowedEmployeeIds = [user.id, ...(await getAllSubordinates(user.id))];
+      const customerOwnerId = customer.employeeId;
+      if (customerOwnerId == null) {
+        return res.status(403).json({
+          message: 'Chỉ được tạo đơn cho khách hàng đã được phân công (khách của bạn hoặc của cấp dưới).'
+        });
+      }
+      if (!allowedEmployeeIds.includes(customerOwnerId)) {
+        return res.status(403).json({
+          message: 'Bạn chỉ được tạo đơn cho khách hàng của mình hoặc khách hàng của cấp dưới trực tiếp/gián tiếp.'
+        });
+      }
     }
 
     if (!warehouseId || String(warehouseId).trim() === '') {

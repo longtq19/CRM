@@ -331,6 +331,12 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Tạo đơn mới (POST order) khi không cần quyền sửa toàn bộ đơn.',
   },
   {
+    code: 'CREATE_ORDER_COMPANY',
+    name: 'Tạo đơn cho khách toàn công ty',
+    description:
+      'Bỏ giới hạn «chỉ khách của mình / cấp dưới» khi POST tạo đơn — được chọn khách do NV khác phụ trách hoặc khách chưa gán NV (kết hợp CREATE_ORDER hoặc MANAGE_ORDERS). Quản trị hệ thống và FULL_ACCESS không cần gán riêng.',
+  },
+  {
     code: 'MANAGE_ORDERS',
     name: 'Quản lý đơn hàng (sửa đơn)',
     description: 'Sửa đơn, tạo đơn (kết hợp CREATE_ORDER), quản lý dòng đơn.',

@@ -194,6 +194,7 @@ export const DICTIONARY: Record<string, string> = {
   'VIEW_ORDERS': 'Xem đơn hàng',
   'VIEW_ALL_COMPANY_ORDERS': 'Xem toàn bộ đơn hàng công ty',
   'CREATE_ORDER': 'Tạo đơn hàng (của bản thân)',
+  'CREATE_ORDER_COMPANY': 'Tạo đơn cho khách toàn công ty',
   'MANAGE_ORDERS': 'Quản lý đơn hàng (sửa đơn)',
   'MANAGE_SHIPPING': 'Quản lý vận đơn',
   'ASSIGN_SHIPPING_DAILY_QUOTA': 'Gán chỉ tiêu xử lý vận đơn theo ngày',

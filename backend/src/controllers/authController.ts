@@ -264,6 +264,7 @@ async function ensureCrmAdministratorDefaultPermissions(): Promise<void> {
     'VIEW_ORDERS',
     'VIEW_ALL_COMPANY_ORDERS',
     'CREATE_ORDER',
+    'CREATE_ORDER_COMPANY',
     'MANAGE_ORDERS',
     'MANAGE_SHIPPING',
     'ASSIGN_SHIPPING_DAILY_QUOTA',

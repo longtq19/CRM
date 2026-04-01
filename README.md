@@ -530,7 +530,8 @@ Luồng tạo & vận chuyển:
   - **Sales / CSKH:** trên danh sách khách (module **Kinh doanh** và **CSKH**), khi có quyền `CREATE_ORDER` hoặc `MANAGE_ORDERS`, có nút **Tạo đơn** (icon gói hàng) mở cùng modal tạo đơn; CSKH nạp khách qua `GET /api/resales/customer/:id`, Sales qua `GET /api/customers/:id`.
   - **Thông báo lỗi trên modal tạo đơn:** hiển thị **cố định phía trên thanh nút** (Hủy / Tiếp tục / Tạo đơn), không chỉ trong vùng cuộn nội dung — tránh trường hợp ở bước Vận chuyển người dùng không thấy lỗi API và tưởng nút không phản hồi. Khi thiếu cột DB sau deploy (Prisma `P2022`), `POST /api/orders` trả thông điệp tiếng Việt hướng dẫn chạy `npx prisma migrate deploy` (README 5.5.1).
   - **Bắt buộc** `warehouseId` (kho gửi — điểm gửi Viettel Post), `receiverProvinceId/DistrictId/WardId` (địa chỉ nhận; V3 có thể thiếu `receiverDistrictId` nếu có `vtp_district_id` trên xã).
-   - Quyền: **`CREATE_ORDER`** (tạo đơn gán `employeeId` = người tạo) và/hoặc **`MANAGE_ORDERS`** (luồng quản lý rộng hơn — xem `orderRoutes.ts`). Nút tạo đơn trên FE hiển thị khi có một trong hai quyền.
+   - Quyền route `POST /api/orders`: **`CREATE_ORDER`** và/hoặc **`MANAGE_ORDERS`** (xem `orderRoutes.ts`). Nút tạo đơn trên FE hiển thị khi có một trong hai quyền.
+   - **Phạm vi khách khi tạo đơn:** mặc định chỉ khách đang gán cho **bản thân hoặc cấp dưới** (`customers.employeeId`); khách chưa gán NV hoặc gán NV khác → 403. Quyền catalog **`CREATE_ORDER_COMPANY`** bỏ giới hạn này (tạo đơn cho mọi khách trong hệ thống). **`FULL_ACCESS`** và nhóm **quản trị hệ thống** (`system_administrator` / legacy `ADM`) luôn được coi là đủ quyền — `userHasCatalogPermission` trong `orderController.createOrder` (không cần gán `CREATE_ORDER_COMPANY` riêng). Đồng bộ catalog: `ensureDefaultPermissionsCatalog`; nhóm **Quản trị CRM** nhận thêm `CREATE_ORDER_COMPANY` qua `ensureCrmAdministratorDefaultPermissions` khi chạy `syncDefaultMenus`.
   - **Danh sách / chi tiết đơn** (`GET /api/orders`, `GET /api/orders/:id`): lọc theo `employeeId` người tạo đơn — mặc định **bản thân + cấp dưới quản lý** (`getVisibleEmployeeIds(..., 'ORDER')`, cùng logic Sales/CSKH xem phạm vi cây quản lý). Quyền **`VIEW_ALL_COMPANY_ORDERS`** hoặc phạm vi nhóm **COMPANY** (tab Nhóm quyền → phạm vi xem đơn hàng) bỏ giới hạn — xem **toàn công ty**.
   - **`GET /api/orders/stats`:** cùng phạm vi lọc `employeeId` như danh sách (trước đây thống kê có thể lệch nếu không lọc; đã đồng bộ).
    - Tạo code `DH-XXXXXX`
@@ -679,7 +680,7 @@ Nghiệp vụ:
   8. **CSKH (3):** `VIEW_RESALES`, `MANAGE_RESALES`, `VIEW_CSKH_EFFECTIVENESS`
   9. **Sản phẩm (1):** `MANAGE_PRODUCTS`
   10. **Hỗ trợ (1):** `MANAGE_SUPPORT_TICKETS`
-  11. **Đơn hàng & Vận chuyển (6):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`
+  11. **Đơn hàng & Vận chuyển (7):** `VIEW_ORDERS`, `VIEW_ALL_COMPANY_ORDERS`, `CREATE_ORDER`, `CREATE_ORDER_COMPANY`, `MANAGE_ORDERS`, `MANAGE_SHIPPING`, `ASSIGN_SHIPPING_DAILY_QUOTA`
   12. **Kho vận (1):** `MANAGE_WAREHOUSE`
   13. **Kế toán (2):** `VIEW_ACCOUNTING`, `MANAGE_ACCOUNTING`
   14. **Vận hành & Cơ cấu (4):** `CONFIG_OPERATIONS`, `CONFIG_ORG_STRUCTURE`, `CONFIG_DATA_FLOW`, `VIEW_DIVISIONS`
