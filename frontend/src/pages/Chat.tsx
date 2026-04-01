@@ -16,7 +16,7 @@ import {
   X,
   Image as ImageIcon,
   Check,
-  CheckCheck,
+// removed CheckCheck import
   MessageSquare,
   Plus,
   Users,
@@ -48,11 +48,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+// removed vi import
 import EmployeeDetail from './EmployeeDetail';
 import { getUiAvatarFallbackUrl } from '../utils/uiAvatar';
 import { renderChatMessageHtml } from '../utils/chatMessageHtml';
 import { resolveUploadUrl } from '../utils/assetsUrl';
+import { formatDateWeekday, formatDateTime } from '../utils/format';
 import { ChatTextColorPopover } from '../components/chat/ChatTextColorPopover';
 import {
   loadChatQuickMessages,
@@ -239,7 +240,7 @@ const Chat = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<any>(null);
   const inputRef = useRef<HTMLDivElement>(null);
   const selectedGroupRef = useRef<ChatGroup | null>(null);
   
@@ -433,7 +434,7 @@ const Chat = () => {
       });
     });
 
-    newSocket.on('user_typing', ({ userId, fullName }: { userId: string, fullName: string }) => {
+    newSocket.on('user_typing', ({ fullName }: { userId: string, fullName: string }) => {
       setTypingUsers(prev => {
         if (!prev.includes(fullName)) return [...prev, fullName];
         return prev;
@@ -753,7 +754,7 @@ const Chat = () => {
       sender: {
         id: user.id,
         fullName: user.name || 'Bạn',
-        avatarUrl: user.avatarUrl
+        avatarUrl: user.avatar
       },
       attachments: selectedFiles.map((file, idx) => ({
         id: `temp-att-${idx}`,
@@ -1035,11 +1036,7 @@ const Chat = () => {
   };
 
   const formatTime = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'HH:mm', { locale: vi });
-    } catch {
-      return '';
-    }
+    return formatDateTime(dateString).split(' ')[1]; // Get HH:mm part from standardized format
   };
 
   // Strip HTML tags for preview text
@@ -1052,11 +1049,7 @@ const Chat = () => {
   };
 
   const formatDateHeader = (dateString: string) => {
-    try {
-      return format(new Date(dateString), 'EEEE, dd/MM/yyyy', { locale: vi });
-    } catch {
-      return '';
-    }
+    return formatDateWeekday(dateString);
   };
 
   const getDateKey = (dateString: string) => {
@@ -1274,7 +1267,7 @@ const Chat = () => {
       setSelectedUserIds([]);
     } catch (error) {
       console.error('Failed to add members:', error);
-      const message = error?.response?.data?.message || 'Không thể thêm thành viên';
+      const message = (error as any).message || 'Không thể thêm thành viên';
       alert(message);
     }
   };
@@ -1391,7 +1384,7 @@ const Chat = () => {
       setSelectedGroup(updated);
     } catch (error) {
       console.error('Failed to change role:', error);
-      const message = error?.response?.data?.message || 'Không thể cập nhật quyền';
+      const message = (error as any).message || 'Không thể cập nhật quyền';
       alert(message);
     }
   };
@@ -1404,7 +1397,7 @@ const Chat = () => {
       setSelectedGroup(updated);
     } catch (error) {
       console.error('Failed to remove member:', error);
-      const message = error?.response?.data?.message || 'Không thể xóa thành viên';
+      const message = (error as any).message || 'Không thể xóa thành viên';
       alert(message);
     }
   };
@@ -1455,7 +1448,7 @@ const Chat = () => {
       alert('Đã xóa cuộc trò chuyện thành công');
     } catch (error) {
       console.error('Failed to delete conversation:', error);
-      const message = error?.response?.data?.message || 'Không thể xóa cuộc trò chuyện';
+      const message = (error as any).message || 'Không thể xóa cuộc trò chuyện';
       alert(message);
     }
   };
@@ -1964,6 +1957,10 @@ const Chat = () => {
                                     e.stopPropagation();
                                     setSelectedEmployeeId(read.userId);
                                     setShowEmployeeModal(true);
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = getUiAvatarFallbackUrl(read.user.fullName);
                                   }}
                                 />
                               ))}
@@ -2968,9 +2965,10 @@ const Chat = () => {
                                     className="px-2 py-1 text-[11px] text-primary hover:bg-primary/10 rounded-lg"
                                     onClick={async () => {
                                       try {
-                                        const updated = await apiClient.post(
-                                          `/chat/groups/${selectedGroup.id}/member-requests/${req.id}/approve`
-                                        );
+                                          const updated = await apiClient.post(
+                                            `/chat/groups/${selectedGroup.id}/member-requests/${req.id}/approve`,
+                                            {}
+                                          );
                                         setSelectedGroup(updated);
                                       } catch (error) {
                                         console.error('Failed to approve request', error);
@@ -2984,9 +2982,10 @@ const Chat = () => {
                                     className="px-2 py-1 text-[11px] text-gray-500 hover:bg-gray-200 rounded-lg"
                                     onClick={async () => {
                                       try {
-                                        await apiClient.post(
-                                          `/chat/groups/${selectedGroup.id}/member-requests/${req.id}/reject`
-                                        );
+                                          await apiClient.post(
+                                            `/chat/groups/${selectedGroup.id}/member-requests/${req.id}/reject`,
+                                            {}
+                                          );
                                         setSelectedGroup({
                                           ...selectedGroup,
                                           memberRequests: selectedGroup.memberRequests?.filter(r => r.id !== req.id)

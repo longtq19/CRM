@@ -13,6 +13,15 @@ File tài liệu chính của repo nằm tại **thư mục gốc dự án**: `R
 - **Modal:** Các modal phức tạp (như chi tiết đơn hàng, chi tiết khách hàng) được cấu hình full-screen trên mobile (`w-full h-[90vh] rounded-t-xl`) và trở lại kích thước chuẩn trên desktop (`max-w-* rounded-xl`).
 - **Sidebar:** Sidebar danh mục (ở module Sản phẩm) tự động ẩn trên mobile để tối ưu không gian hiển thị danh sách.
 
+### 1.3. Quy chuẩn hiển thị Ngày/Giờ (Date/Time Standards):
+Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất để tránh nhầm lẫn dữ liệu và tối ưu trải nghiệm người dùng Việt Nam:
+- **Múi giờ:** Luôn sử dụng múi giờ Việt Nam (**Asia/Ho_Chi_Minh**, UTC+7).
+- **Định dạng Ngày:** Luôn sử dụng **`dd/mm/yyyy`** (ví dụ: `31/12/2024`).
+- **Định dạng Giờ:** Luôn sử dụng định dạng **24 giờ** (**`HH:mm`** hoặc **`HH:mm:ss`**). Tuyệt đối không dùng 12h (AM/PM).
+- **Utilities tập trung:** 
+  - **Frontend:** Sử dụng `formatDate`, `formatDateTime`, `formatTime` từ `frontend/src/utils/format.ts`. Đối với các thành phần chat/thông báo cần hiển thị thông minh (Giờ nếu hôm nay, Ngày nếu cũ hơn), sử dụng `formatSmartDate`.
+  - **Backend:** Sử dụng `backend/src/utils/dateFormatter.ts` cho các báo cáo Excel và nhật ký hệ thống.
+
 ### 1.2. Quy tắc đọc và cập nhật README (nghiệp vụ & phát triển)
 
 - **Trước** khi làm bất kỳ yêu cầu thay đổi nghiệp vụ, luật hệ thống, luồng dùng hoặc cấu hình: **đọc README** (ít nhất các mục liên quan) để khớp với mô tả hiện tại và tránh mâu thuẫn tài liệu.
@@ -75,7 +84,7 @@ Các bảng **nhật ký hệ thống** (`system_logs`), **khách hàng** (`cust
 | Mã chức năng đơn vị lá (`OrgFunc`) | `backend/src/constants/orgUnitFunctions.ts` + `frontend/src/constants/orgUnitFunctions.ts` (đồng bộ với `schema.prisma` enum `OrgFunc`) |
 | Sidebar / menu từ API | `frontend/src/components/Sidebar.tsx` (nhãn từ DB, không map cứng ở FE) |
 | Gọi API, cookie, lỗi mạng | `frontend/src/api/client.ts` |
-| Định dạng ngày/giờ hiển thị (dd/MM/yyyy, …) | `frontend/src/utils/format.ts` — `formatDate`, `formatDateTime`, `formatDateTimeSeconds`, `formatMonthYear`, `formatDateWeekday` (date-fns + locale `vi`) |
+| Định dạng ngày/giờ hiển thị (24h, dd/mm/yyyy, Vietnam ICT) | `frontend/src/utils/format.ts` — Centralized utilities: `formatDate`, `formatDateTime`, `formatTime`, `formatSmartDate`. Standards: 24h time, dd/mm/yyyy date, Asia/Ho_Chi_Minh timezone. |
 | `hasPermission`, phiên đăng nhập | `frontend/src/context/useAuthStore.ts` + `frontend/src/constants/rbac.ts` (`hasExecutiveReportUiAccess` cho báo cáo điều hành theo `VIEW_REPORTS` / `VIEW_PERFORMANCE`; `hasModuleEffectivenessAccess` cho tab báo cáo hiệu quả Sales/CSKH: `VIEW_SALES_EFFECTIVENESS` / `VIEW_CSKH_EFFECTIVENESS` hoặc `VIEW_PERFORMANCE` / `VIEW_REPORTS`) |
 | Chặn route theo quyền | `frontend/src/components/PermissionRoute.tsx` — vào `/sales` khi có menu Sales **hoặc** đồng thời `MANAGE_MARKETING_GROUPS` và `MANAGE_SALES` (quản lý marketing cần xem kho Sales chưa phân; xem `SALES_MODULE_PATH_ACCESS_PERMISSIONS` trong `routePermissionPolicy.ts`). |
 | RBAC full API (chỉ quản trị hệ thống) | Backend: `isTechnicalAdminRoleCode` + `userHasCatalogPermission` trong `backend/src/constants/rbac.ts`. Frontend: `isTechnicalAdminRole`. Không bypass theo `crm_administrator` / `BOD` — chỉ qua permission trên JWT. `FULL_ACCESS` vẫn được `checkPermission` chấp nhận. |

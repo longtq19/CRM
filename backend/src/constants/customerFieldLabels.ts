@@ -1,3 +1,4 @@
+import { formatICTDate } from '../utils/dateFormatter';
 /** Nhãn tiếng Việt cho các trường khách hàng (nhật ký + lịch sử tác động) */
 export const CUSTOMER_FIELD_LABELS: Record<string, string> = {
   code: 'Mã khách hàng',
@@ -36,7 +37,7 @@ export const CUSTOMER_FIELD_LABELS: Record<string, string> = {
 export function formatValueForHistory(val: unknown): string {
   if (val === null || val === undefined) return '(trống)';
   if (Array.isArray(val)) return val.length ? val.join(', ') : '(trống)';
-  if (val instanceof Date) return val.toISOString().split('T')[0];
+  if (val instanceof Date) return formatICTDate(val);
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
 }

@@ -1,5 +1,6 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import { CUSTOMER_FIELD_LABELS, formatValueForHistory } from '../constants/customerFieldLabels';
+import { formatICTDate } from './dateFormatter';
 
 /** Hiển thị giá trị một trường trong nhật ký (tiếng Việt khi có thể) */
 export function formatAuditDisplayValue(value: unknown): string {
@@ -8,7 +9,7 @@ export function formatAuditDisplayValue(value: unknown): string {
     const n = value.toNumber();
     return Number.isFinite(n) ? String(n) : value.toString();
   }
-  if (value instanceof Date) return value.toISOString().split('T')[0];
+  if (value instanceof Date) return formatICTDate(value);
   if (Array.isArray(value)) return value.length ? value.join(', ') : '(trống)';
   if (typeof value === 'boolean') return value ? 'Có' : 'Không';
   if (typeof value === 'object') return JSON.stringify(value);

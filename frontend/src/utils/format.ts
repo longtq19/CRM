@@ -1,5 +1,5 @@
-import { format, isValid } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { isValid, isToday, isYesterday } from 'date-fns';
+
 
 function toDate(date: string | Date | null | undefined): Date | null {
   if (date === null || date === undefined) return null;
@@ -7,39 +7,128 @@ function toDate(date: string | Date | null | undefined): Date | null {
   return isValid(d) ? d : null;
 }
 
-/** Hiển thị ngày: dd/MM/yyyy (chuẩn giao diện VN) */
+const ICT_TIMEZONE = 'Asia/Ho_Chi_Minh';
+
+/** Force Vietnam Date (dd/mm/yyyy) */
 export const formatDate = (date: string | Date | null | undefined): string => {
   const d = toDate(date);
   if (!d) return '-';
-  return format(d, 'dd/MM/yyyy', { locale: vi });
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: ICT_TIMEZONE
+  }).format(d);
 };
 
-/** Ngày + giờ: dd/MM/yyyy HH:mm */
+/** Force Vietnam DateTime (dd/mm/yyyy HH:mm) - 24h */
 export const formatDateTime = (date: string | Date | null | undefined): string => {
   const d = toDate(date);
   if (!d) return '-';
-  return format(d, 'dd/MM/yyyy HH:mm', { locale: vi });
+  
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: ICT_TIMEZONE
+  }).formatToParts(d);
+
+  const day = parts.find(p => p.type === 'day')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  const hour = parts.find(p => p.type === 'hour')?.value;
+  const minute = parts.find(p => p.type === 'minute')?.value;
+
+  return `${day}/${month}/${year} ${hour}:${minute}`;
 };
 
-/** Nhật ký / chi tiết: dd/MM/yyyy HH:mm:ss */
+/** Force Vietnam DateTime with seconds (dd/mm/yyyy HH:mm:ss) - 24h */
 export const formatDateTimeSeconds = (date: string | Date | null | undefined): string => {
   const d = toDate(date);
   if (!d) return '-';
-  return format(d, 'dd/MM/yyyy HH:mm:ss', { locale: vi });
+  
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: ICT_TIMEZONE
+  }).formatToParts(d);
+
+  const day = parts.find(p => p.type === 'day')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  const hour = parts.find(p => p.type === 'hour')?.value;
+  const minute = parts.find(p => p.type === 'minute')?.value;
+  const second = parts.find(p => p.type === 'second')?.value;
+
+  return `${day}/${month}/${year} ${hour}:${minute}:${second}`;
 };
 
-/** Báo cáo theo tháng: «tháng … năm …» */
+/** Force Vietnam MonthYear */
 export const formatMonthYear = (date: string | Date | null | undefined): string => {
   const d = toDate(date);
   if (!d) return '-';
-  return format(d, 'MMMM yyyy', { locale: vi });
+  // formatToParts to ensure correct Vietnam labels
+  return new Intl.DateTimeFormat('vi-VN', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: ICT_TIMEZONE
+  }).format(d);
 };
 
-/** Lịch hẹn: T2, dd/MM/yyyy */
+/** Force Vietnam Weekday (T2, dd/mm/yyyy) */
 export const formatDateWeekday = (date: string | Date | null | undefined): string => {
   const d = toDate(date);
   if (!d) return '-';
-  return format(d, 'EEE, dd/MM/yyyy', { locale: vi });
+  
+  const parts = new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: ICT_TIMEZONE
+  }).formatToParts(d);
+
+  const weekday = parts.find(p => p.type === 'weekday')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+
+  return `${weekday}, ${day}/${month}/${year}`;
+};
+
+/** Force Vietnam Time (HH:mm) - 24h */
+export const formatTime = (date: string | Date | null | undefined): string => {
+  const d = toDate(date);
+  if (!d) return '-';
+  
+  return new Intl.DateTimeFormat('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: ICT_TIMEZONE
+  }).format(d);
+};
+
+/** Smart Date for Chat (HH:mm if today/yesterday, otherwise dd/mm/yyyy) */
+export const formatSmartDate = (date: string | Date | null | undefined): string => {
+  const d = toDate(date);
+  if (!d) return '-';
+
+  if (isToday(d)) {
+    return formatTime(d);
+  }
+  if (isYesterday(d)) {
+    return `Hôm qua ${formatTime(d)}`;
+  }
+  return formatDate(d);
 };
 
 export const formatCurrency = (value: number | string | null | undefined): string => {

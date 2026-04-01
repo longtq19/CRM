@@ -2,8 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useChat, type ChatSession } from '../../context/ChatContext';
 import { useAuthStore } from '../../context/useAuthStore';
 import { apiClient } from '../../api/client';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { formatSmartDate } from '../../utils/format';
 import { MessageSquare, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getUiAvatarFallbackUrl } from '../../utils/uiAvatar';
@@ -214,7 +213,7 @@ const ChatListDropdown: React.FC<ChatListDropdownProps> = ({ onClose }) => {
                     <h4 className="font-medium text-sm text-gray-900 truncate pr-2">{name}</h4>
                     {conv.lastMessage && (
                       <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                        {format(new Date(conv.lastMessage.createdAt), 'HH:mm', { locale: vi })}
+                        {formatSmartDate(conv.lastMessage.createdAt)}
                       </span>
                     )}
                   </div>
