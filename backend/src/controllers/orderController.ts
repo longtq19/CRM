@@ -446,6 +446,10 @@ export const createOrder = async (req: Request, res: Response) => {
       customerId,
       items,
       discount = 0,
+      /** Tiền cọc — trừ khỏi COD VTP; không giảm giá trị hàng (`finalAmount`). */
+      depositAmount = 0,
+      /** Phí vận chuyển thu tại shop (lưu tham khảo; không cộng vào tiền thu hộ VTP). */
+      shippingFee: shippingFeeBody,
       note,
       receiverName,
       receiverPhone,
@@ -520,6 +524,15 @@ export const createOrder = async (req: Request, res: Response) => {
     }
 
     const finalAmount = totalAmount - Number(discount);
+    const deposit = Math.min(
+      finalAmount,
+      Math.max(0, Number(depositAmount) || 0)
+    );
+    const shipFee =
+      shippingFeeBody != null && shippingFeeBody !== ''
+        ? Math.max(0, Number(shippingFeeBody) || 0)
+        : 0;
+    const codAmount = Math.max(0, finalAmount - deposit);
 
     const receiverDistrictIdNum =
       receiverDistrictId != null && receiverDistrictId !== ''
@@ -544,7 +557,10 @@ export const createOrder = async (req: Request, res: Response) => {
         orderDate,
         totalAmount,
         discount: Number(discount),
+        depositAmount: deposit,
         finalAmount,
+        shippingFee: shipFee > 0 ? shipFee : null,
+        codAmount,
         paymentStatus: 'PENDING',
         orderStatus: 'DRAFT',
         shippingStatus: 'PENDING',
@@ -581,13 +597,15 @@ export const createOrder = async (req: Request, res: Response) => {
       }
     });
 
+    const fmt = (n: number) =>
+      new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
     await logAudit({
       ...getAuditUser(req),
       action: 'CREATE',
       object: 'ORDER',
       objectId: order.id,
       result: 'SUCCESS',
-      details: `Created order ${code}`,
+      details: `Tạo đơn ${code}: tổng hàng ${fmt(totalAmount)} đ, giảm giá ${fmt(Number(discount))} đ, giá trị sau giảm ${fmt(finalAmount)} đ${deposit > 0 ? `, đã cọc ${fmt(deposit)} đ` : ''}${shipFee > 0 ? `, phí VC thu shop ${fmt(shipFee)} đ (không tính vào COD)` : ''}, tiền thu hộ VTP ${fmt(codAmount)} đ.`,
       req
     });
 
@@ -979,7 +997,7 @@ export const pushToViettelPost = async (req: Request, res: Response) => {
         productQuantity: totalQuantity,
         productWeight: totalWeight,
         productPrice: Number(order.finalAmount),
-        moneyCollection: Number(order.finalAmount),
+        moneyCollection: Number(order.codAmount ?? order.finalAmount),
         note: order.note || ''
       });
 

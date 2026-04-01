@@ -33,6 +33,10 @@ export interface CreateOrderData {
   customerId?: string;
   items: { productId: string; quantity: number }[];
   discount?: number;
+  /** Đã cọc — trừ khỏi tiền thu hộ VTP */
+  depositAmount?: number;
+  /** Phí VC thu tại shop (lưu đơn; không tính vào COD) */
+  shippingFee?: number;
   note?: string;
   receiverName: string;
   receiverPhone: string;

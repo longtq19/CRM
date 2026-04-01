@@ -910,6 +910,8 @@ model Order {
   orderDate            DateTime           @map("order_date")
   totalAmount          Decimal            @map("total_amount") @db.Decimal(15, 2)
   discount             Decimal            @default(0) @db.Decimal(15, 2)
+  /// Tiền khách đã cọc trước — trừ khỏi tiền thu hộ (COD) khi đẩy Viettel Post; không làm giảm `finalAmount` (giá trị hàng).
+  depositAmount        Decimal            @default(0) @map("deposit_amount") @db.Decimal(15, 2)
   finalAmount          Decimal            @map("final_amount") @db.Decimal(15, 2)
   paymentStatus        String             @map("payment_status")
   orderStatus          String             @map("order_status")

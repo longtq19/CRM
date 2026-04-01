@@ -58,6 +58,10 @@ interface ShippingService {
 interface CreateOrderModalProps {
   onClose: () => void;
   onSuccess: () => void;
+  /** Mở sẵn với khách (bỏ qua bước 1) — Sales / CSKH */
+  initialCustomerId?: string | null;
+  /** CSKH: `GET /resales/customer/:id` (VIEW_RESALES). Mặc định: `GET /customers/:id` (VIEW_CUSTOMERS). */
+  bootstrapCustomerEndpoint?: 'customers' | 'resales';
 }
 
 const formatCurrency = (value: number) => {
@@ -70,10 +74,16 @@ const getProductStockTotal = (product: Product): number => {
   return product.stocks.reduce((sum, s) => sum + (Number(s.quantity) > 0 ? Number(s.quantity) : 0), 0);
 };
 
-const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
-  const [step, setStep] = useState(1);
+const CreateOrderModal = ({
+  onClose,
+  onSuccess,
+  initialCustomerId,
+  bootstrapCustomerEndpoint = 'customers',
+}: CreateOrderModalProps) => {
+  const [step, setStep] = useState(initialCustomerId ? 2 : 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bootstrapLoading, setBootstrapLoading] = useState(!!initialCustomerId);
 
   // Step 1: Customer — danh sách theo phạm vi GET /customers (giống module Khách hàng)
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -98,6 +108,8 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   const [productTotalPages, setProductTotalPages] = useState(1);
   const [orderItems, setOrderItems] = useState<{ product: Product; quantity: number }[]>([]);
   const [discount, setDiscount] = useState(0);
+  /** Đã cọc — trừ khỏi tiền thu hộ (COD) VTP, không giảm tổng hàng */
+  const [depositAmount, setDepositAmount] = useState(0);
   const [note, setNote] = useState('');
   /** Cảnh báo khi thêm/tăng SL vượt tồn kho (bước sản phẩm) */
   const [stockWarning, setStockWarning] = useState<string | null>(null);
@@ -146,7 +158,12 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   const shippingFee = selectedService?.GIA_CUOC || 0;
   const displayTotalAmount = totalAmount;
   const displayDiscount = discount;
-  const finalAmount = displayTotalAmount - displayDiscount + shippingFee;
+  /** Giá trị hàng sau giảm (không gồm phí VC; khớp `finalAmount` backend) */
+  const orderGoodsAfterDiscount = Math.max(0, displayTotalAmount - displayDiscount);
+  /** Tiền VTP thu hộ: hàng sau giảm − cọc; phí VC thu tại shop không tính vào COD */
+  const codAmountForVtp = Math.max(0, orderGoodsAfterDiscount - (Number(depositAmount) || 0));
+  /** Hiển thị tổng khách thanh toán (hàng + phí VC nếu có) — khác COD */
+  const displayPayableTotal = orderGoodsAfterDiscount + shippingFee;
 
   // Debounce ô tìm khách
   useEffect(() => {
@@ -334,6 +351,38 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   }, []);
 
   useEffect(() => {
+    if (!initialCustomerId?.trim()) {
+      setBootstrapLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setBootstrapLoading(true);
+    setError(null);
+    void (async () => {
+      try {
+        const path =
+          bootstrapCustomerEndpoint === 'resales'
+            ? `/resales/customer/${initialCustomerId.trim()}`
+            : `/customers/${initialCustomerId.trim()}`;
+        const data = (await apiClient.get(path)) as Customer;
+        if (cancelled) return;
+        setSelectedCustomer(data);
+        setStep(2);
+      } catch {
+        if (!cancelled) {
+          setError('Không tải được khách hàng. Bạn vẫn có thể chọn khách ở bước 1.');
+          setStep(1);
+        }
+      } finally {
+        if (!cancelled) setBootstrapLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCustomerId, bootstrapCustomerEndpoint]);
+
+  useEffect(() => {
     addressPrefillDoneRef.current = null;
   }, [selectedCustomer?.id]);
 
@@ -341,106 +390,139 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
   useEffect(() => {
     if (step !== 3 || !selectedCustomer) return;
     if (addressPrefillDoneRef.current === selectedCustomer.id) return;
-    addressPrefillDoneRef.current = selectedCustomer.id;
 
     const c = selectedCustomer;
     const addrLine = c.addressRecord?.detail || c.address || '';
     setReceiverInfo((prev) => ({
       ...prev,
-      receiverName: c.name,
-      receiverPhone: c.phone,
+      receiverName: c.name ?? '',
+      receiverPhone: c.phone ?? '',
       receiverAddress: addrLine || prev.receiverAddress,
     }));
 
-    void (async () => {
-      let provincesNew: Array<{ id: string; name: string }> = dbProvincesNew;
-      if (!provincesNew.length) {
-        try {
-          const res = await apiClient.get('/address/provinces?directOnly=1');
-          provincesNew = Array.isArray(res) ? res : [];
-          setDbProvincesNew(provincesNew);
-        } catch {
-          provincesNew = [];
-        }
-      }
-
-      const ar = c.addressRecord;
-      if (ar?.type === 'NEW' && ar.provinceId && ar.wardId) {
-        setOrderAddressType('NEW');
-        const prov = provincesNew.find((p) => p.id === ar.provinceId);
+    const applyOldVtpChain = async (
+      vtpProvinceId: string,
+      vtpDistrictId: string,
+      vtpWardId: string,
+      names: { prov?: string; dist?: string; ward?: string }
+    ) => {
+      setOrderAddressType('OLD');
+      setReceiverInfo((prev) => ({
+        ...prev,
+        receiverProvinceId: vtpProvinceId,
+        receiverProvinceName: names.prov ? administrativeTitleCase(names.prov) : prev.receiverProvinceName,
+      }));
+      try {
+        setLoadingAddress(true);
+        const dres: any = await apiClient.get(
+          `/vtp/districts?provinceId=${encodeURIComponent(vtpProvinceId)}`
+        );
+        const rows = dres?.success && dres?.data ? dres.data : [];
+        setDistricts(rows);
+        const dRow = rows.find((d: { DISTRICT_ID: number }) => String(d.DISTRICT_ID) === vtpDistrictId);
         setReceiverInfo((prev) => ({
           ...prev,
-          receiverProvinceId: ar.provinceId,
-          receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : prev.receiverProvinceName,
-          receiverDistrictId: ar.ward?.vtpDistrictId != null ? String(ar.ward.vtpDistrictId) : '',
-          receiverDistrictName: '',
-          receiverWardId: ar.wardId,
-          receiverWardName: ar.ward?.name ? administrativeTitleCase(ar.ward.name) : '',
+          receiverDistrictId: vtpDistrictId,
+          receiverDistrictName: dRow?.DISTRICT_NAME
+            ? administrativeTitleCase(String(dRow.DISTRICT_NAME))
+            : names.dist
+              ? administrativeTitleCase(names.dist)
+              : '',
         }));
-        return;
+        const wres: any = await apiClient.get(
+          `/vtp/wards?districtId=${encodeURIComponent(vtpDistrictId)}`
+        );
+        const wRows = wres?.success && wres?.data ? wres.data : [];
+        setWards(wRows);
+        const wRow = wRows.find((w: { WARDS_ID: number }) => String(w.WARDS_ID) === vtpWardId);
+        setReceiverInfo((prev) => ({
+          ...prev,
+          receiverWardId: vtpWardId,
+          receiverWardName: wRow?.WARDS_NAME
+            ? administrativeTitleCase(String(wRow.WARDS_NAME))
+            : names.ward
+              ? administrativeTitleCase(names.ward)
+              : '',
+        }));
+      } catch (e) {
+        console.error('Prefill OLD address', e);
+      } finally {
+        setLoadingAddress(false);
       }
-      if (!ar && c.province?.id && c.ward?.id) {
-        const isNew = c.ward?.districtId == null || c.ward?.districtId === '';
-        if (isNew) {
+    };
+
+    void (async () => {
+      try {
+        let provincesNew: Array<{ id: string; name: string }> = dbProvincesNew;
+        if (!provincesNew.length) {
+          try {
+            const res = await apiClient.get('/address/provinces?directOnly=1');
+            provincesNew = Array.isArray(res) ? res : [];
+            setDbProvincesNew(provincesNew);
+          } catch {
+            provincesNew = [];
+          }
+        }
+
+        const ar = c.addressRecord;
+        if (ar?.type === 'NEW' && ar.provinceId && ar.wardId) {
           setOrderAddressType('NEW');
-          const prov = provincesNew.find((p) => p.id === c.province.id);
+          const prov = provincesNew.find((p) => p.id === ar.provinceId);
           setReceiverInfo((prev) => ({
             ...prev,
-            receiverProvinceId: c.province!.id,
-            receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : '',
-            receiverDistrictId: c.ward?.vtpDistrictId != null ? String(c.ward.vtpDistrictId) : '',
+            receiverProvinceId: ar.provinceId,
+            receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : prev.receiverProvinceName,
+            receiverDistrictId: ar.ward?.vtpDistrictId != null ? String(ar.ward.vtpDistrictId) : '',
             receiverDistrictName: '',
-            receiverWardId: c.ward!.id,
-            receiverWardName: c.ward?.name ? administrativeTitleCase(c.ward.name) : '',
+            receiverWardId: ar.wardId,
+            receiverWardName: ar.ward?.name ? administrativeTitleCase(ar.ward.name) : '',
           }));
           return;
         }
-      }
-      if (ar?.type === 'OLD' && ar.provinceId && ar.districtId && ar.wardId) {
-        setOrderAddressType('OLD');
-        const pCode = String(ar.province?.code || ar.provinceId);
-        setReceiverInfo((prev) => ({
-          ...prev,
-          receiverProvinceId: pCode,
-          receiverProvinceName: ar.province?.name ? administrativeTitleCase(ar.province.name) : '',
-        }));
-        try {
-          setLoadingAddress(true);
-          const dres: any = await apiClient.get(`/vtp/districts?provinceId=${encodeURIComponent(pCode)}`);
-          const rows = dres?.success && dres?.data ? dres.data : [];
-          setDistricts(rows);
-          const dId = String(ar.district?.code || ar.districtId);
-          const dRow = rows.find((d: { DISTRICT_ID: number }) => String(d.DISTRICT_ID) === dId);
-          setReceiverInfo((prev) => ({
-            ...prev,
-            receiverDistrictId: dId,
-            receiverDistrictName: dRow?.DISTRICT_NAME
-              ? administrativeTitleCase(String(dRow.DISTRICT_NAME))
-              : ar.district?.name
-                ? administrativeTitleCase(ar.district.name)
-                : '',
-          }));
-          const wres: any = await apiClient.get(`/vtp/wards?districtId=${encodeURIComponent(dId)}`);
-          const wRows = wres?.success && wres?.data ? wres.data : [];
-          setWards(wRows);
-          const wId = String(ar.ward?.code || ar.wardId);
-          const wRow = wRows.find((w: { WARDS_ID: number }) => String(w.WARDS_ID) === wId);
-          setReceiverInfo((prev) => ({
-            ...prev,
-            receiverWardId: wId,
-            receiverWardName: wRow?.WARDS_NAME
-              ? administrativeTitleCase(String(wRow.WARDS_NAME))
-              : ar.ward?.name
-                ? administrativeTitleCase(ar.ward.name)
-                : '',
-          }));
-        } catch (e) {
-          console.error('Prefill OLD address', e);
-        } finally {
-          setLoadingAddress(false);
+        if (!ar && c.province?.id && c.ward?.id) {
+          const isNew = c.ward?.districtId == null || c.ward?.districtId === '';
+          if (isNew) {
+            setOrderAddressType('NEW');
+            const prov = provincesNew.find((p) => p.id === c.province!.id);
+            setReceiverInfo((prev) => ({
+              ...prev,
+              receiverProvinceId: c.province!.id,
+              receiverProvinceName: prov?.name ? administrativeTitleCase(prov.name) : '',
+              receiverDistrictId: c.ward?.vtpDistrictId != null ? String(c.ward.vtpDistrictId) : '',
+              receiverDistrictName: '',
+              receiverWardId: c.ward!.id,
+              receiverWardName: c.ward?.name ? administrativeTitleCase(c.ward.name) : '',
+            }));
+            return;
+          }
         }
+        if (ar?.type === 'OLD' && ar.provinceId && ar.districtId && ar.wardId) {
+          await applyOldVtpChain(String(ar.provinceId), String(ar.districtId), String(ar.wardId), {
+            prov: ar.province?.name,
+            dist: ar.district?.name ?? undefined,
+            ward: ar.ward?.name,
+          });
+          return;
+        }
+        if (
+          !ar &&
+          c.province?.id &&
+          c.district?.id &&
+          c.ward?.id &&
+          c.ward.districtId != null &&
+          c.ward.districtId !== ''
+        ) {
+          await applyOldVtpChain(String(c.province.id), String(c.district.id), String(c.ward.id), {
+            prov: c.province.name,
+            dist: c.district.name ?? undefined,
+            ward: c.ward.name,
+          });
+        }
+      } finally {
+        addressPrefillDoneRef.current = selectedCustomer.id;
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy lại khi đổi bước/khách; đọc dbProvincesNew một lần trong async
   }, [step, selectedCustomer?.id]);
 
   // Calculate shipping fee — điểm gửi lấy từ kho đã chọn (API), không dùng mặc định env
@@ -460,8 +542,6 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
       setLoadingServices(true);
       setError(null);
 
-      const codAmount = totalAmount;
-
       const response: any = await apiClient.post('/vtp/calculate-fee', {
         warehouseId,
         receiverProvince: receiverInfo.receiverProvinceId,
@@ -471,8 +551,8 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
             : receiverInfo.receiverDistrictId || undefined,
         receiverWard: receiverInfo.receiverWardId,
         productWeight: totalWeightGrams,
-        productPrice: codAmount,
-        moneyCollection: codAmount,
+        productPrice: codAmountForVtp,
+        moneyCollection: codAmountForVtp,
       });
 
       if (Array.isArray(response)) {
@@ -501,7 +581,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
     receiverInfo.receiverWardId,
     orderAddressType,
     totalWeightGrams,
-    totalAmount,
+    codAmountForVtp,
   ]);
 
   // Add product (không vượt tổng tồn kho)
@@ -659,6 +739,8 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
         customerId: selectedCustomer!.id,
         items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity })),
         discount,
+        depositAmount: Math.max(0, Number(depositAmount) || 0),
+        shippingFee: shippingFee > 0 ? shippingFee : undefined,
         note,
         receiverName: receiverInfo.receiverName,
         receiverPhone: receiverInfo.receiverPhone,
@@ -750,8 +832,30 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
           </div>
         </div>
 
+        {selectedCustomer && step >= 2 && (
+          <div className="px-6 py-2 bg-white/10 border-t border-white/10 flex flex-wrap items-center gap-2 text-white text-sm">
+            <span className="opacity-90">Khách:</span>
+            <span className="font-medium">{selectedCustomer.name || '—'}</span>
+            <span className="opacity-80">·</span>
+            <span>{selectedCustomer.phone}</span>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="ml-auto text-xs underline hover:no-underline opacity-90 hover:opacity-100"
+            >
+              Đổi khách hàng
+            </button>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 relative">
+          {bootstrapLoading && (
+            <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center gap-2 text-gray-600">
+              <RefreshCw className="animate-spin" size={22} />
+              <span>Đang tải khách hàng…</span>
+            </div>
+          )}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-3">
               <AlertCircle size={20} />
@@ -1116,8 +1220,8 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                 </div>
               )}
 
-              {/* Discount & Note */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Discount, deposit & Note */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Giảm giá (VNĐ)</label>
                   <input
@@ -1127,6 +1231,20 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                     className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20"
                     min="0"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Đã cọc trước (VNĐ)
+                  </label>
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(Math.max(0, Number(e.target.value) || 0))}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    min="0"
+                    title="Trừ khỏi tiền thu hộ (COD) khi đẩy Viettel Post; không giảm tổng giá trị hàng trên đơn"
+                  />
+                  <p className="text-[11px] text-gray-500 mt-1">Trừ khỏi COD; không làm giảm tổng hàng.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú đơn hàng</label>
@@ -1142,15 +1260,22 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
 
               {/* Summary */}
               <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl p-4">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center flex-wrap gap-2">
                   <div>
-                    <span className="text-gray-600">Tổng tiền hàng:</span>
+                    <span className="text-gray-600">Giá trị hàng sau giảm:</span>
                     {discount > 0 && (
-                      <span className="ml-4 text-sm text-red-500">(-{formatCurrency(discount)})</span>
+                      <span className="ml-2 text-sm text-red-500">(-{formatCurrency(discount)})</span>
                     )}
                   </div>
-                  <span className="text-2xl font-bold text-primary">{formatCurrency(totalAmount - discount)}</span>
+                  <span className="text-2xl font-bold text-primary">{formatCurrency(orderGoodsAfterDiscount)}</span>
                 </div>
+                {(Number(depositAmount) || 0) > 0 && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    Tiền thu hộ (COD) dự kiến:{' '}
+                    <span className="font-semibold text-primary">{formatCurrency(codAmountForVtp)}</span>
+                    {' '}(sau khi trừ cọc; phí VC tính riêng)
+                  </p>
+                )}
               </div>
               </>
             </div>
@@ -1263,7 +1388,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                     >
                       <option value="">-- Chọn Tỉnh/TP --</option>
                       {provinces.map((p) => (
-                        <option key={p.PROVINCE_ID} value={p.PROVINCE_ID}>
+                        <option key={p.PROVINCE_ID} value={String(p.PROVINCE_ID)}>
                           {administrativeTitleCase(p.PROVINCE_NAME)}
                         </option>
                       ))}
@@ -1281,7 +1406,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                     >
                       <option value="">-- Chọn Quận/Huyện --</option>
                       {districts.map((d) => (
-                        <option key={d.DISTRICT_ID} value={d.DISTRICT_ID}>
+                        <option key={d.DISTRICT_ID} value={String(d.DISTRICT_ID)}>
                           {administrativeTitleCase(d.DISTRICT_NAME)}
                         </option>
                       ))}
@@ -1299,7 +1424,7 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                     >
                       <option value="">-- Chọn Phường/Xã --</option>
                       {wards.map((w) => (
-                        <option key={w.WARDS_ID} value={w.WARDS_ID}>
+                        <option key={w.WARDS_ID} value={String(w.WARDS_ID)}>
                           {administrativeTitleCase(w.WARDS_NAME)}
                         </option>
                       ))}
@@ -1483,13 +1608,30 @@ const CreateOrderModal = ({ onClose, onSuccess }: CreateOrderModalProps) => {
                       <span>-{formatCurrency(displayDiscount)}</span>
                     </div>
                   )}
+                  <div className="flex justify-between text-gray-800">
+                    <span className="font-medium">Sau giảm:</span>
+                    <span className="font-medium">{formatCurrency(orderGoodsAfterDiscount)}</span>
+                  </div>
+                  {(Number(depositAmount) || 0) > 0 && (
+                    <div className="flex justify-between text-amber-800">
+                      <span>Đã cọc (trừ COD):</span>
+                      <span className="font-medium">-{formatCurrency(Number(depositAmount) || 0)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-dashed border-gray-200 pt-2">
+                    <span className="text-gray-800 font-medium">Tiền thu hộ (COD) — Viettel Post:</span>
+                    <span className="font-bold text-primary">{formatCurrency(codAmountForVtp)}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Phí vận chuyển thu tại shop không tính vào COD (khách thanh toán shop riêng).
+                  </p>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Phí vận chuyển:</span>
+                    <span className="text-gray-600">Phí vận chuyển (tham khảo):</span>
                     <span className="font-medium">{formatCurrency(shippingFee)}</span>
                   </div>
                   <div className="pt-2 border-t border-gray-200 flex justify-between">
-                    <span className="font-semibold text-gray-800">Tổng thanh toán:</span>
-                    <span className="text-xl font-bold text-primary">{formatCurrency(finalAmount)}</span>
+                    <span className="font-semibold text-gray-800">Tổng khách thanh toán (hàng + phí VC):</span>
+                    <span className="text-xl font-bold text-primary">{formatCurrency(displayPayableTotal)}</span>
                   </div>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import {
   Phone, Search, RefreshCcw, Loader,
   TrendingUp, Target, Users, MessageSquare, Eye,
   Handshake, Layers, UserPlus, Plus, Settings, Edit, Send,
-  BarChart3, Trash2, Clock,
+  BarChart3, Trash2, Clock, Package,
 } from 'lucide-react';
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
@@ -21,6 +21,7 @@ import { CROP_DEFS } from '../constants/cropConfigs';
 import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants/rbac';
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
+import CreateOrderModal from '../components/CreateOrderModal';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -113,6 +114,7 @@ const Sales = () => {
   const canClaimSalesOpen = isTechAdmin || hasPermission('CLAIM_LEAD');
   const canCreateCustomer =
     hasPermission('MANAGE_CUSTOMERS') || hasPermission('MANAGE_SALES');
+  const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
   const canManageCustomerTags =
     hasPermission('MANAGE_CUSTOMERS') ||
     hasPermission('MANAGE_SALES') ||
@@ -175,6 +177,8 @@ const Sales = () => {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagRefreshSignal, setTagRefreshSignal] = useState(0);
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [createOrderCustomerId, setCreateOrderCustomerId] = useState<string | null>(null);
 
   /** Phân thủ công từ kho Sales (chưa phân) */
   const [salesOpenSelectedIds, setSalesOpenSelectedIds] = useState<string[]>([]);
@@ -918,6 +922,19 @@ const Sales = () => {
                         <Edit className="w-4 h-4" />
                       </button>
                     )}
+                    {canCreateOrder && (
+                      <button
+                        type="button"
+                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded inline-flex"
+                        title="Tạo đơn hàng"
+                        onClick={() => {
+                          setCreateOrderCustomerId(lead.customer.id);
+                          setCreateOrderOpen(true);
+                        }}
+                      >
+                        <Package className="w-4 h-4" />
+                      </button>
+                    )}
                     {hasPermission('PERMANENT_DELETE_CUSTOMER') && (
                       <button
                         type="button"
@@ -1040,6 +1057,23 @@ const Sales = () => {
           tagRefreshSignal={tagRefreshSignal}
         />
       )}
+
+      {createOrderOpen && (
+        <CreateOrderModal
+          initialCustomerId={createOrderCustomerId}
+          onClose={() => {
+            setCreateOrderOpen(false);
+            setCreateOrderCustomerId(null);
+          }}
+          onSuccess={() => {
+            setCreateOrderOpen(false);
+            setCreateOrderCustomerId(null);
+            loadLeads();
+            loadStats();
+          }}
+        />
+      )}
+
       {tagManagerOpen && (
             <CustomerTagsManager
           onClose={() => {

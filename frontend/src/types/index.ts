@@ -483,8 +483,12 @@ export interface Order {
   
   totalAmount: number;
   discount: number;
+  /** Đã cọc — trừ khỏi COD VTP */
+  depositAmount?: number;
   shippingFee: number;
   finalAmount: number;
+  /** Tiền thu hộ khi đẩy VTP (sau trừ cọc); null/undefined → tương thích đơn cũ */
+  codAmount?: number | null;
   
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;

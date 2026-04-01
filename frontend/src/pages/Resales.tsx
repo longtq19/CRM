@@ -27,6 +27,7 @@ import {
   BarChart3,
   Trash2,
   Clock,
+  Package,
 } from 'lucide-react';
 import CustomerForm from '../components/CustomerForm';
 import { CustomerImpactHistoryModal } from '../components/CustomerImpactHistoryModal';
@@ -40,6 +41,8 @@ import { CROP_DEFS } from '../constants/cropConfigs';
 import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants/rbac';
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
+import CreateOrderModal from '../components/CreateOrderModal';
+import type { Customer as CrmCustomer } from '../types';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -115,7 +118,15 @@ interface Customer {
     fullName: string;
     avatarUrl: string | null;
   } | null;
-  province: { id: string; name: string } | null;
+  province: { id: string; name: string; code?: string } | null;
+  district?: { id: string; name: string; code?: string } | null;
+  ward?: {
+    id: string;
+    name: string;
+    code?: string;
+    districtId?: string | null;
+    vtpDistrictId?: number | null;
+  } | null;
   aggregate: {
     totalOrders: number;
     totalSpent: string;
@@ -130,6 +141,7 @@ interface Customer {
     employee?: { id: string; fullName: string };
   }>;
   tags?: Array<{ tag: { id: string; name: string; color: string; bgColor?: string | null } }>;
+  addressRecord?: CrmCustomer['addressRecord'];
 }
 
 interface CareSchedule {
@@ -184,6 +196,7 @@ const Resales = () => {
     hasPermission('MANAGE_SALES') ||
     hasPermission('MANAGE_RESALES') ||
     hasPermission('MANAGE_MARKETING_GROUPS');
+  const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
 
   const [moduleView, setModuleView] = useState<'work' | 'effectiveness'>('work');
   const canViewEffectiveness = hasModuleEffectivenessAccess(hasPermission, 'cskh', user?.roleGroup?.code);
@@ -195,6 +208,8 @@ const Resales = () => {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const [tagRefreshSignal, setTagRefreshSignal] = useState(0);
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
+  const [createOrderCustomerId, setCreateOrderCustomerId] = useState<string | null>(null);
 
   // Customers state
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1206,6 +1221,19 @@ const Resales = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          {canCreateOrder && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCreateOrderCustomerId(customer.id);
+                                setCreateOrderOpen(true);
+                              }}
+                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded inline-flex"
+                              title="Tạo đơn hàng"
+                            >
+                              <Package className="w-4 h-4" />
+                            </button>
+                          )}
                           {hasPermission('PERMANENT_DELETE_CUSTOMER') && (
                             <button
                               type="button"
@@ -1546,6 +1574,25 @@ const Resales = () => {
           tagRefreshSignal={tagRefreshSignal}
         />
       )}
+
+      {createOrderOpen && (
+        <CreateOrderModal
+          initialCustomerId={createOrderCustomerId}
+          bootstrapCustomerEndpoint="resales"
+          onClose={() => {
+            setCreateOrderOpen(false);
+            setCreateOrderCustomerId(null);
+          }}
+          onSuccess={() => {
+            setCreateOrderOpen(false);
+            setCreateOrderCustomerId(null);
+            loadCustomers();
+            loadStats();
+            if (activeTab === 'schedule') loadSchedules();
+          }}
+        />
+      )}
+
       {tagManagerOpen && (
         <CustomerTagsManager
           onClose={() => {

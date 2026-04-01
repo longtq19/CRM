@@ -180,7 +180,9 @@ export const getCustomerDetail = async (req: Request, res: Response) => {
             phone: true
           }
         },
-        province: true,
+        province: { select: { id: true, name: true, code: true } },
+        district: { select: { id: true, name: true, code: true } },
+        ward: { select: { id: true, name: true, code: true, districtId: true, vtpDistrictId: true } },
         leadSource: true,
         campaign: true,
         aggregate: true,
