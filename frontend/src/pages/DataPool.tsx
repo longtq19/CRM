@@ -266,8 +266,8 @@ const DataPool = () => {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-gray-900">Kho số thả nổi</h1>
           <p className="text-sm text-gray-500">
-            Chỉ hiển thị số AVAILABLE, hàng đợi FLOATING; khi chọn «Tất cả trạng thái xử lý», backend lọc theo tham số vận hành pool_push_processing_statuses.
-            Kho Sales chưa phân xem tại trang Kinh doanh.
+            Kho cho số đã bị loại khỏi luồng đang phụ trách (đẩy về FLOATING, pool Sales). Không quản lý và không thống kê kho Sales chưa phân (SALES_OPEN) hay kho khác — dùng trang Kinh doanh.
+            Danh sách: AVAILABLE + FLOATING + poolType SALES; «Tất cả trạng thái xử lý» áp pool_push_processing_statuses.
           </p>
         </div>
       </div>
@@ -278,12 +278,13 @@ const DataPool = () => {
           <p className="text-2xl font-bold text-amber-600">{totalAvailableFloating}</p>
         </div>
         <div className="bg-white rounded-lg border p-4">
-          <p className="text-sm text-gray-500">Mới hôm nay (vào pool)</p>
+          <p className="text-sm text-gray-500">Mới vào kho thả nổi hôm nay</p>
           <p className="text-2xl font-bold text-green-600">{todayAdded}</p>
+          <p className="text-xs text-gray-400 mt-1">Chỉ đếm FLOATING · AVAILABLE · Sales (cùng khung danh sách).</p>
         </div>
         <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
           <p className="text-sm text-gray-500">Gợi ý</p>
-          <p className="text-sm text-gray-700">Nhân sự Sales/CSKH đều có thể vào nhận khách từ kho này.</p>
+          <p className="text-sm text-gray-700">Nhận / phân khách từ số đã loại về thả nổi. Kho chưa phân NV nằm ở trang Kinh doanh.</p>
         </div>
       </div>
 

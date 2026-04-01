@@ -357,18 +357,23 @@ Nghiệp vụ chính:
   - `POST /api/customers/import` (MANAGE_CUSTOMERS) + `excelUploadMiddleware`
   - Phần import có kiểm tra các cột bắt buộc (SĐT, Loại hình, Kênh tiếp cận, Thẻ…).
 
-### 4.3. Data Pool — «Kho số thả nổi» & kho Sales (chưa phân)
+### 4.3. Data Pool — «Kho số thả nổi» (data đã loại) & kho Sales (chưa phân)
 
 Module ở `backend/src/routes/dataPoolRoutes.ts` + `backend/src/controllers/dataPoolController.ts`.
 
 Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `20260327140000_data_pool_queue`).
 
-- **`SALES_OPEN` (kho Sales, chưa phân NV):** lead mới từ Marketing / import / website / thu hồi… — NV Sales nhận qua `POST /api/data-pool/claim` (quyền `CLAIM_LEAD`). **Giao diện:** khối «Kho Sales (chưa phân)» nằm trên trang **Kinh doanh (Sales)** (`Sales.tsx`), không còn tab trong màn **Kho số thả nổi**.
-- **`FLOATING` (kho thả nổi):** số **trả về** khi Sales chọn trạng thái xử lý thuộc `pool_push_processing_statuses`, hoặc hết vòng phân bổ Sales (cron), v.v. Lọc `poolQueue=FLOATING&strictPoolPush=true` theo tham số vận hành. **Phân** (`POST /api/data-pool/distribute`) và **nhận** (`POST /api/data-pool/claim-customer`): JWT có ít nhất một trong `DISTRIBUTE_FLOATING_POOL` / `MANAGE_DATA_POOL` / `CLAIM_FLOATING_POOL` — gán qua **Nhóm quyền** (quản trị kỹ thuật bypass theo rule dự án).
+- **`SALES_OPEN` (kho Sales, chưa phân NV):** lead mới từ Marketing / import / website / thu hồi… — NV Sales nhận qua `POST /api/data-pool/claim` (quyền `CLAIM_LEAD`). **Giao diện:** khối «Kho Sales (chưa phân)» nằm trên trang **Kinh doanh (Sales)** (`Sales.tsx`). Màn **Kho số thả nổi** (`/data-pool`) **không** hiển thị, **không** quản lý và **không** thống kê kho này.
+- **`FLOATING` (kho thả nổi):** chỉ chứa số **đã bị loại** khỏi luồng đang phụ trách (đẩy về thả nổi): khi Sales chọn trạng thái xử lý thuộc `pool_push_processing_statuses`, hoặc hết vòng phân bổ Sales (cron), v.v. Đây **không** là kho «số mới chờ phân NV» — đối tượng đó là `SALES_OPEN` trên trang Sales. **Phân** (`POST /api/data-pool/distribute`) và **nhận** (`POST /api/data-pool/claim-customer`): JWT có ít nhất một trong `DISTRIBUTE_FLOATING_POOL` / `MANAGE_DATA_POOL` / `CLAIM_FLOATING_POOL` — gán qua **Nhóm quyền** (quản trị kỹ thuật bypass theo rule dự án).
 
 **Phạm vi phân từ kho thả nổi:** user chỉ có `DISTRIBUTE_FLOATING_POOL` chỉ chọn đích trong phạm vi khối/đơn vị được quản lý; cần **`DISTRIBUTE_FLOATING_CROSS_ORG`** để phân ra mọi khối/đơn vị/NV (kiểm tra `floatingPoolScopeHelper` + `distributeFromFloatingPool`).
 
-**FE** (`DataPool.tsx`): **một** danh sách kho thả nổi — `status=AVAILABLE`, `poolQueue=FLOATING`, `poolType=SALES`; khi không chọn trạng thái xử lý cụ thể, backend lọc `processingStatus` theo tham số vận hành **pool_push_processing_statuses** (đồng bộ `GET /processing-statuses/active`). Lọc tỉnh / nhóm cây / thẻ trên khách; **không** tab «Lead trong đơn vị» và **không** nút xuất Excel trên màn này (export khách vẫn qua module Khách hàng khi có `VIEW_CUSTOMERS`). `GET /api/data-pool/stats` cho số liệu header; `totalAvailableSalesOpen` vẫn phục vụ trang Sales.
+**Màn hình Kho số thả nổi (`DataPool.tsx`, `/data-pool`):**
+
+- **Chỉ** danh sách số đã loại về thả nổi: `status=AVAILABLE`, `poolQueue=FLOATING`, `poolType=SALES`. Khi không chọn trạng thái xử lý cụ thể, backend lọc `processingStatus` theo **pool_push_processing_statuses** (đồng bộ `GET /processing-statuses/active`).
+- **Thống kê trên màn này** (từ `GET /api/data-pool/stats` mà FE dùng): **`totalAvailableFloating`** = số bản ghi `AVAILABLE` + `FLOATING` + `poolType=SALES` (đang chờ trong kho thả nổi). **`todayAdded`** = số bản ghi cùng điều kiện đó có **`enteredAt`** từ 0h hôm nay (giờ server) — **không** đếm lead mới vào `SALES_OPEN` hay các hàng đợi/trạng thái khác, để tránh lệch so với danh sách.
+- **Không** tab «Lead trong đơn vị», **không** xuất Excel trên màn này (export khách: module Khách hàng + `VIEW_CUSTOMERS`).
+- Cùng response `GET /api/data-pool/stats` vẫn trả **`totalAvailable`**, **`totalAvailableSalesOpen`**, **`totalAssigned`**, … phục vụ trang **Sales** và tích hợp khác; riêng **UI** Kho số thả nổi chỉ dùng hai chỉ số FLOATING Sales ở trên cho hai thẻ đầu.
 
 **Quyền xem API:** `VIEW_FLOATING_POOL` (thay mã cũ `VIEW_DATA_POOL`, migration `20260328200000_rbac_floating_pool_orders_permissions`). Một số route cho phép `VIEW_SALES` để tương thích đọc kho `SALES_OPEN` (xem `dataPoolRoutes.ts`).
 
@@ -379,7 +384,7 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 Nghiệp vụ API:
 
 - `GET /api/data-pool` — `poolQueue`, `managedScope`, `status`, `strictPoolPush`, lọc `provinceId` / `mainCrop` (customer).
-- `GET /api/data-pool/stats` — `totalAvailableSalesOpen`, `totalAvailableFloating`; thêm `?managedScope=1` cho thống kê theo đội (trưởng đơn vị).
+- `GET /api/data-pool/stats` — `totalAvailable`, `totalAvailableSalesOpen`, `totalAvailableFloating` (FLOATING + AVAILABLE + `poolType=SALES`), `todayAdded` (cùng khung FLOATING Sales AVAILABLE, `enteredAt` trong ngày — không phản ánh SALES_OPEN), …; `?managedScope=1` cho thống kê theo đội (trưởng đơn vị; nhánh này giữ `todayAdded` theo `enteredAt` + lọc đội).
 - `POST /api/data-pool/distribute` — lead `pool_queue=FLOATING`; kiểm tra quyền + phạm vi đích.
 - `POST /api/data-pool/claim-customer` — `pool_queue=FLOATING`.
 - `POST /api/data-pool/claim` — `pool_queue=SALES_OPEN` (`CLAIM_LEAD`).
@@ -1255,7 +1260,7 @@ Quyền `DISTRIBUTE_SALES_CROSS_ORG` cho phép người được cấp **phân l
 
 - **Phân lại cho NV khác trong đơn vị:** Sau thu hồi, lead nằm ở kho Sales/CSKH chưa phân — trưởng đơn vị dùng **`ASSIGN_LEAD`** / **`MANAGE_CSKH_POOL`** với `POST /data-pool/distribute-sales` hoặc `distribute-cskh` như hiện tại; `validateSalesDistributeTarget` đảm bảo đích nằm trong cây đơn vị quản lý (trừ khi có `DISTRIBUTE_SALES_CROSS_ORG` / `MANAGE_DATA_POOL`).
 
-- **FE:** Trang **Kho số thả nổi** (`/data-pool`) chỉ danh sách kho FLOATING theo quy tắc pool push; **không** có tab đơn vị trên UI. Vào `/data-pool` khi có `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL` (`DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS`). Xem lead đơn vị (ASSIGNED) dùng API `GET /api/data-pool?status=ASSIGNED&managedScope=1` hoặc màn hình khác nếu tích hợp sau này.
+- **FE:** Trang **Kho số thả nổi** (`/data-pool`) chỉ **data đã loại** về `FLOATING` (pool Sales, quy tắc pool push); **không** quản lý kho chưa phân (`SALES_OPEN`) và **không** thống kê trên màn các loại số chưa loại / hàng đợi khác (hai thẻ đầu dùng `totalAvailableFloating` + `todayAdded` khớp khung đó). **Không** tab đơn vị. Vào `/data-pool` khi có `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL`. Lead đơn vị (ASSIGNED): API `GET /api/data-pool?status=ASSIGNED&managedScope=1` hoặc màn khác nếu tích hợp sau.
 
 ## 5.7. Quy định Module Sản phẩm (Product)
 

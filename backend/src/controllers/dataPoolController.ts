@@ -863,6 +863,9 @@ export const getDataPoolStats = async (req: Request, res: Response) => {
 
     const tw = teamScope || {};
     const hideGlobalAvailableCounts = onlyManagedProfile || scopedManagedStats;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
     const [
       totalAvailable,
       totalAvailableSalesOpen,
@@ -884,20 +887,29 @@ export const getDataPoolStats = async (req: Request, res: Response) => {
       hideGlobalAvailableCounts
         ? Promise.resolve(0)
         : prisma.dataPool.count({
-            where: { status: 'AVAILABLE', poolQueue: DATA_POOL_QUEUE.FLOATING },
+            where: {
+              status: 'AVAILABLE',
+              poolQueue: DATA_POOL_QUEUE.FLOATING,
+              poolType: 'SALES',
+            },
           }),
       prisma.dataPool.count({ where: { status: 'ASSIGNED', ...tw } }),
       prisma.dataPool.count({ where: { status: 'PROCESSING', ...tw } }),
       prisma.dataPool.count({ where: { status: 'CONVERTED', ...tw } }),
+      /** Chỉ kho thả nổi Sales (data đã loại về FLOATING), không gồm SALES_OPEN hay hàng đợi khác — khớp màn `/data-pool`. */
+      hideGlobalAvailableCounts
+        ? prisma.dataPool.count({ where: { enteredAt: { gte: startOfToday }, ...tw } })
+        : prisma.dataPool.count({
+            where: {
+              poolQueue: DATA_POOL_QUEUE.FLOATING,
+              status: 'AVAILABLE',
+              poolType: 'SALES',
+              enteredAt: { gte: startOfToday },
+            },
+          }),
       prisma.dataPool.count({
         where: {
-          enteredAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-          ...tw,
-        },
-      }),
-      prisma.dataPool.count({
-        where: {
-          assignedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          assignedAt: { gte: startOfToday },
           ...tw,
         },
       }),
