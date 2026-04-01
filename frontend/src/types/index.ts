@@ -504,6 +504,7 @@ export interface Order {
   receiverWardId?: number | null;
   warehouseId?: string | null;
   warehouse?: { id: string; code: string; name: string; address?: string | null; detailAddress?: string | null } | null;
+  isPrinted: boolean;
   
   note?: string;
   

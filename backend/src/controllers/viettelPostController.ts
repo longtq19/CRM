@@ -902,14 +902,16 @@ export const cancelVTPOrder = async (req: Request, res: Response) => {
  */
 export const printVTPOrder = async (req: Request, res: Response) => {
   try {
-    const { orderCode } = req.body;
-    if (!orderCode) {
+    const { orderCode, orderCodes } = req.body;
+    const codes = (Array.isArray(orderCodes) ? orderCodes : (orderCode ? [orderCode] : [])).filter(Boolean).map(c => String(c).trim());
+    
+    if (codes.length === 0) {
       return res.status(400).json({ success: false, message: 'Thiếu mã vận đơn (trackingNumber)' });
     }
 
     const payload = {
       EXPIRY_TIME: Date.now() + 24 * 60 * 60 * 1000, // 24h
-      ORDER_ARRAY: [String(orderCode).trim()]
+      ORDER_ARRAY: codes
     };
 
     const data = await callVTPApi('/order/printing-code', 'POST', payload);
@@ -917,6 +919,16 @@ export const printVTPOrder = async (req: Request, res: Response) => {
     // Theo tài liệu VTP V2: Nếu thành công (status 200), mã in nằm trong trường 'message', trường 'data' là null.
     // Cần tự dựng link in từ mã này.
     if (data.status === 200 && data.message && typeof data.message === 'string' && data.message.length > 10) {
+      // Đánh dấu các đơn này đã in
+      try {
+        await prisma.order.updateMany({
+          where: { trackingNumber: { in: codes } },
+          data: { isPrinted: true }
+        });
+      } catch (err) {
+        console.error('Update isPrinted error:', err);
+      }
+
       const printUrl = `https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=1&bill=${encodeURIComponent(data.message)}&showPostage=1`;
       return res.json({
         ...data,

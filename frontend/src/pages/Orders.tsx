@@ -122,6 +122,9 @@ const Orders = () => {
   const showShippingQuotaTab = canManageShipping || canAssignShippingQuota;
   const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota' | 'split'>('list');
 
+  // Bulk selection
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+
   // Fetch orders
   const fetchOrders = useCallback(async () => {
     try {
@@ -348,11 +351,47 @@ const Orders = () => {
       const res = await orderApi.printViettelPost(order.trackingNumber);
       if (res.data?.PRINT_URL) {
         window.open(res.data.PRINT_URL, '_blank');
+        // Refresh để cập nhật trạng thái đã in
+        fetchOrders();
       } else {
         alert('Không lấy được link in từ Viettel Post');
       }
     } catch (error: any) {
       alert(error.message || 'Lỗi khi lấy link in vận đơn');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleBulkPrintVTP = async () => {
+    const selectedList = orders.filter(o => selectedOrders.has(`${o.id}-${o.orderDate}`));
+    const trackingNumbers = selectedList
+      .filter(o => o.trackingNumber && o.shippingProvider === 'VIETTEL_POST')
+      .map(o => o.trackingNumber!);
+
+    if (trackingNumbers.length === 0) {
+      alert('Vui lòng chọn các đơn có vận đơn Viettel Post để in.');
+      return;
+    }
+
+    if (trackingNumbers.length > 100) {
+      alert('Viettel Post chỉ hỗ trợ in tối đa 100 vận đơn một lúc.');
+      return;
+    }
+
+    try {
+      setActionLoading('bulk_print');
+      const res = await orderApi.printViettelPost(undefined, trackingNumbers);
+      if (res.data?.PRINT_URL) {
+        window.open(res.data.PRINT_URL, '_blank');
+        // Refresh để cập nhật trạng thái đã in
+        fetchOrders();
+        setSelectedOrders(new Set());
+      } else {
+        alert('Không lấy được link in hàng loạt từ Viettel Post');
+      }
+    } catch (error: any) {
+      alert(error.message || 'Lỗi khi in hàng loạt');
     } finally {
       setActionLoading(null);
     }
@@ -414,6 +453,16 @@ const Orders = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {selectedOrders.size > 0 && ordersMainTab === 'list' && (
+            <button
+              onClick={handleBulkPrintVTP}
+              disabled={actionLoading === 'bulk_print'}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+            >
+              {actionLoading === 'bulk_print' ? <Loader size={20} className="animate-spin" /> : <Printer size={20} />}
+              In ({selectedOrders.size}) đơn đã chọn
+            </button>
+          )}
           {canCreateOrder && (
             <button
               onClick={() => setShowCreateModal(true)}
@@ -825,6 +874,20 @@ const Orders = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                      checked={orders.length > 0 && orders.every(o => selectedOrders.has(`${o.id}-${o.orderDate}`))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedOrders(new Set(orders.map(o => `${o.id}-${o.orderDate}`)));
+                        } else {
+                          setSelectedOrders(new Set());
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã đơn</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nhân viên</th>
@@ -841,9 +904,28 @@ const Orders = () => {
                   const orderConfig = ORDER_STATUS_CONFIG[order.orderStatus] || ORDER_STATUS_CONFIG.DRAFT;
                   
                   return (
-                    <tr key={`${order.id}-${order.orderDate}`} className="hover:bg-gray-50">
+                    <tr key={`${order.id}-${order.orderDate}`} className={`hover:bg-gray-50 ${selectedOrders.has(`${order.id}-${order.orderDate}`) ? 'bg-primary/5' : ''}`}>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{order.code}</div>
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                          checked={selectedOrders.has(`${order.id}-${order.orderDate}`)}
+                          onChange={() => {
+                            const key = `${order.id}-${order.orderDate}`;
+                            const next = new Set(selectedOrders);
+                            if (next.has(key)) next.delete(key);
+                            else next.add(key);
+                            setSelectedOrders(next);
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <div className="font-medium text-gray-900">{order.code}</div>
+                          {order.trackingNumber && !order.isPrinted && (
+                            <span className="inline-flex px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 rounded border border-amber-200">CHƯA IN</span>
+                          )}
+                        </div>
                         {order.trackingNumber && (
                           <div className="text-xs text-gray-500">VĐ: {order.trackingNumber}</div>
                         )}

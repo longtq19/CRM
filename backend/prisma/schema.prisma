@@ -944,6 +944,7 @@ model Order {
   shippingDeclinedById String?            @map("shipping_declined_by_id")
   shippingDeclinedAt   DateTime?          @map("shipping_declined_at")
   warehouseId          String?            @map("warehouse_id")
+  isPrinted            Boolean            @default(false) @map("is_printed")
   items                OrderItem[]
   orderShippingLogs    OrderShippingLog[]
   customer             Customer           @relation(fields: [customerId], references: [id])
