@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { isTechnicalAdminRoleCode, userHasCatalogPermission } from '../constants/rbac';
-import {
-  DEFAULT_POOL_PUSH_PROCESSING_STATUSES,
-  POOL_PUSH_STATUS_CODES,
-  serializePoolPushStatuses,
-} from '../constants/operationParams';
+import { DEFAULT_POOL_PUSH_PROCESSING_STATUSES, serializePoolPushStatuses } from '../constants/operationParams';
+import { syncLeadStatusesIsPushToPoolFromConfigValue } from '../utils/poolPushSync';
 
 // Lấy tất cả cấu hình theo category
 export const getSystemConfigs = async (req: Request, res: Response) => {
@@ -121,7 +118,11 @@ export const updateSystemConfig = async (req: Request, res: Response) => {
         updatedBy: userId
       }
     });
-    
+
+    if (key === 'pool_push_processing_statuses') {
+      await syncLeadStatusesIsPushToPoolFromConfigValue(String(value));
+    }
+
     res.json(updated);
   } catch (error) {
     console.error('Error updating system config:', error);
@@ -205,6 +206,9 @@ export const updateMultipleConfigs = async (req: Request, res: Response) => {
           where: { key: config.key },
           data: updateData
         });
+        if (config.key === 'pool_push_processing_statuses') {
+          await syncLeadStatusesIsPushToPoolFromConfigValue(String(config.value));
+        }
         results.push(updated);
       }
     }
@@ -298,7 +302,7 @@ export const seedDefaultConfigs = async () => {
       category: 'operations_params',
       name: 'Trạng thái xử lý đẩy số về kho thả nổi',
       description:
-        'Danh sách mã trạng thái (JSON). Khi sales chọn một mã thuộc danh sách, số được trả về kho thả nổi (AVAILABLE). Các mã không nằm trong danh sách (ví dụ Không nghe máy / Không nhu cầu) vẫn có thể kích hoạt luồng phân bổ lại theo «Số vòng phân bộ lại».',
+        'Danh sách mã trạng thái (JSON). Khi sales chọn một mã thuộc danh sách, số được trả về kho thả nổi (AVAILABLE). Các mã không tích (ví dụ Không nghe máy, Khách tham khảo) không đẩy kho thả nổi theo cấu hình; có thể đi luồng phân bộ lại theo «Số vòng phân bộ lại».',
       sortOrder: 4,
     },
     {
@@ -388,6 +392,30 @@ export const seedDefaultConfigs = async () => {
 
   for (const config of allSeed) {
     const row = config as typeof config & { enumOptions?: string };
+    if (config.key === 'pool_push_processing_statuses') {
+      await prisma.systemConfig.upsert({
+        where: { key: config.key },
+        update: {
+          dataType: config.dataType,
+          enumOptions: row.enumOptions ?? null,
+          category: config.category,
+          name: config.name,
+          description: config.description ?? null,
+          sortOrder: config.sortOrder,
+        },
+        create: {
+          key: config.key,
+          value: String(config.value),
+          dataType: config.dataType,
+          enumOptions: row.enumOptions ?? null,
+          category: config.category,
+          name: config.name,
+          description: config.description ?? null,
+          sortOrder: config.sortOrder,
+        },
+      });
+      continue;
+    }
     await prisma.systemConfig.upsert({
       where: { key: config.key },
       update: {

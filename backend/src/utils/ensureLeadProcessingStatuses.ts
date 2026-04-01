@@ -4,6 +4,7 @@ import {
   DEFAULT_POOL_PUSH_PROCESSING_STATUSES,
   DEFAULT_LEAD_PROCESSING_STATUS_CODE,
 } from '../constants/operationParams';
+import { syncLeadStatusesIsPushToPoolFromConfigValue } from './poolPushSync';
 
 /**
  * Upsert danh mục `lead_processing_statuses` theo hằng số + thứ tự;
@@ -17,7 +18,6 @@ export async function ensureLeadProcessingStatuses(): Promise<void> {
       where: { code: def.code },
       update: {
         name: def.label,
-        isPushToPool,
         sortOrder: i,
       },
       create: {
@@ -33,4 +33,7 @@ export async function ensureLeadProcessingStatuses(): Promise<void> {
     where: { processingStatus: null },
     data: { processingStatus: DEFAULT_LEAD_PROCESSING_STATUS_CODE },
   });
+
+  const pushRow = await prisma.systemConfig.findUnique({ where: { key: 'pool_push_processing_statuses' } });
+  await syncLeadStatusesIsPushToPoolFromConfigValue(pushRow?.value ?? '');
 }

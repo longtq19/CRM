@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { ensureLeadProcessingStatuses } from '../utils/ensureLeadProcessingStatuses';
+import { rebuildPoolPushConfigFromLeadStatuses } from '../utils/poolPushSync';
 
 /**
  * Lấy danh sách trạng thái xử lý
@@ -61,6 +62,8 @@ export const createProcessingStatus = async (req: Request, res: Response) => {
       },
     });
 
+    await rebuildPoolPushConfigFromLeadStatuses().catch(() => undefined);
+
     res.json(status);
   } catch (error) {
     console.error('Error creating processing status:', error);
@@ -88,6 +91,8 @@ export const updateProcessingStatus = async (req: Request, res: Response) => {
       },
     });
 
+    await rebuildPoolPushConfigFromLeadStatuses().catch(() => undefined);
+
     res.json(status);
   } catch (error) {
     console.error('Error updating processing status:', error);
@@ -106,6 +111,7 @@ export const deleteProcessingStatus = async (req: Request, res: Response) => {
     // Nếu có thì nên deactivate thay vì delete.
     
     await prisma.leadProcessingStatus.delete({ where: { id } });
+    await rebuildPoolPushConfigFromLeadStatuses().catch(() => undefined);
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting processing status:', error);

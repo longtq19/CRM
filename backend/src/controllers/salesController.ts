@@ -557,12 +557,10 @@ export const addInteraction = async (req: Request, res: Response) => {
     const textToCheck = detail != null && String(detail).trim() !== '' ? String(detail).trim() : String(content).trim();
     const ps = processingStatus != null ? String(processingStatus).trim() : '';
     
-    // Fetch push-to-pool statuses from DB
-    const pushStatuses = await prisma.leadProcessingStatus.findMany({
-      where: { isPushToPool: true, isActive: true },
-      select: { code: true }
-    }).catch(() => []);
-    const poolPushStatuses = pushStatuses.map((s: { code: string }) => s.code);
+    const pushCfg = await prisma.systemConfig
+      .findUnique({ where: { key: 'pool_push_processing_statuses' } })
+      .catch(() => null);
+    const poolPushStatuses = parsePoolPushStatusesJson(pushCfg?.value);
     
     const skipMinNoteForPool = ps !== '' && poolPushStatuses.includes(ps);
     if (!skipMinNoteForPool && textToCheck.length < minNoteChars) {

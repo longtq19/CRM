@@ -22,18 +22,16 @@ export const POOL_PUSH_STATUS_DEFINITIONS: { code: string; label: string }[] = [
 
 export const POOL_PUSH_STATUS_CODES = new Set(POOL_PUSH_STATUS_DEFINITIONS.map((d) => d.code));
 
-/** Mặc định: các trạng thái đưa số về kho thả nổi (không gồm chốt đơn). */
+/**
+ * Mặc định (cài mới / JSON rỗng): các trạng thái đưa số về kho thả nổi.
+ * Các mã khác chỉ đẩy khi được bật trên FE (Tham số vận hành hoặc danh mục trạng thái).
+ */
 export const DEFAULT_POOL_PUSH_PROCESSING_STATUSES: string[] = [
   'WRONG_NUMBER',
   'INVALID_NUMBER_TYPE',
-  'NO_ANSWER',
   'NO_NEED',
-  'BROWSING',
   'TRASH_LEAD',
   'RELEASED',
-  'FOLLOW_UP_LATER',
-  'COMPETITOR',
-  'PRICE_OBJECTION',
 ];
 
 export function parsePoolPushStatusesJson(raw: string | null | undefined): string[] {
@@ -47,7 +45,8 @@ export function parsePoolPushStatusesJson(raw: string | null | undefined): strin
   }
 }
 
+/** Chuỗi JSON lưu DB; mảng rỗng = không có mã nào (không thay bằng mặc định). */
 export function serializePoolPushStatuses(arr: string[]): string {
   const unique = [...new Set(arr.filter((x) => POOL_PUSH_STATUS_CODES.has(x)))];
-  return JSON.stringify(unique.length ? unique : DEFAULT_POOL_PUSH_PROCESSING_STATUSES);
+  return JSON.stringify(unique);
 }

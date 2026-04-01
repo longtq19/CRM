@@ -20,12 +20,7 @@ export const POOL_PUSH_STATUS_DEFINITIONS: { code: string; label: string }[] = [
 export const DEFAULT_POOL_PUSH_PROCESSING_STATUSES: string[] = [
   'WRONG_NUMBER',
   'INVALID_NUMBER_TYPE',
-  'NO_ANSWER',
   'NO_NEED',
-  'BROWSING',
   'TRASH_LEAD',
   'RELEASED',
-  'FOLLOW_UP_LATER',
-  'COMPETITOR',
-  'PRICE_OBJECTION',
 ];
