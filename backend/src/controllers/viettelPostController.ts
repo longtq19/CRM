@@ -902,7 +902,7 @@ export const cancelVTPOrder = async (req: Request, res: Response) => {
  */
 export const printVTPOrder = async (req: Request, res: Response) => {
   try {
-    const { orderCode, orderCodes } = req.body;
+    const { orderCode, orderCodes, printType, showPostage } = req.body;
     const codes = (Array.isArray(orderCodes) ? orderCodes : (orderCode ? [orderCode] : [])).filter(Boolean).map(c => String(c).trim());
     
     if (codes.length === 0) {
@@ -929,7 +929,10 @@ export const printVTPOrder = async (req: Request, res: Response) => {
         console.error('Update isPrinted error:', err);
       }
 
-      const printUrl = `https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=1&bill=${encodeURIComponent(data.message)}&showPostage=1`;
+      const type = printType || '1'; // 1=A5, 2=A6, 100=A7
+      const show = showPostage === false ? '0' : '1';
+      const printUrl = `https://digitalize.viettelpost.vn/DigitalizePrint/report.do?type=${type}&bill=${encodeURIComponent(data.message)}&showPostage=${show}`;
+      
       return res.json({
         ...data,
         data: {

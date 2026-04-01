@@ -189,14 +189,19 @@ export const orderApi = {
     return apiClient.put('/shipping/daily-quotas', body) as Promise<any>;
   },
 
-  printViettelPost: async (trackingNumber?: string, trackingNumbers?: string[]): Promise<{
+  printViettelPost: async (
+    trackingNumber?: string, 
+    trackingNumbers?: string[],
+    options?: { printType?: string; showPostage?: boolean }
+  ): Promise<{
     error: boolean;
     message: string;
     data: { MESS_HTTP: string; MONITOR_TOKEN: string; PRINT_URL: string };
   }> => {
     const response = await apiClient.post('/vtp/print-order', { 
       orderCode: trackingNumber,
-      orderCodes: trackingNumbers 
+      orderCodes: trackingNumbers,
+      ...options
     });
     return response as any;
   },

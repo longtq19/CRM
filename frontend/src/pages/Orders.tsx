@@ -95,6 +95,10 @@ const Orders = () => {
   // Actions
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Print Config
+  const [showPrintConfig, setShowPrintConfig] = useState(false);
+  const [printTarget, setPrintTarget] = useState<{ singular?: Order; plural?: string[] } | null>(null);
+
   const [shippingQuotaDate, setShippingQuotaDate] = useState(todayVnYmd);
   const [myShippingQuota, setMyShippingQuota] = useState<{
     workDate: string;
@@ -341,29 +345,16 @@ const Orders = () => {
     }
   };
 
-  const handlePrintVTP = async (order: Order) => {
+  const handlePrintVTP = (order: Order) => {
     if (!order.trackingNumber) {
       alert('Đơn hàng chưa có mã vận đơn');
       return;
     }
-    try {
-      setActionLoading(order.id);
-      const res = await orderApi.printViettelPost(order.trackingNumber);
-      if (res.data?.PRINT_URL) {
-        window.open(res.data.PRINT_URL, '_blank');
-        // Refresh để cập nhật trạng thái đã in
-        fetchOrders();
-      } else {
-        alert('Không lấy được link in từ Viettel Post');
-      }
-    } catch (error: any) {
-      alert(error.message || 'Lỗi khi lấy link in vận đơn');
-    } finally {
-      setActionLoading(null);
-    }
+    setPrintTarget({ singular: order });
+    setShowPrintConfig(true);
   };
 
-  const handleBulkPrintVTP = async () => {
+  const handleBulkPrintVTP = () => {
     const selectedList = orders.filter(o => selectedOrders.has(`${o.id}-${o.orderDate}`));
     const trackingNumbers = selectedList
       .filter(o => o.trackingNumber && o.shippingProvider === 'VIETTEL_POST')
@@ -379,19 +370,38 @@ const Orders = () => {
       return;
     }
 
+    setPrintTarget({ plural: trackingNumbers });
+    setShowPrintConfig(true);
+  };
+
+  const executePrint = async (options: { printType: string; showPostage: boolean; copies: number }) => {
+    if (!printTarget) return;
+
     try {
-      setActionLoading('bulk_print');
-      const res = await orderApi.printViettelPost(undefined, trackingNumbers);
+      setActionLoading('print_process');
+      const res = await orderApi.printViettelPost(
+        printTarget.singular?.trackingNumber,
+        printTarget.plural,
+        { printType: options.printType, showPostage: options.showPostage }
+      );
+
       if (res.data?.PRINT_URL) {
-        window.open(res.data.PRINT_URL, '_blank');
-        // Refresh để cập nhật trạng thái đã in
+        // Mở link in - lặp theo số liên
+        for (let i = 0; i < options.copies; i++) {
+          window.open(res.data.PRINT_URL, '_blank');
+        }
+        
         fetchOrders();
-        setSelectedOrders(new Set());
+        if (printTarget.plural) {
+          setSelectedOrders(new Set());
+        }
+        setShowPrintConfig(false);
+        setPrintTarget(null);
       } else {
-        alert('Không lấy được link in hàng loạt từ Viettel Post');
+        alert('Không lấy được link in từ Viettel Post');
       }
     } catch (error: any) {
-      alert(error.message || 'Lỗi khi in hàng loạt');
+      alert(error.message || 'Lỗi khi lấy link in vận đơn');
     } finally {
       setActionLoading(null);
     }
@@ -1098,6 +1108,135 @@ const Orders = () => {
           onSuccess={() => { setShowCreateModal(false); fetchOrders(); fetchStats(); }}
         />
       )}
+
+      {/* Print Config Modal */}
+      {showPrintConfig && (
+        <PrintVTPConfigModal
+          onClose={() => { setShowPrintConfig(false); setPrintTarget(null); }}
+          onConfirm={executePrint}
+          loading={actionLoading === 'print_process'}
+          count={printTarget?.plural?.length || 1}
+        />
+      )}
+    </div>
+  );
+};
+
+// Print Config Modal Component
+const PrintVTPConfigModal = ({ 
+  onClose, onConfirm, loading, count 
+}: { 
+  onClose: () => void; 
+  onConfirm: (options: { printType: string; showPostage: boolean; copies: number }) => void;
+  loading: boolean;
+  count: number;
+}) => {
+  const [printType, setPrintType] = useState('1');
+  const [showPostage, setShowPostage] = useState(true);
+  const [copies, setCopies] = useState(1);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="flex items-center gap-2">
+            <Printer className="text-primary w-5 h-5" />
+            <h2 className="text-lg font-bold text-gray-800">Cấu hình in ({count} đơn)</h2>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="p-6 space-y-5">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Khổ giấy in</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: '1', label: 'A5', desc: 'Laser' },
+                { id: '2', label: 'A6', desc: 'Nhiệt' },
+                { id: '100', label: 'A7', desc: 'Nhiệt' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setPrintType(t.id)}
+                  className={`px-3 py-3 border rounded-xl text-center transition-all ${
+                    printType === t.id 
+                      ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className={`font-bold ${printType === t.id ? 'text-primary' : 'text-gray-700'}`}>Khổ {t.label}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">{t.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 rounded-xl p-4 space-y-4 border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700">Số liên cần in</label>
+                <p className="text-[11px] text-gray-500">Số bản in cho mỗi vận đơn</p>
+              </div>
+              <div className="flex items-center border rounded-lg bg-white overflow-hidden">
+                <button 
+                  onClick={() => setCopies(Math.max(1, copies - 1))}
+                  className="px-3 py-1 hover:bg-gray-100 text-gray-600 font-bold border-r"
+                >-</button>
+                <input 
+                  type="number" 
+                  min={1} 
+                  max={5}
+                  value={copies} 
+                  onChange={(e) => setCopies(Math.max(1, Math.min(5, Number(e.target.value))))}
+                  className="w-12 text-center text-sm font-bold focus:outline-none"
+                />
+                <button 
+                  onClick={() => setCopies(Math.min(5, copies + 1))}
+                  className="px-3 py-1 hover:bg-gray-100 text-gray-600 font-bold border-l"
+                >+</button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 leading-none">Hiển thị phí</label>
+                <p className="text-[11px] text-gray-500 mt-1">Hiện phí vận chuyển trên nhãn</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPostage(!showPostage)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-offset-2 focus:ring-2 focus:ring-primary ${
+                  showPostage ? 'bg-primary' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showPostage ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="px-6 py-4 bg-gray-50 border-t flex justify-end gap-3">
+          <button 
+            onClick={onClose} 
+            className="px-5 py-2 text-gray-600 font-medium hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            Hủy
+          </button>
+          <button 
+            disabled={loading}
+            onClick={() => onConfirm({ printType, showPostage, copies })}
+            className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-200 disabled:opacity-50 transition-all transform active:scale-95"
+          >
+            {loading ? <Loader size={18} className="animate-spin" /> : <Printer size={18} />}
+            Bắt đầu in {count > 1 ? count : ''}
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
