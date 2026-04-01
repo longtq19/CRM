@@ -55,6 +55,26 @@ interface ShippingService {
   THOI_GIAN: string;
 }
 
+/** API có thể trả mảng trần hoặc bọc `{ data: [...] }`. */
+function parseVtpPriceServicesResponse(raw: unknown): ShippingService[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw as ShippingService[];
+  if (typeof raw === 'object' && raw !== null) {
+    const d = (raw as { data?: unknown }).data;
+    if (Array.isArray(d)) return d as ShippingService[];
+  }
+  return [];
+}
+
+function pickCheapestVtpService(services: ShippingService[]): ShippingService | null {
+  if (services.length === 0) return null;
+  return services.reduce((min, s) => {
+    const a = Number(s.GIA_CUOC) || 0;
+    const b = Number(min.GIA_CUOC) || 0;
+    return a < b ? s : min;
+  }, services[0]);
+}
+
 interface CreateOrderModalProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -540,7 +560,7 @@ const CreateOrderModal = ({
       setLoadingServices(true);
       setError(null);
 
-      const response: any = await apiClient.post('/vtp/calculate-fee', {
+      const response: unknown = await apiClient.post('/vtp/calculate-fee', {
         warehouseId,
         receiverProvince: receiverInfo.receiverProvinceId,
         receiverDistrict:
@@ -553,12 +573,12 @@ const CreateOrderModal = ({
         moneyCollection: codAmountForVtp,
       });
 
-      if (Array.isArray(response)) {
-        setShippingServices(response);
-        if (response.length > 0) {
-          const cheapest = response.reduce((min, s) => s.GIA_CUOC < min.GIA_CUOC ? s : min, response[0]);
-          setSelectedService(cheapest);
-        }
+      const list = parseVtpPriceServicesResponse(response);
+      setShippingServices(list);
+      if (list.length > 0) {
+        setSelectedService(pickCheapestVtpService(list));
+      } else {
+        setSelectedService(null);
       }
     } catch (error: unknown) {
       console.error('Error calculating shipping:', error);
@@ -581,6 +601,21 @@ const CreateOrderModal = ({
     totalWeightGrams,
     codAmountForVtp,
   ]);
+
+  /** Đảm bảo luôn có dịch vụ được chọn khi đã có danh sách (tránh nút Tạo đơn disabled mà không rõ lý do). */
+  useEffect(() => {
+    if (step !== 4 || shippingServices.length === 0) return;
+    setSelectedService((prev) => {
+      if (
+        prev?.MA_DV_CHINH != null &&
+        prev.MA_DV_CHINH !== '' &&
+        shippingServices.some((s) => s.MA_DV_CHINH === prev.MA_DV_CHINH)
+      ) {
+        return prev;
+      }
+      return pickCheapestVtpService(shippingServices);
+    });
+  }, [step, shippingServices]);
 
   // Add product (không vượt tổng tồn kho)
   const addProduct = (product: Product) => {
@@ -717,6 +752,16 @@ const CreateOrderModal = ({
       return;
     }
 
+    const svc = selectedService ?? pickCheapestVtpService(shippingServices);
+    if (!svc) {
+      setError('Chưa có dịch vụ vận chuyển. Nhấn «Tính phí» để lấy cước từ Viettel Post, hoặc kiểm tra địa chỉ nhận.');
+      return;
+    }
+    if (!selectedService) {
+      setSelectedService(svc);
+    }
+    const shipFeeForOrder = Number(svc.GIA_CUOC) || 0;
+
     const receiverProvinceIdNum = (() => {
       const raw = receiverInfo.receiverProvinceId;
       const n = parseInt(String(raw), 10);
@@ -738,7 +783,7 @@ const CreateOrderModal = ({
         items: orderItems.map(item => ({ productId: item.product.id, quantity: item.quantity })),
         discount,
         depositAmount: Math.max(0, Number(depositAmount) || 0),
-        shippingFee: shippingFee > 0 ? shippingFee : undefined,
+        shippingFee: shipFeeForOrder > 0 ? shipFeeForOrder : undefined,
         note,
         receiverName: receiverInfo.receiverName,
         receiverPhone: receiverInfo.receiverPhone,
@@ -1669,7 +1714,12 @@ const CreateOrderModal = ({
             <ToolbarButton
               variant="primary"
               onClick={handleSubmit}
-              disabled={loading || !selectedService}
+              disabled={loading}
+              title={
+                shippingServices.length === 0
+                  ? 'Nhấn «Tính phí» để lấy danh sách dịch vụ Viettel Post trước khi tạo đơn'
+                  : undefined
+              }
               className="px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
