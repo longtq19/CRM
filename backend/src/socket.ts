@@ -163,6 +163,12 @@ export const initSocket = (serverIo: Server) => {
   });
 };
 
+export const broadcastDataChange = (entity: string, action: 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC', data?: any) => {
+  if (!io) return;
+  console.log(`Broadcasting data change: ${entity}:${action}`);
+  io.emit('data_change', { entity, action, data });
+};
+
 export const getIO = () => {
   if (!io) {
     throw new Error('Socket.io not initialized!');

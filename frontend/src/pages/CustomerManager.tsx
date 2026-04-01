@@ -10,6 +10,7 @@ import { saveAs } from 'file-saver';
 import NotificationManager from './NotificationManager';
 import { formatDate } from '../utils/format';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 const CustomerManager = () => {
   const { customers, customerStats, fetchCustomers, fetchCustomerStats, addCustomer, deleteCustomer, updateCustomer, users } = useDataStore();
@@ -58,6 +59,9 @@ const CustomerManager = () => {
     await Promise.all([fetchCustomers(), fetchCustomerStats()]);
     setIsRefreshing(false);
   };
+
+  // Real-time refresh
+  useRealtimeRefresh(['Customer', 'CustomerInteraction', 'CustomerStatus'], fetchData);
 
   // Filter Logic
   const filteredCustomers = useMemo(() => {
@@ -180,7 +184,7 @@ const CustomerManager = () => {
 
   const handleSendNotification = (phone: string) => {
       setNotificationParams({
-          initialTargetType: 'customer_phone',
+          initialTargetType: 'specific',
           initialTargetValue: phone,
           openCreateModalOnLoad: true
       });

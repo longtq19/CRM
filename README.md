@@ -1275,7 +1275,27 @@ Theo yêu cầu vận hành (phục vụ đối soát, vận chuyển / Viettel 
 - Trường "Khối lượng" đã được chuyển ra màn hình thông tin chung (General Information) của form Sản Phẩm và là trường **bắt buộc**.
 - Khi update hệ thống có dữ liệu sản phẩm cũ, DevOps cần chạy script `npx ts-node scripts/migrate-product-weights.ts` trên server production để đưa dữ liệu khối lượng từ phân đoạn BIO cũ hòa làm khối lượng chung cho sản phẩm, tránh mất mát dữ liệu trước khi chạy `prisma db push` xoá field cũ (nếu có sau này).
 
-## 6. Gợi ý checklist nghiệm vụ khi vận hành
+## 5.8. Đồng bộ Real-time (Real-time Synchronization)
+
+Hệ thống sử dụng cơ chế sự kiện (Event-driven) qua Socket.io để đồng bộ dữ liệu ngay lập tức giữa Backend và Frontend mà không cần tải lại trang.
+
+### 5.8.1. Cơ chế Backend (Prisma Middleware & broadcastDataChange)
+- **Middleware Prisma:** Trong `backend/src/config/database.ts`, một middleware toàn cục tự động bắt các thao tác ghi (`create`, `update`, `upsert`, `delete`, `deleteMany`, `updateMany`) trên mọi Model.
+- **Tự động Broadcast:** Khi database thay đổi, backend gọi `broadcastDataChange(entity)` trong `socket.ts` để gửi sự kiện `data_change` tới toàn bộ client đang kết nối. Payload bao gồm tên thực thể (`entity`) bị thay đổi (ví dụ: `Customer`, `Order`, `MarketingCampaign`).
+
+### 5.8.2. Frontend Refresh Hooks
+- **`useRealtimeRefresh(entities: string[], onRefresh: () => void)`:** Hook dùng trong các trang (như `Orders.tsx`, `Sales.tsx`, `Marketing.tsx`). Khi nhận sự kiện `data_change` khớp với danh sách `entities` quan sát, hook sẽ thực hiện gọi hàm `onRefresh` để cập nhật dữ liệu cục bộ.
+- **`useGlobalRealtime()`:** Hook toàn cục tích hợp trong `MainLayout.tsx`. Chịu trách nhiệm đồng bộ trạng thái hệ thống rộng (như số lượng thông báo chưa đọc, sự kiện `new_lead`, và các cập nhật thông số chung).
+
+### 5.8.3. Danh sách trang đã hỗ trợ
+- **Kinh doanh (Sales):** Tự động cập nhật danh sách lead, kho Sales chưa phân và thống kê.
+- **CSKH (Resales):** Cập nhật danh sách khách hàng, lịch hẹn và kho CSKH chưa phân.
+- **Tiếp thị (Marketing):** Cập nhật Nền tảng, Chiến dịch và danh sách Lead.
+- **Đơn hàng (Orders):** Cập nhật danh sách đơn hàng và chỉ tiêu vận đơn.
+- **Quản lý khách hàng (CustomerManager):** Cập nhật danh sách khách hàng tập trung.
+- **Kho số (DataPool):** Cập nhật số lượng và danh sách trong kho số thả nổi.
+
+## 6. Gợi ý checklist nghiệp vụ khi vận hành
 
 - Đảm bảo cron bật đúng (đặc biệt lead recall & deadline reminder)
 - Đảm bảo token Viettel Post + webhook secret đúng

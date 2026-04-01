@@ -55,6 +55,7 @@ import {
   isStrictCampaignStartBeforeEnd,
 } from '../utils/campaignSchedule';
 import { formatDate, formatDateTime } from '../utils/format';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 type MarketingTab = 'leads' | 'sources' | 'campaigns' | 'cost-effectiveness' | 'employee-ranking';
 
@@ -340,6 +341,13 @@ const Marketing = () => {
     }).catch(() => {});
   }, []);
 
+  // Real-time refresh
+  useRealtimeRefresh(['MarketingSource', 'MarketingCampaign', 'Customer', 'CustomerInteraction', 'CustomerTagAssignment'], () => {
+    if (shouldLoadMarketingSources) loadSources();
+    if (canViewCampaigns) loadCampaigns();
+    loadLeads();
+  });
+
   useEffect(() => {
     if (activeTab === 'sources' && !canViewMarketingPlatforms) {
       setActiveTab('leads');
@@ -459,7 +467,7 @@ const Marketing = () => {
       const res = await apiClient.post('/marketing/leads/push-to-pool', { customerIds: selectedLeadIds });
       alert(`${res.message || 'Thành công'} (Thêm: ${res.added}, Bỏ qua: ${res.skipped})`);
       setSelectedLeadIds([]);
-      fetchLeads();
+      loadLeads();
     } catch (err: any) {
       alert(err.message || 'Lỗi khi chuyển vào kho số chung');
     } finally {

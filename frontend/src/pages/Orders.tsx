@@ -14,6 +14,7 @@ import type { Order, OrderStats } from '../types';
 import { resolveUploadUrl } from '../utils/assetsUrl';
 import { formatDateTime } from '../utils/format';
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 // Status badges config - bao gồm tất cả trạng thái Viettel Post
 const SHIPPING_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -232,6 +233,14 @@ const Orders = () => {
   useEffect(() => {
     loadManagerShippingQuotas();
   }, [loadManagerShippingQuotas]);
+
+  // Real-time refresh
+  useRealtimeRefresh(['Order', 'ShippingDailyQuota'], () => {
+    fetchOrders();
+    fetchStats();
+    loadMyShippingQuota();
+    loadManagerShippingQuotas();
+  });
 
   // Handlers
   const handleSearch = (value: string) => {

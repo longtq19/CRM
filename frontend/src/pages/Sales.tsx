@@ -22,6 +22,7 @@ import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 import CreateOrderModal from '../components/CreateOrderModal';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -274,6 +275,13 @@ const Sales = () => {
   }, [loadStats]);
 
   useEffect(() => { loadSalesOpenPool(); }, [loadSalesOpenPool]);
+
+  // Real-time refresh
+  useRealtimeRefresh(['DataPool', 'Customer', 'CustomerInteraction', 'CustomerTagAssignment', 'CustomerStatus'], () => {
+    loadLeads();
+    loadStats();
+    loadSalesOpenPool();
+  });
 
   const handleClaimSalesOpen = async () => {
     if (!canClaimSalesOpen) {

@@ -42,6 +42,7 @@ import { isTechnicalAdminRole, hasModuleEffectivenessAccess } from '../constants
 import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 import CreateOrderModal from '../components/CreateOrderModal';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import type { Customer as CrmCustomer } from '../types';
 
 const PRIORITY_OPTIONS = [
@@ -402,6 +403,17 @@ const Resales = () => {
   }, [cskhPoolPage]);
 
   useEffect(() => { loadCskhPool(); }, [loadCskhPool]);
+
+  // Real-time refresh
+  useRealtimeRefresh(['DataPool', 'Customer', 'CustomerInteraction', 'CustomerTagAssignment', 'CustomerStatus'], () => {
+    loadStats();
+    if (activeTab === 'customers') {
+      loadCustomers();
+    } else {
+      loadSchedules();
+    }
+    loadCskhPool();
+  });
 
   const handleClaimCskh = async () => {
     const countStr = prompt('Số lượng khách muốn nhận từ kho CSKH:', '1');
@@ -1161,7 +1173,7 @@ const Resales = () => {
                               {!customer.dataPool.processingStatus && (
                                 <option value="">— Chọn trạng thái —</option>
                               )}
-                              {PROCESSING_STATUS_OPTIONS.map((o) => (
+                              {processingStatusOptions.map((o) => (
                                 <option key={o.code} value={o.code}>
                                   {o.label}
                                 </option>

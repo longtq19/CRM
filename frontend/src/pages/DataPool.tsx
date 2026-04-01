@@ -14,6 +14,7 @@ import { CustomerTagBadges, CustomerTagsQuickCell, type TagBadgeModel } from '..
 import { formatDate } from '../utils/format';
 import { CROP_DEFS } from '../constants/cropConfigs';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 interface DataPoolItem {
   id: string;
@@ -151,6 +152,12 @@ const DataPool = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  // Real-time refresh
+  useRealtimeRefresh(['DataPool', 'Customer', 'CustomerTagAssignment'], () => {
+    loadData();
+    loadStats();
+  });
 
   useEffect(() => {
     apiClient.get('/address/provinces').then((data: any) => {

@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import { ChatProvider } from '../context/ChatContext';
 import { useSidebarStore } from '../context/useSidebarStore';
 import clsx from 'clsx';
+import { useGlobalRealtime } from '../hooks/useGlobalRealtime';
 
 // Lazy load khối Chat (popup) — tải sau first paint để trang vào nhanh hơn
 const ChatContainerLazy = React.lazy(() => import('../components/chat/ChatContainer'));
@@ -13,6 +14,9 @@ const GlobalCallHandler = React.lazy(() => import('../components/chat/GlobalCall
 const MainLayoutContent = () => {
   const { isOpen, isCollapsed, setOpen, toggleCollapse, toggleOpen } = useSidebarStore();
   const [deferChat, setDeferChat] = useState(true);
+
+  // Use global real-time listener (it will use the socket from ChatProvider)
+  useGlobalRealtime();
 
   useEffect(() => {
     const t = setTimeout(() => setDeferChat(false), 150);
