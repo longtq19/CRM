@@ -1534,7 +1534,17 @@ export const getViewableEmployees = async (req: Request, res: Response) => {
 
 /** Cho phép export/import Excel khách hàng: quyền catalog hoặc vai Sales/Resales (nhận diện nghiệp vụ). */
 async function canExportImportCustomers(user: { id: string; roleGroupCode?: string | null; permissions?: string[] }): Promise<boolean> {
-  if (userHasCatalogPermission(user, ['MANAGE_CUSTOMERS', 'FULL_ACCESS'])) return true;
+  if (
+    userHasCatalogPermission(user, [
+      'MANAGE_CUSTOMERS',
+      'VIEW_CUSTOMERS',
+      'FULL_ACCESS',
+      'VIEW_FLOATING_POOL',
+      'VIEW_MANAGED_UNIT_POOL',
+    ])
+  ) {
+    return true;
+  }
   const emp = await prisma.employee.findUnique({
     where: { id: user.id },
     select: { id: true, roleGroup: { select: { code: true } } },
@@ -1552,7 +1562,10 @@ export const exportCustomersExcel = async (req: Request, res: Response) => {
     const user = (req as any).user;
     const can = await canExportImportCustomers(user);
     if (!can) {
-      return res.status(403).json({ message: 'Chỉ nhân viên Sales, Resales hoặc Quản trị viên mới được xuất Excel khách hàng' });
+      return res.status(403).json({
+        message:
+          'Cần quyền xuất khách (Sales/Resales/Quản lý khách) hoặc quyền xem kho số (VIEW_FLOATING_POOL / VIEW_MANAGED_UNIT_POOL) kèm phạm vi dữ liệu.',
+      });
     }
 
     const { search, status, employeeId, tagIds, createdByRole, provinceId, mainCrop } = req.query;

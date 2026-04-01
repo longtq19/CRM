@@ -69,10 +69,39 @@ export const getDataPool = async (req: Request, res: Response) => {
       perms.includes('FULL_ACCESS') ||
       perms.includes('VIEW_FLOATING_POOL');
     const canViewSalesOpen = perms.includes('VIEW_SALES');
-    const canViewManagedUnit = perms.includes('VIEW_MANAGED_UNIT_POOL');
+    const canViewManagedUnit =
+      isTechnicalAdminRoleCode(user?.roleGroupCode) ||
+      perms.includes('FULL_ACCESS') ||
+      perms.includes('VIEW_MANAGED_UNIT_POOL');
 
-    const useManagedTeamFilter = false;
-    const managedTeamIds: string[] | null = null;
+    const managedScopeQuery =
+      req.query.managedScope === '1' ||
+      req.query.managedScope === 'true' ||
+      String(req.query.managedScope || '').toLowerCase() === 'yes';
+
+    const onlyManagedProfile = canViewManagedUnit && !canViewFloating && !canViewSalesOpen;
+    const scopedManagedTab =
+      managedScopeQuery && canViewManagedUnit && (canViewFloating || canViewSalesOpen);
+    const useManagedListScope = onlyManagedProfile || scopedManagedTab;
+
+    let managedTeamIds: string[] | null = null;
+    if (useManagedListScope) {
+      managedTeamIds = await getManagedTeamEmployeeIdsForPool(user.id);
+      if (!managedTeamIds || managedTeamIds.length === 0) {
+        return res.json({
+          data: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+          viewScopeDescription:
+            'Chưa có phạm vi đơn vị — trưởng đơn vị cần được gán trên phòng ban.',
+        });
+      }
+    }
+
     const where: any = {};
     const customerConditions: any[] = [];
 
@@ -81,14 +110,14 @@ export const getDataPool = async (req: Request, res: Response) => {
     }
 
     let pq = poolQueue && String(poolQueue) !== 'all' ? String(poolQueue) : null;
-    if (!canViewFloating && canViewSalesOpen && !useManagedTeamFilter) {
+    if (!useManagedListScope && !canViewFloating && canViewSalesOpen) {
       pq = DATA_POOL_QUEUE.SALES_OPEN;
     }
     if (pq) {
       where.poolQueue = pq;
     }
 
-    if (pq === DATA_POOL_QUEUE.FLOATING) {
+    if (!useManagedListScope && pq === DATA_POOL_QUEUE.FLOATING) {
       // Fetch push-to-pool statuses from DB
       const pushStatuses = await prisma.leadProcessingStatus.findMany({
         where: { isPushToPool: true, isActive: true },
@@ -106,7 +135,10 @@ export const getDataPool = async (req: Request, res: Response) => {
       where.processingStatus = String(processingStatus);
     }
 
-    if (status && status !== 'all') {
+    if (useManagedListScope) {
+      where.status = 'ASSIGNED';
+      where.assignedToId = { in: managedTeamIds! };
+    } else if (status && status !== 'all') {
       where.status = status;
     }
 
@@ -114,9 +146,16 @@ export const getDataPool = async (req: Request, res: Response) => {
       where.source = source;
     }
 
-    // Bỏ lọc theo manager unit
     if (employeeId && employeeId !== 'all') {
-      where.assignedToId = String(employeeId);
+      const eid = String(employeeId);
+      if (useManagedListScope && managedTeamIds && !managedTeamIds.includes(eid)) {
+        return res.json({
+          data: [],
+          pagination: { page, limit, total: 0, totalPages: 0 },
+          viewScopeDescription: 'Nhân viên lọc nằm ngoài phạm vi đơn vị bạn quản lý.',
+        });
+      }
+      where.assignedToId = eid;
     }
 
     if (tagIds && String(tagIds).trim()) {
@@ -207,6 +246,12 @@ export const getDataPool = async (req: Request, res: Response) => {
         total,
         totalPages: Math.ceil(total / limit),
       },
+      ...(useManagedListScope
+        ? {
+            viewScopeDescription:
+              'Danh sách lead đang gán (ASSIGNED) cho nhân viên thuộc đơn vị/khối do bạn quản lý.',
+          }
+        : {}),
     });
   } catch (error) {
     console.error('Get data pool error:', error);
@@ -775,7 +820,10 @@ export const getDataPoolStats = async (req: Request, res: Response) => {
       perms.includes('FULL_ACCESS') ||
       perms.includes('VIEW_FLOATING_POOL');
     const canViewSalesOpen = perms.includes('VIEW_SALES');
-    const canViewManagedUnit = perms.includes('VIEW_MANAGED_UNIT_POOL');
+    const canViewManagedUnit =
+      isTechnicalAdminRoleCode(user?.roleGroupCode) ||
+      perms.includes('FULL_ACCESS') ||
+      perms.includes('VIEW_MANAGED_UNIT_POOL');
 
     if (!canViewFloating && !canViewSalesOpen && !canViewManagedUnit) {
       return res.status(403).json({

@@ -352,7 +352,7 @@ Nghiệp vụ chính:
   - `GET/POST/PUT/DELETE /api/customers/:customerId/farms...`
   - Xóa soft (`isActive=false`).
 - Import/Export Excel:
-  - `GET /api/customers/export/excel` (VIEW_CUSTOMERS)
+  - `GET /api/customers/export/excel` — một trong `VIEW_CUSTOMERS` | `VIEW_FLOATING_POOL` | `VIEW_MANAGED_UNIT_POOL` (route + `canExportImportCustomers`); dữ liệu vẫn theo phạm vi khách như export hiện tại.
   - `GET /api/customers/import/template` (VIEW_CUSTOMERS)
   - `POST /api/customers/import` (MANAGE_CUSTOMERS) + `excelUploadMiddleware`
   - Phần import có kiểm tra các cột bắt buộc (SĐT, Loại hình, Kênh tiếp cận, Thẻ…).
@@ -368,7 +368,7 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 
 **Phạm vi phân từ kho thả nổi:** user chỉ có `DISTRIBUTE_FLOATING_POOL` chỉ chọn đích trong phạm vi khối/đơn vị được quản lý; cần **`DISTRIBUTE_FLOATING_CROSS_ORG`** để phân ra mọi khối/đơn vị/NV (kiểm tra `floatingPoolScopeHelper` + `distributeFromFloatingPool`).
 
-**FE** (`DataPool.tsx`): **một** danh sách kho thả nổi (`poolQueue=FLOATING`); có lọc **tỉnh** (`provinceId`) và **nhóm cây** (`mainCrop`) trên khách — tên tỉnh/TP trong dropdown hiển thị Title Case (`administrativeTitleCase`, đồng bộ Sales/Resales). Thống kê header chỉ số thả nổi; `totalAvailableSalesOpen` vẫn có trong `GET /api/data-pool/stats` cho trang Sales.
+**FE** (`DataPool.tsx`): **Kho thả nổi** — danh sách `AVAILABLE` + `poolQueue=FLOATING` (và bộ lọc `processingStatus` theo `pool_push_processing_statuses`). **Lead trong đơn vị** — tab/chế độ khi user có `VIEW_MANAGED_UNIT_POOL` (và thường kèm `VIEW_FLOATING_POOL`): gọi `GET /api/data-pool?status=ASSIGNED&managedScope=1` (backend tự lọc `assignedToId` thuộc đội trưởng đơn vị; user **chỉ** có `VIEW_MANAGED_UNIT_POOL` cũng được áp cùng lọc). Thống kê: `GET /api/data-pool/stats` hoặc `?managedScope=1` theo tab. Lọc **tỉnh** / **nhóm cây** / **thẻ** như cũ. **Xuất Excel:** nút gọi `GET /api/customers/export/excel` qua `apiClient.getBlob` (Bearer + `VITE_API_URL`/`/api`); route cho phép `VIEW_CUSTOMERS` **hoặc** `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL` (controller `canExportImportCustomers` đồng bộ).
 
 **Quyền xem API:** `VIEW_FLOATING_POOL` (thay mã cũ `VIEW_DATA_POOL`, migration `20260328200000_rbac_floating_pool_orders_permissions`). Một số route cho phép `VIEW_SALES` để tương thích đọc kho `SALES_OPEN` (xem `dataPoolRoutes.ts`).
 
@@ -378,8 +378,8 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 
 Nghiệp vụ API:
 
-- `GET /api/data-pool` — `poolQueue`, `strictPoolPush`, lọc `provinceId` / `mainCrop` (customer).
-- `GET /api/data-pool/stats` — `totalAvailableSalesOpen`, `totalAvailableFloating`.
+- `GET /api/data-pool` — `poolQueue`, `managedScope`, `status`, `strictPoolPush`, lọc `provinceId` / `mainCrop` (customer).
+- `GET /api/data-pool/stats` — `totalAvailableSalesOpen`, `totalAvailableFloating`; thêm `?managedScope=1` cho thống kê theo đội (trưởng đơn vị).
 - `POST /api/data-pool/distribute` — lead `pool_queue=FLOATING`; kiểm tra quyền + phạm vi đích.
 - `POST /api/data-pool/claim-customer` — `pool_queue=FLOATING`.
 - `POST /api/data-pool/claim` — `pool_queue=SALES_OPEN` (`CLAIM_LEAD`).
