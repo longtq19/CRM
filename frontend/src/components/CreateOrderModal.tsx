@@ -160,10 +160,8 @@ const CreateOrderModal = ({
   const displayDiscount = discount;
   /** Giá trị hàng sau giảm (không gồm phí VC; khớp `finalAmount` backend) */
   const orderGoodsAfterDiscount = Math.max(0, displayTotalAmount - displayDiscount);
-  /** Tiền VTP thu hộ: hàng sau giảm − cọc; phí VC thu tại shop không tính vào COD */
+  /** Tiền VTP thu hộ: hàng sau giảm − cọc. Đơn miễn phí VC cho khách — tổng khách trả khi nhận = COD. */
   const codAmountForVtp = Math.max(0, orderGoodsAfterDiscount - (Number(depositAmount) || 0));
-  /** Hiển thị tổng khách thanh toán (hàng + phí VC nếu có) — khác COD */
-  const displayPayableTotal = orderGoodsAfterDiscount + shippingFee;
 
   // Debounce ô tìm khách
   useEffect(() => {
@@ -1273,7 +1271,7 @@ const CreateOrderModal = ({
                   <p className="text-xs text-gray-600 mt-2">
                     Tiền thu hộ (COD) dự kiến:{' '}
                     <span className="font-semibold text-primary">{formatCurrency(codAmountForVtp)}</span>
-                    {' '}(sau khi trừ cọc; phí VC tính riêng)
+                    {' '}(sau khi trừ cọc; miễn phí vận chuyển cho khách)
                   </p>
                 )}
               </div>
@@ -1618,20 +1616,16 @@ const CreateOrderModal = ({
                       <span className="font-medium">-{formatCurrency(Number(depositAmount) || 0)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-dashed border-gray-200 pt-2">
-                    <span className="text-gray-800 font-medium">Tiền thu hộ (COD) — Viettel Post:</span>
-                    <span className="font-bold text-primary">{formatCurrency(codAmountForVtp)}</span>
+                  <div className="pt-2 border-t border-gray-200 flex justify-between items-baseline gap-2">
+                    <span className="font-semibold text-gray-800">Tổng khách thanh toán khi nhận hàng (COD):</span>
+                    <span className="text-xl font-bold text-primary">{formatCurrency(codAmountForVtp)}</span>
                   </div>
                   <p className="text-[11px] text-gray-500">
-                    Phí vận chuyển thu tại shop không tính vào COD (khách thanh toán shop riêng).
+                    Bằng đúng tiền thu hộ Viettel Post. Miễn phí vận chuyển — cước VTP là chi phí công ty, không cộng vào số khách trả.
                   </p>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Phí vận chuyển (tham khảo):</span>
-                    <span className="font-medium">{formatCurrency(shippingFee)}</span>
-                  </div>
-                  <div className="pt-2 border-t border-gray-200 flex justify-between">
-                    <span className="font-semibold text-gray-800">Tổng khách thanh toán (hàng + phí VC):</span>
-                    <span className="text-xl font-bold text-primary">{formatCurrency(displayPayableTotal)}</span>
+                  <div className="flex justify-between pt-2 border-t border-dashed border-gray-200 text-sm">
+                    <span className="text-gray-600">Cước VTP (chi phí công ty — tham khảo):</span>
+                    <span className="font-medium text-gray-700">{formatCurrency(shippingFee)}</span>
                   </div>
                 </div>
               </div>

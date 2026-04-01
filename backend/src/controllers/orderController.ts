@@ -448,7 +448,7 @@ export const createOrder = async (req: Request, res: Response) => {
       discount = 0,
       /** Tiền cọc — trừ khỏi COD VTP; không giảm giá trị hàng (`finalAmount`). */
       depositAmount = 0,
-      /** Phí vận chuyển thu tại shop (lưu tham khảo; không cộng vào tiền thu hộ VTP). */
+      /** Cước VTP tham khảo (lưu `orders.shipping_fee`; chi phí công ty — không cộng vào COD). */
       shippingFee: shippingFeeBody,
       note,
       receiverName,
@@ -605,7 +605,7 @@ export const createOrder = async (req: Request, res: Response) => {
       object: 'ORDER',
       objectId: order.id,
       result: 'SUCCESS',
-      details: `Tạo đơn ${code}: tổng hàng ${fmt(totalAmount)} đ, giảm giá ${fmt(Number(discount))} đ, giá trị sau giảm ${fmt(finalAmount)} đ${deposit > 0 ? `, đã cọc ${fmt(deposit)} đ` : ''}${shipFee > 0 ? `, phí VC thu shop ${fmt(shipFee)} đ (không tính vào COD)` : ''}, tiền thu hộ VTP ${fmt(codAmount)} đ.`,
+      details: `Tạo đơn ${code}: tổng hàng ${fmt(totalAmount)} đ, giảm giá ${fmt(Number(discount))} đ, giá trị sau giảm ${fmt(finalAmount)} đ${deposit > 0 ? `, đã cọc ${fmt(deposit)} đ` : ''}${shipFee > 0 ? `, cước VTP tham khảo ${fmt(shipFee)} đ (chi phí công ty, miễn phí ship khách)` : ''}, tiền thu hộ VTP (COD) ${fmt(codAmount)} đ.`,
       req
     });
 

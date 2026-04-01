@@ -35,7 +35,7 @@ export interface CreateOrderData {
   discount?: number;
   /** Đã cọc — trừ khỏi tiền thu hộ VTP */
   depositAmount?: number;
-  /** Phí VC thu tại shop (lưu đơn; không tính vào COD) */
+  /** Cước VTP tham khảo (lưu đơn; chi phí công ty — miễn phí ship khách, không vào COD) */
   shippingFee?: number;
   note?: string;
   receiverName: string;
