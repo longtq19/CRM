@@ -2,7 +2,7 @@ import { useAuthStore } from '../context/useAuthStore';
 import { LogOut, Bell, Menu, MessageSquare, KeyRound, Check, AlertCircle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { translate } from '../utils/dictionary';
-import { useEffect, useState, FormEvent, useRef } from 'react';
+import { useEffect, useState, useRef, type FormEvent } from 'react';
 import { apiClient } from '../api/client';
 import { useChat } from '../context/ChatContext';
 import ChatListDropdown from './chat/ChatListDropdown';
@@ -284,10 +284,10 @@ const Header = ({ toggleSidebar, isSidebarCollapsed = false }: HeaderProps) => {
 
             {/* Notification Dropdown */}
             {showNotificationDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[9999]">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+              <div className="fixed top-16 left-2 right-2 mt-1 md:absolute md:top-full md:right-0 md:left-auto md:mt-2 md:w-96 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden z-[9999]">
+                <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between bg-gray-50 gap-2">
                   <h3 className="font-semibold text-gray-900">Thông báo</h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 md:gap-3">
                     <button
                       onClick={handleEnablePush}
                       disabled={pushEnabling || !('Notification' in window)}
@@ -309,7 +309,7 @@ const Header = ({ toggleSidebar, isSidebarCollapsed = false }: HeaderProps) => {
                         setShowNotificationDropdown(false);
                         navigate('/notifications');
                       }}
-                      className="text-xs text-gray-500 hover:text-gray-700"
+                      className="text-xs text-gray-500 hover:text-gray-700 hidden md:inline"
                     >
                       Xem tất cả
                     </button>

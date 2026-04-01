@@ -137,7 +137,7 @@ const ChatListDropdown: React.FC<ChatListDropdownProps> = ({ onClose }) => {
   };
 
   const handleSelectConversation = (conversation: any) => {
-    const { name, avatar, isOnline } = getConversationInfo(conversation);
+    const { name, avatar } = getConversationInfo(conversation);
     let chatUser;
 
     if (conversation.type === 'PRIVATE') {
@@ -169,7 +169,7 @@ const ChatListDropdown: React.FC<ChatListDropdownProps> = ({ onClose }) => {
   return (
     <div 
       ref={dropdownRef}
-      className="fixed top-16 left-2 right-2 mt-1 md:absolute md:top-full md:right-0 md:left-auto md:mt-2 md:w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999] flex flex-col max-h-[70vh] md:max-h-[500px]"
+      className="fixed top-16 left-2 right-2 mt-1 md:absolute md:top-full md:right-0 md:left-auto md:mt-2 md:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-[9999] flex flex-col max-h-[70vh] md:max-h-[500px]"
     >
       <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-lg">
         <h3 className="font-bold text-gray-700">Tin nhắn</h3>
