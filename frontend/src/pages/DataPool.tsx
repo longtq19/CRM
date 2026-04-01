@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { apiClient, ApiHttpError } from '../api/client';
+import { apiClient } from '../api/client';
 import PaginationBar from '../components/PaginationBar';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
 import { normalizePageSize } from '../constants/pagination';
@@ -7,7 +7,7 @@ import { useAuthStore } from '../context/useAuthStore';
 import { isTechnicalAdminRole } from '../constants/rbac';
 import {
   Database, Search, RefreshCcw, Loader, UserPlus,
-  Phone, Mail, Download, Eye, Send
+  Phone, Mail, Eye, Send
 } from 'lucide-react';
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { CustomerTagBadges, CustomerTagsQuickCell, type TagBadgeModel } from '../components/CustomerTags';
@@ -53,11 +53,6 @@ const DataPool = () => {
   const roleCode = (user?.roleGroup?.code || '').toLowerCase();
   const isSalesCskhGroup = roleCode.includes('sales') || roleCode.includes('customer_success');
 
-  const hasManagedUnitView =
-    isTechAdmin ||
-    hasPermission('VIEW_MANAGED_UNIT_POOL') ||
-    hasPermission('FULL_ACCESS');
-  
   const canDistributeFloating =
     isTechAdmin ||
     hasPermission('DISTRIBUTE_FLOATING_POOL') ||
@@ -68,28 +63,16 @@ const DataPool = () => {
     isSalesCskhGroup ||
     hasPermission('CLAIM_FLOATING_POOL') ||
     hasPermission('MANAGE_DATA_POOL');
-  const hasFloatingView =
-    isTechAdmin || isSalesCskhGroup || hasPermission('VIEW_FLOATING_POOL') || hasPermission('FULL_ACCESS');
-
-  const showFloatingTab = hasFloatingView;
-  const showManagedTab = hasManagedUnitView;
-  const canRecallManagedUnit =
-    isTechAdmin ||
-    hasPermission('RECALL_MANAGED_UNIT_LEADS');
   const canManageCustomerTags =
     hasPermission('MANAGE_CUSTOMERS') ||
     hasPermission('MANAGE_SALES') ||
     hasPermission('MANAGE_RESALES') ||
     hasPermission('MANAGE_MARKETING_GROUPS');
 
-  const [listTab, setListTab] = useState<'floating' | 'managed'>('floating');
   const [items, setItems] = useState<DataPoolItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalAvailableFloating, setTotalAvailableFloating] = useState(0);
   const [todayAdded, setTodayAdded] = useState(0);
-  const [totalAssignedTeam, setTotalAssignedTeam] = useState(0);
-  const [todayAssignedTeam, setTodayAssignedTeam] = useState(0);
-  const [viewScopeDescription, setViewScopeDescription] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -108,7 +91,6 @@ const DataPool = () => {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [claiming, setClaiming] = useState(false);
-  const [exportingExcel, setExportingExcel] = useState(false);
 
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [distributeTargetType, setDistributeTargetType] = useState<'EMPLOYEE' | 'UNIT'>('EMPLOYEE');
@@ -125,17 +107,6 @@ const DataPool = () => {
     setSelectedIds([]);
   }, []);
 
-  useEffect(() => {
-    if (!showFloatingTab && showManagedTab) {
-      setListTab('managed');
-    }
-  }, [showFloatingTab, showManagedTab]);
-
-  useEffect(() => {
-    setSelectedIds([]);
-    setPage(1);
-  }, [listTab]);
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -143,14 +114,9 @@ const DataPool = () => {
         page: String(page),
         limit: String(pageSize),
       });
-      if (listTab === 'managed') {
-        params.set('status', 'ASSIGNED');
-        params.set('managedScope', '1');
-      } else {
-        params.set('status', 'AVAILABLE');
-        params.set('poolType', 'SALES');
-        params.set('poolQueue', 'FLOATING');
-      }
+      params.set('status', 'AVAILABLE');
+      params.set('poolType', 'SALES');
+      params.set('poolQueue', 'FLOATING');
       if (search) params.set('search', search);
       if (processingStatusFilter !== 'all') params.set('processingStatus', processingStatusFilter);
       if (sourceFilter !== 'all') params.set('source', sourceFilter);
@@ -162,13 +128,9 @@ const DataPool = () => {
       setItems(res.data || []);
       setTotal(res.pagination?.total || 0);
       setTotalPages(res.pagination?.totalPages || 1);
-      setViewScopeDescription(
-        typeof res.viewScopeDescription === 'string' ? res.viewScopeDescription : null,
-      );
     } catch { /* ignore */ }
     setLoading(false);
   }, [
-    listTab,
     page,
     pageSize,
     search,
@@ -181,17 +143,11 @@ const DataPool = () => {
 
   const loadStats = useCallback(async () => {
     try {
-      const q = listTab === 'managed' ? '?managedScope=1' : '';
-      const res = await apiClient.get(`/data-pool/stats${q}`);
+      const res = await apiClient.get('/data-pool/stats');
       setTotalAvailableFloating(res.totalAvailableFloating ?? 0);
       setTodayAdded(res.todayAdded || 0);
-      setTotalAssignedTeam(res.totalAssigned ?? 0);
-      setTodayAssignedTeam(res.todayAssigned ?? 0);
-      if (listTab === 'managed' && typeof res.viewScopeDescription === 'string') {
-        setViewScopeDescription(res.viewScopeDescription);
-      }
     } catch { /* ignore */ }
-  }, [listTab]);
+  }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { loadStats(); }, [loadStats]);
@@ -226,35 +182,6 @@ const DataPool = () => {
       setUnitOptions(unitRes.data || unitRes || []);
     } catch { /* ignore */ }
   }, []);
-
-  const handleExportExcel = async () => {
-    setExportingExcel(true);
-    try {
-      const qs = new URLSearchParams();
-      qs.set('status', 'all');
-      if (search) qs.set('search', search);
-      if (provinceFilter !== 'all') qs.set('provinceId', provinceFilter);
-      if (mainCropFilter !== 'all') qs.set('mainCrop', mainCropFilter);
-      if (tagFilter) qs.set('tagIds', tagFilter);
-      const blob = await apiClient.getBlob(`/customers/export/excel?${qs.toString()}`);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const prefix = listTab === 'managed' ? 'lead-don-vi' : 'kho-so-tha-noi';
-      a.download = `${prefix}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e: unknown) {
-      const msg =
-        e instanceof ApiHttpError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : 'Lỗi khi xuất Excel';
-      alert(msg);
-    }
-    setExportingExcel(false);
-  };
 
   const handleClaimCustomer = async () => {
     if (!canClaimFloating) {
@@ -297,23 +224,6 @@ const DataPool = () => {
     setDistributing(false);
   };
 
-  const handleRecallManaged = async () => {
-    if (!canRecallManagedUnit || selectedIds.length === 0) return;
-    if (!window.confirm(`Thu hồi ${selectedIds.length} lead về kho để phân lại trong phạm vi đơn vị?`)) return;
-    try {
-      await apiClient.post('/data-pool/recall', {
-        leadIds: selectedIds,
-        reason: 'Thu hồi theo đơn vị quản lý',
-      });
-      alert('Đã thu hồi');
-      setSelectedIds([]);
-      loadData();
-      loadStats();
-    } catch (e: any) {
-      alert(e.message || 'Lỗi khi thu hồi');
-    }
-  };
-
   const openDistributeModal = () => {
     loadDistributeOptions();
     setDistributeTargetType('EMPLOYEE');
@@ -345,9 +255,7 @@ const DataPool = () => {
       )
     : employeeOptions;
 
-  const showRowCheckboxes =
-    (listTab === 'floating' && canDistributeFloating) ||
-    (listTab === 'managed' && canRecallManagedUnit);
+  const showRowCheckboxes = canDistributeFloating;
 
   return (
     <div className="p-4 md:p-6 max-w-[1400px] mx-auto">
@@ -356,81 +264,27 @@ const DataPool = () => {
           <Database className="w-6 h-6 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-gray-900">Kho số &amp; phân bổ</h1>
+          <h1 className="text-xl font-bold text-gray-900">Kho số thả nổi</h1>
           <p className="text-sm text-gray-500">
-            {listTab === 'floating'
-              ? 'Kho thả nổi: lead trả về theo tham số vận hành (pool_push_processing_statuses). Kho Sales chưa phân xem tại trang Kinh doanh.'
-              : 'Lead trong đơn vị: đang gán (ASSIGNED) cho nhân viên thuộc phạm vi bạn quản lý — thu hồi và phân lại theo quyền.'}
+            Chỉ hiển thị số AVAILABLE, hàng đợi FLOATING; khi chọn «Tất cả trạng thái xử lý», backend lọc theo tham số vận hành pool_push_processing_statuses.
+            Kho Sales chưa phân xem tại trang Kinh doanh.
           </p>
-          {viewScopeDescription && (
-            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2">
-              {viewScopeDescription}
-            </p>
-          )}
         </div>
       </div>
 
-      {showFloatingTab && showManagedTab && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => setListTab('floating')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-              listTab === 'floating'
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            Kho thả nổi
-          </button>
-          <button
-            type="button"
-            onClick={() => setListTab('managed')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-              listTab === 'managed'
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            Lead trong đơn vị
-          </button>
-        </div>
-      )}
-
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        {listTab === 'floating' ? (
-          <>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Số đang chờ (thả nổi)</p>
-              <p className="text-2xl font-bold text-amber-600">{totalAvailableFloating}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Mới hôm nay (vào pool)</p>
-              <p className="text-2xl font-bold text-green-600">{todayAdded}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
-              <p className="text-sm text-gray-500">Gợi ý</p>
-              <p className="text-sm text-gray-700">Nhân sự Sales/CSKH đều có thể vào nhận khách từ kho này.</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Lead đang gán (đơn vị)</p>
-              <p className="text-2xl font-bold text-blue-600">{totalAssignedTeam}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4">
-              <p className="text-sm text-gray-500">Gán mới hôm nay</p>
-              <p className="text-2xl font-bold text-green-600">{todayAssignedTeam}</p>
-            </div>
-            <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
-              <p className="text-sm text-gray-500">Gợi ý</p>
-              <p className="text-sm text-gray-700">
-                Chọn lead và dùng Thu hồi về kho khi có quyền RECALL_MANAGED_UNIT_LEADS (hoặc quản trị).
-              </p>
-            </div>
-          </>
-        )}
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Số đang chờ (thả nổi)</p>
+          <p className="text-2xl font-bold text-amber-600">{totalAvailableFloating}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Mới hôm nay (vào pool)</p>
+          <p className="text-2xl font-bold text-green-600">{todayAdded}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4 md:col-span-1 col-span-2">
+          <p className="text-sm text-gray-500">Gợi ý</p>
+          <p className="text-sm text-gray-700">Nhân sự Sales/CSKH đều có thể vào nhận khách từ kho này.</p>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border p-4 mb-4">
@@ -448,27 +302,14 @@ const DataPool = () => {
           <ToolbarButton variant="secondary" onClick={() => { loadData(); loadStats(); }}>
             <RefreshCcw className="w-4 h-4" /> Làm mới
           </ToolbarButton>
-          <ToolbarButton
-            variant="secondary"
-            onClick={handleExportExcel}
-            disabled={exportingExcel}
-            title="Xuất danh sách khách (theo bộ lọc tìm kiếm) ra Excel — cần quyền xem khách hoặc kho số."
-          >
-            <Download className="w-4 h-4" /> {exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}
-          </ToolbarButton>
-          {listTab === 'floating' && canClaimFloating && (
+          {canClaimFloating && (
             <ToolbarButton variant="primary" onClick={handleClaimCustomer} disabled={claiming}>
               <UserPlus className="w-4 h-4" /> {claiming ? 'Đang nhận...' : 'Nhận khách'}
             </ToolbarButton>
           )}
-          {listTab === 'floating' && canDistributeFloating && selectedIds.length > 0 && (
+          {canDistributeFloating && selectedIds.length > 0 && (
             <ToolbarButton variant="primary" onClick={openDistributeModal}>
               <Send className="w-4 h-4" /> Phân chia ({selectedIds.length})
-            </ToolbarButton>
-          )}
-          {listTab === 'managed' && canRecallManagedUnit && selectedIds.length > 0 && (
-            <ToolbarButton variant="primary" onClick={handleRecallManaged}>
-              <RefreshCcw className="w-4 h-4" /> Thu hồi về kho ({selectedIds.length})
             </ToolbarButton>
           )}
         </div>
@@ -550,9 +391,6 @@ const DataPool = () => {
                 <th className="px-3 py-3 text-left">Khách hàng</th>
                 <th className="px-3 py-3 text-left">Liên hệ</th>
                 <th className="px-3 py-3 text-left min-w-[160px]">Thẻ khách hàng</th>
-                {listTab === 'managed' && (
-                  <th className="px-3 py-3 text-left">NV được gán</th>
-                )}
                 <th className="px-3 py-3 text-left">Nền tảng</th>
                 <th className="px-3 py-3 text-left">Trạng thái xử lý</th>
                 <th className="px-3 py-3 text-left">Vòng quay</th>
@@ -599,15 +437,6 @@ const DataPool = () => {
                       tagRefreshSignal={0}
                     />
                   </td>
-                  {listTab === 'managed' && (
-                    <td className="px-3 py-3 text-gray-700">
-                      {item.assignedTo ? (
-                        <span className="font-medium">{item.assignedTo.fullName}</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                  )}
                   <td className="px-3 py-3 text-gray-600">
                     {item.customer.campaign?.name || item.customer.leadSource?.name || item.source}
                   </td>

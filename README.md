@@ -352,7 +352,7 @@ Nghiệp vụ chính:
   - `GET/POST/PUT/DELETE /api/customers/:customerId/farms...`
   - Xóa soft (`isActive=false`).
 - Import/Export Excel:
-  - `GET /api/customers/export/excel` — một trong `VIEW_CUSTOMERS` | `VIEW_FLOATING_POOL` | `VIEW_MANAGED_UNIT_POOL` (route + `canExportImportCustomers`); dữ liệu vẫn theo phạm vi khách như export hiện tại.
+  - `GET /api/customers/export/excel` (`VIEW_CUSTOMERS`)
   - `GET /api/customers/import/template` (VIEW_CUSTOMERS)
   - `POST /api/customers/import` (MANAGE_CUSTOMERS) + `excelUploadMiddleware`
   - Phần import có kiểm tra các cột bắt buộc (SĐT, Loại hình, Kênh tiếp cận, Thẻ…).
@@ -368,7 +368,7 @@ Bảng `data_pool` có **`pool_queue`**: `SALES_OPEN` | `FLOATING` (migration `2
 
 **Phạm vi phân từ kho thả nổi:** user chỉ có `DISTRIBUTE_FLOATING_POOL` chỉ chọn đích trong phạm vi khối/đơn vị được quản lý; cần **`DISTRIBUTE_FLOATING_CROSS_ORG`** để phân ra mọi khối/đơn vị/NV (kiểm tra `floatingPoolScopeHelper` + `distributeFromFloatingPool`).
 
-**FE** (`DataPool.tsx`): **Kho thả nổi** — danh sách `AVAILABLE` + `poolQueue=FLOATING` (và bộ lọc `processingStatus` theo `pool_push_processing_statuses`). **Lead trong đơn vị** — tab/chế độ khi user có `VIEW_MANAGED_UNIT_POOL` (và thường kèm `VIEW_FLOATING_POOL`): gọi `GET /api/data-pool?status=ASSIGNED&managedScope=1` (backend tự lọc `assignedToId` thuộc đội trưởng đơn vị; user **chỉ** có `VIEW_MANAGED_UNIT_POOL` cũng được áp cùng lọc). Thống kê: `GET /api/data-pool/stats` hoặc `?managedScope=1` theo tab. Lọc **tỉnh** / **nhóm cây** / **thẻ** như cũ. **Xuất Excel:** nút gọi `GET /api/customers/export/excel` qua `apiClient.getBlob` (Bearer + `VITE_API_URL`/`/api`); route cho phép `VIEW_CUSTOMERS` **hoặc** `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL` (controller `canExportImportCustomers` đồng bộ).
+**FE** (`DataPool.tsx`): **một** danh sách kho thả nổi — `status=AVAILABLE`, `poolQueue=FLOATING`, `poolType=SALES`; khi không chọn trạng thái xử lý cụ thể, backend lọc `processingStatus` theo tham số vận hành **pool_push_processing_statuses** (đồng bộ `GET /processing-statuses/active`). Lọc tỉnh / nhóm cây / thẻ trên khách; **không** tab «Lead trong đơn vị» và **không** nút xuất Excel trên màn này (export khách vẫn qua module Khách hàng khi có `VIEW_CUSTOMERS`). `GET /api/data-pool/stats` cho số liệu header; `totalAvailableSalesOpen` vẫn phục vụ trang Sales.
 
 **Quyền xem API:** `VIEW_FLOATING_POOL` (thay mã cũ `VIEW_DATA_POOL`, migration `20260328200000_rbac_floating_pool_orders_permissions`). Một số route cho phép `VIEW_SALES` để tương thích đọc kho `SALES_OPEN` (xem `dataPoolRoutes.ts`).
 
@@ -1255,7 +1255,7 @@ Quyền `DISTRIBUTE_SALES_CROSS_ORG` cho phép người được cấp **phân l
 
 - **Phân lại cho NV khác trong đơn vị:** Sau thu hồi, lead nằm ở kho Sales/CSKH chưa phân — trưởng đơn vị dùng **`ASSIGN_LEAD`** / **`MANAGE_CSKH_POOL`** với `POST /data-pool/distribute-sales` hoặc `distribute-cskh` như hiện tại; `validateSalesDistributeTarget` đảm bảo đích nằm trong cây đơn vị quản lý (trừ khi có `DISTRIBUTE_SALES_CROSS_ORG` / `MANAGE_DATA_POOL`).
 
-- **FE:** Trang **Kho số thả nổi** (`/data-pool`) có tab **Lead trong đơn vị** khi có đủ quyền; vào `/data-pool` được phép nếu có `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL` (đồng bộ `DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS` trên FE).
+- **FE:** Trang **Kho số thả nổi** (`/data-pool`) chỉ danh sách kho FLOATING theo quy tắc pool push; **không** có tab đơn vị trên UI. Vào `/data-pool` khi có `VIEW_FLOATING_POOL` **hoặc** `VIEW_MANAGED_UNIT_POOL` (`DATA_POOL_MODULE_PATH_ACCESS_PERMISSIONS`). Xem lead đơn vị (ASSIGNED) dùng API `GET /api/data-pool?status=ASSIGNED&managedScope=1` hoặc màn hình khác nếu tích hợp sau này.
 
 ## 5.7. Quy định Module Sản phẩm (Product)
 
