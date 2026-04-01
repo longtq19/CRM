@@ -37,6 +37,10 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
             src={resolveAvatar(callerAvatar, callerName)}
             alt={callerName}
             className="w-20 h-20 rounded-full object-cover ring-4 ring-green-100 relative z-10"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = getUiAvatarFallbackUrl(callerName || '?');
+            }}
           />
         </div>
 

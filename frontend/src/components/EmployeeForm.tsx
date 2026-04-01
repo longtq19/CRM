@@ -19,6 +19,7 @@ import { translate } from '../utils/dictionary';
 import { CreatableMultiSelect } from './CreatableMultiSelect';
 import { SearchableSelect } from './SearchableSelect';
 import { resolveUploadUrl } from '../utils/assetsUrl';
+import { getUiAvatarFallbackUrl } from '../utils/uiAvatar';
 
 /** Chuỗi yyyy-mm-dd cho input type="date" theo giờ địa phương. */
 function formatDateInputLocal(d: Date): string {
@@ -442,6 +443,10 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ initialData, mode })
                                         src={getFullImageUrl(avatarPreview)} 
                                         alt="Avatar preview" 
                                         className="w-full h-full object-cover" 
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = getUiAvatarFallbackUrl(selectedEmployee.fullName || 'User');
+                                        }}
                                     />
                                 ) : (
                                     <Camera size={32} className="text-gray-400" />

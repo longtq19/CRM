@@ -33,7 +33,7 @@ export function resolveUploadUrl(path: string | null | undefined): string {
     return path;
   }
 
-  if (!path.startsWith('/uploads')) return path;
+  if (!path.startsWith('/uploads') && !path.startsWith('uploads')) return path;
 
   const origin = getBrowserOriginFromApiUrl();
   const p = path.startsWith('/') ? path : `/${path}`;

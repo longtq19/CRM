@@ -416,6 +416,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
             src={resolveAvatar(remoteAvatar, remoteName)}
             alt={remoteName}
             className="w-10 h-10 rounded-full object-cover ring-2 ring-white/20"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = getUiAvatarFallbackUrl(remoteName || '?');
+            }}
           />
           <div>
             <h3 className="text-white font-semibold text-lg">{remoteName}</h3>
@@ -446,6 +450,10 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
               src={resolveAvatar(remoteAvatar, remoteName)}
               alt={remoteName}
               className="w-24 h-24 rounded-full object-cover ring-4 ring-white/20 shadow-2xl"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = getUiAvatarFallbackUrl(remoteName || '?');
+              }}
             />
             <h2 className="text-white text-2xl font-bold">{remoteName}</h2>
             <p className="text-gray-300 text-lg animate-pulse">
@@ -461,7 +469,15 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
           <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           {isCameraOff && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-              <img src={resolveAvatar(currentUserAvatar, currentUserName)} alt="You" className="w-16 h-16 rounded-full object-cover" />
+              <img 
+                src={resolveAvatar(currentUserAvatar, currentUserName)} 
+                alt="You" 
+                className="w-16 h-16 rounded-full object-cover" 
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = getUiAvatarFallbackUrl(currentUserName || '?');
+                }}
+              />
             </div>
           )}
           {isScreenSharing && (

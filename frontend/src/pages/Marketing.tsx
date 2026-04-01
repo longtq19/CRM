@@ -47,6 +47,7 @@ import MarketingCustomerForm from '../components/MarketingCustomerForm';
 import CustomerTagsManager, { CustomerTagsQuickCell, type TagBadgeModel } from '../components/CustomerTags';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
 import { resolveUploadUrl } from '../utils/assetsUrl';
+import { getUiAvatarFallbackUrl } from '../utils/uiAvatar';
 import { formatAdminGeoLine } from '../utils/addressDisplayFormat';
 import {
   getEffectiveCampaignStatus,
@@ -2239,7 +2240,15 @@ const Marketing = () => {
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600 overflow-hidden">
                               {emp.avatarUrl ? (
-                                <img src={resolveUploadUrl(emp.avatarUrl)} alt="" className="w-full h-full object-cover" />
+                                <img 
+                                  src={resolveUploadUrl(emp.avatarUrl)} 
+                                  alt="" 
+                                  className="w-full h-full object-cover" 
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.src = getUiAvatarFallbackUrl(emp.fullName);
+                                  }}
+                                />
                               ) : (
                                 emp.fullName.charAt(0)
                               )}
@@ -2915,7 +2924,15 @@ const Marketing = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-primary font-bold overflow-hidden">
                           {emp.avatarUrl ? (
-                            <img src={resolveUploadUrl(emp.avatarUrl)} alt="" className="w-full h-full object-cover" />
+                            <img 
+                              src={resolveUploadUrl(emp.avatarUrl)} 
+                              alt="" 
+                              className="w-full h-full object-cover" 
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = getUiAvatarFallbackUrl(emp.employeeName);
+                              }}
+                            />
                           ) : (
                             emp.employeeName.charAt(0)
                           )}

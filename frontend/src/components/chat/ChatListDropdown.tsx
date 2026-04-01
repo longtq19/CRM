@@ -200,6 +200,10 @@ const ChatListDropdown: React.FC<ChatListDropdownProps> = ({ onClose }) => {
                       src={avatar} 
                       alt={name}
                       className="w-10 h-10 rounded-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = getUiAvatarFallbackUrl(name || 'User');
+                      }}
                   />
                   {isOnline && (
                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>

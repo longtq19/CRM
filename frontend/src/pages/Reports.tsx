@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { resolveUploadUrl } from '../utils/assetsUrl';
+import { getUiAvatarFallbackUrl } from '../utils/uiAvatar';
 import { formatDate, formatMonthYear } from '../utils/format';
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 
@@ -341,7 +342,15 @@ const Reports = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium overflow-hidden">
                           {item.avatar_url ? (
-                            <img src={resolveUploadUrl(item.avatar_url)} alt="" className="w-full h-full object-cover" />
+                            <img 
+                              src={resolveUploadUrl(item.avatar_url)} 
+                              alt="" 
+                              className="w-full h-full object-cover" 
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = getUiAvatarFallbackUrl(item.full_name || 'User');
+                              }}
+                            />
                           ) : (
                             item.full_name?.charAt(0)
                           )}

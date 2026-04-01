@@ -314,6 +314,10 @@ const ChatPopup: React.FC<ChatPopupProps> = ({ session, index }) => {
             src={session.avatarUrl ? resolveUploadUrl(session.avatarUrl) : getUiAvatarFallbackUrl(session.groupName || 'User')} 
             alt={session.groupName}
             className="w-6 h-6 rounded-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = getUiAvatarFallbackUrl(session.groupName || 'User');
+            }}
           />
           {session.user?.isOnline && (
             <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-green-500 border border-white rounded-full"></span>
@@ -349,6 +353,10 @@ const ChatPopup: React.FC<ChatPopupProps> = ({ session, index }) => {
               onClick={(e) => {
                   e.stopPropagation();
                   handleOpenInChat();
+              }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = getUiAvatarFallbackUrl(session.groupName || 'User');
               }}
             />
             {session.user?.isOnline && (
@@ -438,6 +446,10 @@ const ChatPopup: React.FC<ChatPopupProps> = ({ session, index }) => {
                         className="w-6 h-6 rounded-full object-cover cursor-pointer hover:opacity-80"
                         alt={msg.sender?.fullName}
                         onClick={() => handleOpenEmployee(msg.senderId)}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = getUiAvatarFallbackUrl(msg.sender?.fullName || 'User');
+                        }}
                       />
                     )}
                   </div>
