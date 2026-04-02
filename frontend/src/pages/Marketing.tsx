@@ -32,6 +32,13 @@ import {
   Phone,
   Mail,
   Clock,
+  Code,
+  Edit,
+  AlertTriangle,
+  File,
+  FileSpreadsheet,
+  HelpCircle,
+  XCircle,
 } from 'lucide-react';
 import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 import type { MarketingSource, MarketingCampaign, MarketingLead } from '../types';
