@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
+import { formatICTDateTime } from '../utils/dateFormatter';
 import { logAudit, getAuditUser } from '../utils/auditLog';
 import { describeChangesVi } from '../utils/vietnameseAuditDiff';
 import {
@@ -1717,7 +1718,7 @@ export const createMarketingLead = async (req: Request, res: Response) => {
         type: 'lead_created',
         content: noteTrim
           ? noteTrim
-          : `[Hệ thống] Lead được tạo bởi ${actor.fullName || actor.id} lúc ${new Date().toLocaleString('vi-VN')}`,
+          : `[Hệ thống] Lead được tạo bởi ${actor.fullName || actor.id} lúc ${formatICTDateTime(new Date())}`,
       }
     });
 

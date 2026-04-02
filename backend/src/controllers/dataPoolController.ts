@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { formatICTDateTime } from '../utils/dateFormatter';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
 import { getPaginationParams } from '../utils/pagination';
@@ -1342,9 +1343,7 @@ export const updateCallbackSchedule = async (req: Request, res: Response) => {
     });
 
     const fmt = (d: Date | null) =>
-      d
-        ? d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
-        : '(trống)';
+      d ? formatICTDateTime(d) : '(trống)';
     await appendCustomerImpactNote({
       customerId: lead.customerId,
       employeeId: user.id,

@@ -11,8 +11,6 @@ File tài liệu chính của repo nằm tại **thư mục gốc dự án**: `R
 ### 1.1. Giao diện Responsive (Mobile Friendly):
 - **Bảng dữ liệu:** Sử dụng utility class `.responsive-table-container` (trong `index.css`) bọc ngoài các thẻ `<table>` để hỗ trợ cuộn ngang mượt mà trên mobile mà không phá vỡ layout.
 - **Modal:** Các modal phức tạp (như chi tiết đơn hàng, chi tiết khách hàng) được cấu hình full-screen trên mobile (`w-full h-[90vh] rounded-t-xl`) và trở lại kích thước chuẩn trên desktop (`max-w-* rounded-xl`).
-- **Sidebar:** Sidebar danh mục (ở module Sản phẩm) tự động ẩn trên mobile để tối ưu không gian hiển thị danh sách.
-
 ### 1.3. Quy chuẩn hiển thị Ngày/Giờ (Date/Time Standards):
 Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất để tránh nhầm lẫn dữ liệu và tối ưu trải nghiệm người dùng Việt Nam:
 - **Múi giờ:** Luôn sử dụng múi giờ Việt Nam (**Asia/Ho_Chi_Minh**, UTC+7).
@@ -21,6 +19,25 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
 - **Utilities tập trung:** 
   - **Frontend:** Sử dụng `formatDate`, `formatDateTime`, `formatTime` từ `frontend/src/utils/format.ts`. Đối với các thành phần chat/thông báo cần hiển thị thông minh (Giờ nếu hôm nay, Ngày nếu cũ hơn), sử dụng `formatSmartDate`.
   - **Backend:** Sử dụng `backend/src/utils/dateFormatter.ts` cho các báo cáo Excel và nhật ký hệ thống.
+
+## 2. Quy tắc chia số (Lead Distribution Rules)
+
+Hệ thống HCRM áp dụng cơ chế chia số (routing) thông minh, đảm bảo công bằng và bám sát tỉ lệ cấu hình tại **Vận hành (Organization Structure)**.
+
+### 2.1. Chia cho Đơn vị Lá (Leaf Units):
+- **Công bằng tuyệt đối:** Lead khi được gán về một đơn vị lá (Tổ/Nhóm/Đội) sẽ được chia đều lập tức cho tất cả thành viên (Sales/CSKH) đang hoạt động trong đơn vị đó.
+- **Biến đếm (Counter):** Hệ thống sử dụng biến đếm `assignedCount` (trong `DivisionFlowRoutingCounter`) để theo dõi lịch sử nhận lead của từng nhân viên.
+- **Nguyên tắc lệch (Deficit):** Dựa trên số lượng thành viên hiện có, hệ thống tính toán tỉ lệ kỳ vọng và ưu tiên gán lead cho người đang có **tỉ lệ bị lệch cao nhất** (người nhận ít nhất so với kỳ vọng).
+
+### 2.2. Chia qua Cây đơn vị (Division Hierarchy):
+- **Tỉ lệ cấu hình:** Tại mỗi Khối (Division), người quản lý có thể cấu hình tỉ lệ % phân bổ lead cho các Khối con (`marketingToSalesChildDivisionPct`) hoặc các Đơn vị lá trực thuộc (`marketingToSalesPct`).
+- **Chia lập tức:** Lead đi từ gốc cây hoặc Khối cha sẽ được gán lập tức xuống cấp dưới theo đúng tỉ lệ này.
+- **Ưu tiên lệch:** Tương tự như nhân viên, Khối/Đơn vị nào đang có số lượng lead thực tế thấp nhất so với tỉ lệ cấu hình (%) sẽ được gán lead tiếp theo. Nếu chưa cấu hình %, hệ thống mặc định chia đều có đếm (Uniform distribution).
+- **Luồng Fallback:** Nếu đơn vị được chọn không có nhân viên hoạt động, hệ thống sẽ tự động tìm kiếm ứng viên trong cùng Khối, các Khối anh em, hoặc cuối cùng là toàn tổ chức để đảm bảo lead không bị bỏ sót.
+
+### 2.3. Quy trình tự động (Cron & Webhook):
+- **Marketing Lead:** Tự động chia ngay khi lead vào từ API/Form website.
+- **Thu hồi/Phân lại:** Các cron job (`salesDeadlineRecall`, `cskhInteractionCheck`) tự động thu hồi lead quá hạn và tái phân bổ dựa trên cùng quy tắc công bằng nêu trên.
 
 ### 1.2. Quy tắc đọc và cập nhật README (nghiệp vụ & phát triển)
 

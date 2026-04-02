@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database';
+import { formatICTDateTime } from '../utils/dateFormatter';
 import crypto from 'crypto';
 import { createUserNotification } from './userNotificationController';
 import { getIO } from '../socket';
@@ -567,7 +568,7 @@ export const receivePublicLead = async (req: Request, res: Response) => {
         const campaignOwner = campaign.createdByEmployee;
         const interactionContent = noteText
           ? noteText
-          : `[Website] Lead vào hệ thống qua chiến dịch "${campaign.name}" lúc ${now.toLocaleString('vi-VN')}. NV Marketing: ${campaignOwner?.fullName || campaign.createdByEmployeeId}`;
+          : `[Website] Lead vào hệ thống qua chiến dịch "${campaign.name}" lúc ${formatICTDateTime(now)}. NV Marketing: ${campaignOwner?.fullName || campaign.createdByEmployeeId}`;
         await prisma.customerInteraction.create({
           data: {
             code: `INT-${String(intCount + 1).padStart(6, '0')}`,

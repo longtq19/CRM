@@ -3,6 +3,7 @@ import { prisma } from '../config/database';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { pickNextResalesEmployeeId, pickNextSalesEmployeeId } from '../services/leadRoutingService';
 import { sendPushToEmployee } from '../services/pushNotificationService';
+import { formatICTDateTime } from '../utils/dateFormatter';
 
 async function getIntConfig(key: string, fallback: number): Promise<number> {
   try {
@@ -399,7 +400,7 @@ async function callbackReminders() {
       if (now < notifyAt) continue;
 
       const name = lead.customer?.name || lead.customer?.phone || 'Khách';
-      const timeStr = lead.callbackAt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const timeStr = formatICTDateTime(lead.callbackAt);
       const title = 'Nhắc: Hẹn gọi lại khách';
       const content = `${name} — hẹn gọi lại lúc ${timeStr}`;
 
