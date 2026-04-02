@@ -40,7 +40,6 @@ import {
 } from '../utils/campaignSchedule';
 import { formatDate, formatDateTime } from '../utils/format';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
-import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 
 type MarketingTab = 'leads' | 'sources' | 'campaigns' | 'cost-effectiveness' | 'employee-ranking';
 
