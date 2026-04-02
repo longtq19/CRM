@@ -3,7 +3,7 @@ import {
   Package, Search, Filter, Plus, Eye, CheckCircle, Truck, 
   RefreshCw, User, MapPin, 
   X, Clock, AlertCircle, Check, Send, FileText, TrendingUp, ShoppingCart, Ban, ClipboardList, Loader,
-  BarChart3, Settings2, ListChecks, Printer, Trash2, Building2
+  BarChart3, Settings2, ListChecks, Printer, Trash2, Building2, Download
 } from 'lucide-react';
 import { orderApi } from '../api/orderApi';
 import type { OrderFilters } from '../api/orderApi';
@@ -138,6 +138,8 @@ const Orders = () => {
 
   // Bulk selection
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
+
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   // Fetch orders
   const fetchOrders = useCallback(async () => {
@@ -483,6 +485,26 @@ const Orders = () => {
     }
   };
 
+  const handleExportOrders = async () => {
+    try {
+      setExportingExcel(true);
+      const blob = await orderApi.exportOrders(filters);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `danh-sach-don-hang-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Lỗi khi xuất file Excel');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -495,6 +517,16 @@ const Orders = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {ordersMainTab === 'list' && (
+            <button
+              onClick={handleExportOrders}
+              disabled={exportingExcel}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exportingExcel ? <Loader size={20} className="animate-spin" /> : <Download size={20} />}
+              Xuất Excel
+            </button>
+          )}
           {selectedOrders.size > 0 && ordersMainTab === 'list' && (
             <button
               onClick={handleBulkPrintVTP}

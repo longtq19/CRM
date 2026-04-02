@@ -1041,19 +1041,6 @@ const Marketing = () => {
           </ToolbarButton>
           <ToolbarButton
             variant="secondary"
-            className="text-sm disabled:opacity-50"
-            onClick={handleExportLeads}
-            disabled={exportLoading}
-          >
-            {exportLoading ? (
-              <Loader size={16} className="animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            Xuất Excel
-          </ToolbarButton>
-          <ToolbarButton
-            variant="secondary"
             className="text-sm"
             onClick={() => { setImportFile(null); setImportResult(null); setImportSourceId(''); setImportCampaignId(''); setImportEmployeeId(''); setImportModalOpen(true); }}
           >

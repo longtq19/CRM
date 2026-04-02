@@ -26,7 +26,6 @@ import {
   UserPlus,
   BarChart3,
   Trash2,
-  Clock,
   Package,
 } from 'lucide-react';
 import CustomerForm from '../components/CustomerForm';
@@ -244,11 +243,9 @@ const Resales = () => {
 
   // Detail modal
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
-  const [exportingExcel, setExportingExcel] = useState(false);
   const [importingExcel, setImportingExcel] = useState(false);
 
   const [impactOpen, setImpactOpen] = useState(false);
@@ -337,14 +334,11 @@ const Resales = () => {
 
   const loadCustomerDetail = async (id: string) => {
     try {
-      setDetailLoading(true);
       const data = await apiClient.get(`/resales/customer/${id}`);
       setSelectedCustomer(data);
       setDetailModalOpen(true);
     } catch (error) {
       console.error('Load customer detail error:', error);
-    } finally {
-      setDetailLoading(false);
     }
   };
 
@@ -684,36 +678,6 @@ const Resales = () => {
                   }}
                 />
               </ToolbarFileLabel>
-              <ToolbarButton
-                variant="secondary"
-                className="text-sm disabled:opacity-50"
-                disabled={exportingExcel}
-                onClick={async () => {
-                  try {
-                    setExportingExcel(true);
-                    const params = new URLSearchParams();
-                    if (customerEmployeeFilter && customerEmployeeFilter !== 'all') params.append('employeeId', customerEmployeeFilter);
-                    const blob = await apiClient.getBlob(`/customers/export/excel?${params}`);
-                    if (blob) {
-                      const url = window.URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      window.URL.revokeObjectURL(url);
-                    }
-                  } catch (err: any) {
-                    alert(err?.message || 'Không xuất được Excel');
-                  } finally {
-                    setExportingExcel(false);
-                  }
-                }}
-              >
-                <Download className="w-4 h-4" />
-                {exportingExcel ? 'Đang xuất...' : 'Xuất Excel'}
-              </ToolbarButton>
             </div>
           )}
         </div>

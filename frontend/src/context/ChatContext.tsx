@@ -29,6 +29,16 @@ interface ChatContextType {
   minimizeChat: (chatId: string) => void;
   restoreChat: (chatId: string) => void;
   socket: Socket | null;
+  activeCall: {
+    groupId: string;
+    callType: 'video' | 'audio';
+    isCaller: boolean;
+    remoteName: string;
+    remoteAvatar?: string;
+  } | null;
+  startCall: (data: { groupId: string; callType: 'video' | 'audio'; remoteName: string; remoteAvatar?: string }) => void;
+  acceptCall: (data: { groupId: string; callType: 'video' | 'audio'; remoteName: string; remoteAvatar?: string }) => void;
+  endCall: () => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -39,6 +49,7 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
   const [openChats, setOpenChats] = useState<ChatSession[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketNeeded, setSocketNeeded] = useState(false);
+  const [activeCall, setActiveCall] = useState<ChatContextType['activeCall']>(null);
 
   // Kết nối socket khi user đăng nhập để nhận thông báo realtime (vd: new_lead từ API public)
   useEffect(() => {
@@ -127,6 +138,32 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
     setOpenChats(prev => prev.map(c => c.id === chatId ? { ...c, minimized: false } : c));
   };
 
+  const startCall = (data: { groupId: string; callType: 'video' | 'audio'; remoteName: string; remoteAvatar?: string }) => {
+    if (!socket || !user) return;
+    setActiveCall({
+      ...data,
+      isCaller: true,
+    });
+    socket.emit('call:initiate', {
+        groupId: data.groupId,
+        callerId: user.id,
+        callerName: user.name || 'Bạn',
+        callerAvatar: user.avatar,
+        callType: data.callType,
+    });
+  };
+
+  const acceptCall = (data: { groupId: string; callType: 'video' | 'audio'; remoteName: string; remoteAvatar?: string }) => {
+    setActiveCall({
+      ...data,
+      isCaller: false,
+    });
+  };
+
+  const endCall = () => {
+    setActiveCall(null);
+  };
+
   return (
     <ChatContext.Provider value={{
       isChatListOpen,
@@ -136,7 +173,11 @@ export const ChatProvider = ({ children }: { children: ReactNode }) => {
       closeChat,
       minimizeChat,
       restoreChat,
-      socket
+      socket,
+      activeCall,
+      startCall,
+      acceptCall,
+      endCall
     }}>
       {children}
     </ChatContext.Provider>

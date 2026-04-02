@@ -168,6 +168,9 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     // broadcast to the groupId room by the backend.
     socket.emit('join_group', groupId);
 
+    // Track if PC is ready to handle signaling
+    let pcReady = false;
+
     const init = async () => {
       // 1. Get media
       let stream: MediaStream;
@@ -189,29 +192,33 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
 
       // 2. Create PeerConnection
       const pc = createPC(stream);
+      pcReady = true;
 
-      // 3. If CALLER → wait for call:accepted, THEN send offer
-      //    If RECEIVER → we already accepted, wait for offer to arrive
+      // 3. Process any queued signals that arrived while we were getting media
       if (isCaller) {
-        // Caller: we opened modal immediately, now wait for accepted
-        const onAccepted = () => {
-          console.log('[VideoCall] Call accepted, sending offer...');
-          sendOffer(pc);
-        };
-        socket.on('call:accepted', onAccepted);
-        // store for cleanup
-        (pc as any)._onAccepted = onAccepted;
+        // If we are caller, check if we missed call:accepted
+        // (Handled by the listener now being outside init)
+      } else {
+        // Receiver: check for queued offer
+        if ((pc as any)._queuedOffer) {
+          handleOffer((pc as any)._queuedOffer);
+          delete (pc as any)._queuedOffer;
+        }
       }
-      // (receiver just waits for call:offer, handled below)
+      
+      // Also drain any queued ICE candidates
+      await drainIceQueue(pc);
     };
 
-    init();
-
-    // ─── Socket handlers ───
+    // ─── Socket handlers (defined before init to catch early events) ───
     const handleOffer = async (data: { groupId: string; offer: RTCSessionDescriptionInit; fromUserId: string }) => {
       if (data.fromUserId === currentUserId) return;
       const pc = pcRef.current;
-      if (!pc) return;
+      if (!pc || !pcReady) {
+        console.log('[VideoCall] PC not ready, queuing offer');
+        if (pc) (pc as any)._queuedOffer = data;
+        return;
+      }
       try {
         console.log('[VideoCall] Received offer, creating answer...');
         await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -231,7 +238,11 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     const handleAnswer = async (data: { groupId: string; answer: RTCSessionDescriptionInit; fromUserId: string }) => {
       if (data.fromUserId === currentUserId) return;
       const pc = pcRef.current;
-      if (!pc) return;
+      if (!pc || !pcReady) {
+        console.log('[VideoCall] PC not ready, queuing answer');
+        if (pc) (pc as any)._queuedAnswer = data;
+        return;
+      }
       try {
         console.log('[VideoCall] Received answer');
         await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
@@ -244,7 +255,7 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
     const handleIceCandidate = async (data: { groupId: string; candidate: RTCIceCandidateInit; fromUserId: string }) => {
       if (data.fromUserId === currentUserId) return;
       const pc = pcRef.current;
-      if (!pc || !pc.remoteDescription) {
+      if (!pc || !pc.remoteDescription || !pcReady) {
         iceCandidateQueue.current.push(data.candidate);
         return;
       }
@@ -252,6 +263,16 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
         await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (err) {
         console.error('[VideoCall] ICE candidate error:', err);
+      }
+    };
+
+    const handleAccepted = () => {
+      console.log('[VideoCall] Call accepted handler triggered');
+      if (isCaller && pcRef.current && pcReady) {
+        sendOffer(pcRef.current);
+      } else if (isCaller && pcRef.current) {
+        // PC exists but not ready (waiting for media), it will check this later
+        (pcRef.current as any)._acceptedPending = true;
       }
     };
 
@@ -263,24 +284,31 @@ const VideoCallModal: React.FC<VideoCallModalProps> = ({
       closeWithResult('rejected');
     };
 
+    socket.on('call:accepted', handleAccepted);
     socket.on('call:offer', handleOffer);
     socket.on('call:answer', handleAnswer);
     socket.on('call:ice-candidate', handleIceCandidate);
     socket.on('call:ended', handleCallEnded);
     socket.on('call:rejected', handleCallRejected);
 
+    // Now start initialization
+    init().then(() => {
+        // If we were caller and call was accepted while we were initing
+        if (isCaller && pcRef.current && (pcRef.current as any)._acceptedPending) {
+             console.log('[VideoCall] Sending delayed offer after init');
+             sendOffer(pcRef.current);
+             delete (pcRef.current as any)._acceptedPending;
+        }
+    });
+
     return () => {
       mounted = false;
+      socket.off('call:accepted', handleAccepted);
       socket.off('call:offer', handleOffer);
       socket.off('call:answer', handleAnswer);
       socket.off('call:ice-candidate', handleIceCandidate);
       socket.off('call:ended', handleCallEnded);
       socket.off('call:rejected', handleCallRejected);
-      // cleanup caller-specific listener
-      const pc = pcRef.current;
-      if (pc && (pc as any)._onAccepted) {
-        socket.off('call:accepted', (pc as any)._onAccepted);
-      }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

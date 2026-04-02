@@ -72,7 +72,6 @@ router.put('/marketing/campaigns/:id', authMiddleware, checkPermission('UPDATE_M
 router.delete('/marketing/campaigns/:id', authMiddleware, checkPermission('DELETE_MARKETING_CAMPAIGN'), deleteMarketingCampaign);
 
 // Leads
-router.get('/marketing/leads/export', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), exportMarketingLeads);
 router.get('/marketing/leads/import-template', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingLeadImportTemplate);
 router.get('/marketing/leads', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), getMarketingLeads);
 router.post('/marketing/leads/push-to-pool', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), pushLeadsToDataPool);

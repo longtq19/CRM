@@ -85,16 +85,9 @@ interface IncomingCallData {
  * Should be placed inside ChatProvider (e.g. in MainLayout).
  */
 const GlobalCallHandler: React.FC = () => {
-  const { socket } = useChat();
+  const { socket, activeCall, endCall, acceptCall } = useChat();
   const { user } = useAuthStore();
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
-  const [activeCall, setActiveCall] = useState<{
-    groupId: string;
-    callType: 'video' | 'audio';
-    isCaller: boolean;
-    remoteName: string;
-    remoteAvatar?: string;
-  } | null>(null);
 
   const ringtoneRef = useRef(createRingtone());
 
@@ -136,15 +129,16 @@ const GlobalCallHandler: React.FC = () => {
       accepterId: user.id,
       accepterName: user.name || 'Bạn',
     });
-    setActiveCall({
+    
+    acceptCall({
       groupId: incomingCall.groupId,
       callType: incomingCall.callType,
-      isCaller: false,
       remoteName: incomingCall.callerName,
       remoteAvatar: incomingCall.callerAvatar,
     });
+    
     setIncomingCall(null);
-  }, [socket, user, incomingCall]);
+  }, [socket, user, incomingCall, acceptCall]);
 
   // ─── Reject call ───
   const handleReject = useCallback(async () => {
@@ -179,8 +173,8 @@ const GlobalCallHandler: React.FC = () => {
         callType: info.callType,
       });
     } catch (_) { /* ignore */ }
-    setActiveCall(null);
-  }, [activeCall]);
+    endCall();
+  }, [activeCall, endCall]);
 
   return (
     <>

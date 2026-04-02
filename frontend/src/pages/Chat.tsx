@@ -59,8 +59,7 @@ import {
   loadChatQuickMessages,
   saveChatQuickMessages,
 } from '../utils/chatQuickMessagesStorage';
-import VideoCallModal from '../components/chat/VideoCallModal';
-import type { CallEndInfo } from '../components/chat/VideoCallModal';
+import { useChat } from '../context/ChatContext';
 import { getCallPreviewText } from '../utils/callMessageUtils';
 
 interface User {
@@ -232,9 +231,7 @@ const Chat = () => {
   const [isConversationListCollapsed, setIsConversationListCollapsed] = useState(false);
 
   // ─── Video Call State ───
-  const [isInCall, setIsInCall] = useState(false);
-  const [callType, setCallType] = useState<'video' | 'audio'>('video');
-  const [isCallCaller, setIsCallCaller] = useState(false);
+  const { activeCall, startCall, endCall } = useChat();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1726,16 +1723,13 @@ const Chat = () => {
               <button
                 className="p-2 hover:bg-green-50 hover:text-green-600 rounded-full transition-colors"
                 onClick={() => {
-                  if (!selectedGroup || !socket || !user) return;
-                  setCallType('audio');
-                  setIsCallCaller(true);
-                  setIsInCall(true);
-                  socket.emit('call:initiate', {
+                  if (!selectedGroup || !user) return;
+                  const otherMember = selectedGroup.members.find(m => m.employeeId !== user?.id);
+                  startCall({
                     groupId: selectedGroup.id,
-                    callerId: user.id,
-                    callerName: user.name || 'Bạn',
-                    callerAvatar: user.avatar,
                     callType: 'audio',
+                    remoteName: selectedGroup.type === 'PRIVATE' ? (otherMember?.employee?.fullName || selectedGroup.name) : selectedGroup.name,
+                    remoteAvatar: selectedGroup.type === 'PRIVATE' ? otherMember?.employee?.avatarUrl : selectedGroup.avatarUrl,
                   });
                 }}
                 title="Gọi thoại"
@@ -1745,16 +1739,13 @@ const Chat = () => {
               <button
                 className="p-2 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors"
                 onClick={() => {
-                  if (!selectedGroup || !socket || !user) return;
-                  setCallType('video');
-                  setIsCallCaller(true);
-                  setIsInCall(true);
-                  socket.emit('call:initiate', {
+                  if (!selectedGroup || !user) return;
+                  const otherMember = selectedGroup.members.find(m => m.employeeId !== user?.id);
+                  startCall({
                     groupId: selectedGroup.id,
-                    callerId: user.id,
-                    callerName: user.name || 'Bạn',
-                    callerAvatar: user.avatar,
                     callType: 'video',
+                    remoteName: selectedGroup.type === 'PRIVATE' ? (otherMember?.employee?.fullName || selectedGroup.name) : selectedGroup.name,
+                    remoteAvatar: selectedGroup.type === 'PRIVATE' ? otherMember?.employee?.avatarUrl : selectedGroup.avatarUrl,
                   });
                 }}
                 title="Gọi video"
@@ -3171,46 +3162,7 @@ const Chat = () => {
         </div>
       )}
 
-      {/* ─── Video Call Modal ─── */}
-      {isInCall && selectedGroup && socket && user && (() => {
-        const otherMember = selectedGroup.members.find(m => m.employeeId !== user.id);
-        const rName = selectedGroup.type === 'PRIVATE'
-          ? (otherMember?.employee?.fullName || selectedGroup.name)
-          : selectedGroup.name;
-        const rAvatar = selectedGroup.type === 'PRIVATE'
-          ? otherMember?.employee?.avatarUrl
-          : selectedGroup.avatarUrl;
-        return (
-          <VideoCallModal
-            socket={socket}
-            groupId={selectedGroup.id}
-            currentUserId={user.id}
-            currentUserName={user.name || 'Bạn'}
-            currentUserAvatar={user.avatar}
-            remoteName={rName}
-            remoteAvatar={rAvatar}
-            callType={callType}
-            isCaller={isCallCaller}
-            onClose={async (info: CallEndInfo) => {
-              setIsInCall(false);
-              setIsCallCaller(false);
-              // Save call history message
-              if (selectedGroup && !selectedGroup.id.startsWith('temp-group-')) {
-                try {
-                  await apiClient.post('/chat/messages/call', {
-                    groupId: selectedGroup.id,
-                    duration: info.duration,
-                    result: info.result,
-                    callType: info.callType,
-                  });
-                } catch (e) {
-                  console.error('Failed to save call history:', e);
-                }
-              }
-            }}
-          />
-        );
-      })()}
+      {/* Video Call Modal was removed from here - it's now handled globally in GlobalCallHandler */}
 
     </div>
   );

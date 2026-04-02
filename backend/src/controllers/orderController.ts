@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import * as ExcelJS from 'exceljs';
 import { DATA_POOL_QUEUE } from '../constants/dataPoolQueue';
 import { prisma } from '../config/database';
 import { logAudit, getAuditUser } from '../utils/auditLog';
@@ -13,6 +14,7 @@ import { getMarketingAttributionEffectiveDaysForCustomer } from '../services/lea
 import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
 import { userHasCatalogPermission } from '../constants/rbac';
+import { formatICTDateTime } from '../utils/dateFormatter';
 
 async function getAllSubordinates(employeeId: string): Promise<string[]> {
   return getSubordinateIds(employeeId);
@@ -346,6 +348,199 @@ export const getOrders = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get orders error:', error);
     res.status(500).json({ message: 'Lỗi khi lấy danh sách đơn hàng' });
+  }
+};
+
+/**
+ * Xuất danh sách đơn hàng ra Excel
+ */
+export const exportOrders = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { search, orderStatus, shippingStatus, customerId, employeeId, confirmedById, warehouseId, paymentStatus, isPrinted, startDate, endDate } = req.query;
+
+    const where: any = {};
+
+    if (search) {
+      where.OR = [
+        { code: { contains: String(search), mode: 'insensitive' } },
+        { trackingNumber: { contains: String(search), mode: 'insensitive' } },
+        { shippingCode: { contains: String(search), mode: 'insensitive' } },
+        { customer: { name: { contains: String(search), mode: 'insensitive' } } },
+        { customer: { phone: { contains: String(search), mode: 'insensitive' } } },
+        { receiverName: { contains: String(search), mode: 'insensitive' } },
+        { receiverPhone: { contains: String(search), mode: 'insensitive' } },
+        { employee: { fullName: { contains: String(search), mode: 'insensitive' } } },
+        { confirmedBy: { fullName: { contains: String(search), mode: 'insensitive' } } }
+      ];
+    }
+
+    if (orderStatus && orderStatus !== 'all') where.orderStatus = orderStatus;
+    if (shippingStatus && shippingStatus !== 'all') where.shippingStatus = shippingStatus;
+    if (customerId) where.customerId = customerId;
+    if (confirmedById && confirmedById !== 'all') where.confirmedById = confirmedById;
+    if (warehouseId && warehouseId !== 'all') where.warehouseId = warehouseId;
+    if (paymentStatus && paymentStatus !== 'all') where.paymentStatus = paymentStatus;
+    if (isPrinted !== undefined && isPrinted !== 'all') where.isPrinted = isPrinted === 'true';
+
+    const scopeUser = {
+      id: user.id,
+      roleGroupId: user.roleGroupId,
+      departmentId: user.departmentId,
+      permissions: user.permissions,
+      roleGroupCode: user.roleGroupCode,
+    };
+    const visibleOrderIds = await getVisibleEmployeeIds(scopeUser, 'ORDER');
+
+    if (employeeId && employeeId !== 'all') {
+      if (visibleOrderIds && !visibleOrderIds.includes(String(employeeId))) {
+        return res.status(403).json({ message: 'Không được lọc đơn theo nhân viên ngoài phạm vi quản lý của bạn.' });
+      }
+      where.employeeId = String(employeeId);
+    } else if (visibleOrderIds) {
+      where.employeeId = { in: visibleOrderIds };
+    }
+
+    if (startDate) {
+      where.orderDate = { ...where.orderDate, gte: new Date(String(startDate)) };
+    }
+    if (endDate) {
+      where.orderDate = { ...where.orderDate, lte: new Date(String(endDate)) };
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      orderBy: { orderDate: 'desc' },
+      include: {
+        customer: { select: { code: true, name: true, phone: true } },
+        employee: { select: { fullName: true, code: true } },
+        confirmedBy: { select: { fullName: true, code: true } },
+        warehouse: { select: { name: true, code: true } },
+        items: { include: { product: { select: { name: true, code: true } } } }
+      }
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet('Đơn hàng');
+
+    ws.columns = [
+      { header: 'STT', key: 'stt', width: 6 },
+      { header: 'Mã đơn', key: 'code', width: 14 },
+      { header: 'Ngày tạo', key: 'orderDate', width: 18 },
+      { header: 'Mã KH', key: 'customerCode', width: 14 },
+      { header: 'Khách hàng', key: 'customerName', width: 22 },
+      { header: 'SĐT khách', key: 'customerPhone', width: 14 },
+      { header: 'Người nhận', key: 'receiverName', width: 22 },
+      { header: 'SĐT nhận', key: 'receiverPhone', width: 14 },
+      { header: 'Địa chỉ nhận', key: 'receiverAddress', width: 40 },
+      { header: 'Tỉnh/TP', key: 'province', width: 16 },
+      { header: 'Quận/Huyện', key: 'district', width: 16 },
+      { header: 'Phường/Xã', key: 'ward', width: 16 },
+      { header: 'Tổng tiền hàng', key: 'totalAmount', width: 14 },
+      { header: 'Giảm giá', key: 'discount', width: 12 },
+      { header: 'Đã cọc', key: 'depositAmount', width: 12 },
+      { header: 'Giá trị đơn', key: 'finalAmount', width: 14 },
+      { header: 'Tiền thu hộ (COD)', key: 'codAmount', width: 14 },
+      { header: 'Trạng thái đơn', key: 'orderStatus', width: 14 },
+      { header: 'Trạng thái vận chuyển', key: 'shippingStatus', width: 18 },
+      { header: 'Trạng thái thanh toán', key: 'paymentStatus', width: 14 },
+      { header: 'Mã vận đơn', key: 'trackingNumber', width: 18 },
+      { header: 'Nhân viên tạo', key: 'employeeName', width: 18 },
+      { header: 'Nhân viên xác nhận', key: 'confirmedByName', width: 18 },
+      { header: 'Kho gửi', key: 'warehouseName', width: 18 },
+      { header: 'Sản phẩm', key: 'items', width: 40 },
+      { header: 'Ghi chú', key: 'note', width: 30 }
+    ];
+
+    const headerRow = ws.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.alignment = { horizontal: 'center' };
+
+    const ORDER_STATUS_MAP: Record<string, string> = {
+      DRAFT: 'Nháp',
+      CONFIRMED: 'Đã xác nhận',
+      PROCESSING: 'Đang xử lý',
+      COMPLETED: 'Hoàn thành',
+      CANCELLED: 'Đã hủy',
+      RETURNED: 'Hoàn trả'
+    };
+
+    const SHIPPING_STATUS_MAP: Record<string, string> = {
+      PENDING: 'Chờ xác nhận',
+      CONFIRMED: 'Đã tiếp nhận',
+      PICKING: 'Đang lấy hàng',
+      PICKED: 'Đã lấy hàng',
+      IN_WAREHOUSE: 'Đã nhập kho',
+      IN_TRANSIT: 'Đang vận chuyển',
+      AT_DESTINATION: 'Đã đến kho đích',
+      DELIVERING: 'Đang phát hàng',
+      DELIVERED: 'Đã giao',
+      DELIVERY_FAILED: 'Phát hàng thất bại',
+      RETURNING: 'Đang chuyển hoàn',
+      RETURNED: 'Hoàn trả',
+      LOST: 'Hàng thất lạc',
+      DAMAGED: 'Hàng hư hỏng',
+      COD_COLLECTED: 'COD đã thu',
+      COD_TRANSFERRED: 'COD đã chuyển',
+      CANCELLED: 'Đã hủy'
+    };
+
+    const PAYMENT_STATUS_MAP: Record<string, string> = {
+      PENDING: 'Chưa thanh toán',
+      PARTIAL: 'Thanh toán một phần',
+      PAID: 'Đã thanh toán',
+      REFUNDED: 'Đã hoàn tiền'
+    };
+
+    orders.forEach((order, idx) => {
+      const itemStr = order.items.map(i => `${i.product?.name} x${i.quantity}`).join(', ');
+      ws.addRow({
+        stt: idx + 1,
+        code: order.code,
+        orderDate: formatICTDateTime(order.orderDate),
+        customerCode: order.customer?.code || '',
+        customerName: order.customer?.name || '',
+        customerPhone: order.customer?.phone || '',
+        receiverName: order.receiverName || '',
+        receiverPhone: order.receiverPhone || '',
+        receiverAddress: order.receiverAddress || '',
+        province: order.receiverProvince || '',
+        district: order.receiverDistrict || '',
+        ward: order.receiverWard || '',
+        totalAmount: Number(order.totalAmount),
+        discount: Number(order.discount),
+        depositAmount: Number(order.depositAmount),
+        finalAmount: Number(order.finalAmount),
+        codAmount: Number(order.codAmount || 0),
+        orderStatus: ORDER_STATUS_MAP[order.orderStatus] || order.orderStatus,
+        shippingStatus: SHIPPING_STATUS_MAP[order.shippingStatus] || order.shippingStatus,
+        paymentStatus: PAYMENT_STATUS_MAP[order.paymentStatus] || order.paymentStatus,
+        trackingNumber: order.trackingNumber || '',
+        employeeName: order.employee?.fullName || '',
+        confirmedByName: order.confirmedBy?.fullName || '',
+        warehouseName: order.warehouse?.name || '',
+        items: itemStr,
+        note: order.note || ''
+      });
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=danh-sach-don-hang.xlsx`);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.send(buffer);
+
+    await logAudit({
+      ...getAuditUser(req),
+      action: 'EXPORT',
+      object: 'ORDER',
+      result: 'SUCCESS',
+      details: `Xuất Excel ${orders.length} đơn hàng`,
+      req
+    });
+  } catch (error) {
+    console.error('Export orders error:', error);
+    res.status(500).json({ message: 'Lỗi khi xuất danh sách đơn hàng' });
   }
 };
 
@@ -1125,6 +1320,7 @@ export const cancelViettelPostOrder = async (req: Request, res: Response) => {
         statusCode: 'VTP_CANCELLED',
         status: 'CANCELLED',
         description: 'Đã hủy vận đơn trên Viettel Post (UpdateOrder)',
+        note: note || null,
         vtpOrderCode: order.trackingNumber,
         timestamp: new Date()
       }
@@ -1136,7 +1332,7 @@ export const cancelViettelPostOrder = async (req: Request, res: Response) => {
       object: 'ORDER',
       objectId: id,
       result: 'SUCCESS',
-      details: `Hủy vận đơn Viettel Post mã "${order.trackingNumber}" cho đơn ${order.code}`,
+      details: `Hủy vận đơn Viettel Post mã "${order.trackingNumber}" cho đơn ${order.code}${note ? `. Ghi chú hủy: ${note}` : ''}`,
       req
     });
 

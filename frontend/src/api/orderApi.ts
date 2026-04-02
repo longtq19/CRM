@@ -227,5 +227,15 @@ export const orderApi = {
   getAllEmployees: async (): Promise<Array<{ id: string; code: string; fullName: string }>> => {
     const response = await apiClient.get('/employees');
     return Array.isArray(response) ? response : (response as any).data || [];
+  },
+
+  exportOrders: async (filters: OrderFilters = {}): Promise<Blob> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        params.append(key, String(value));
+      }
+    });
+    return apiClient.get(`/orders/export?${params.toString()}`, { responseType: 'blob' }) as Promise<Blob>;
   }
 };

@@ -58,7 +58,6 @@ router.delete('/customers/farms/:farmId', authMiddleware, checkPermission('MANAG
 // Customers
 router.get('/customers/stats', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerStats);
 router.get('/customers/viewable-employees', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getViewableEmployees);
-router.get('/customers/export/excel', authMiddleware, checkPermission('VIEW_CUSTOMERS'), exportCustomersExcel);
 router.get('/customers/import/template', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerImportTemplate);
 router.post('/customers/import', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), excelUploadMiddleware.single('file'), importCustomersExcel);
 router.get('/customers/:id', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerById);

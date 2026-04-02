@@ -1,14 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useDataStore } from '../context/useDataStore';
 import { useAuthStore } from '../context/useAuthStore';
-import { Search, Eye, Trash2, Users, UserPlus, Download, RefreshCcw, Edit, Bell, List } from 'lucide-react';
+import { Search, Eye, Trash2, Users, UserPlus, RefreshCcw, Edit, Bell, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import type { Customer, NotificationTarget } from '../types';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import NotificationManager from './NotificationManager';
-import { formatDate } from '../utils/format';
 import { ToolbarButton } from '../components/ui/ToolbarButton';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
@@ -96,45 +93,6 @@ const CustomerManager = () => {
   // Pagination Logic
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const paginatedCustomers = filteredCustomers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const handleExport = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Customers');
-
-    worksheet.columns = [
-      { header: 'Tên khách hàng', key: 'name', width: 25 },
-      { header: 'SĐT', key: 'phone', width: 15 },
-      { header: 'Email', key: 'email', width: 25 },
-      { header: 'Địa chỉ', key: 'address', width: 30 },
-      { header: 'Ngày sinh', key: 'dob', width: 15 },
-      { header: 'Hạng thành viên', key: 'tier', width: 15 },
-      { header: 'Trạng thái', key: 'status', width: 15 },
-      { header: 'Tổng chi tiêu', key: 'total', width: 20 },
-      { header: 'Nhân viên CSKH', key: 'staff', width: 20 },
-      { header: 'SĐT NV', key: 'staffPhone', width: 15 },
-    ];
-
-    worksheet.getRow(1).font = { bold: true };
-
-    filteredCustomers.forEach(c => {
-      const staff = users.find(u => u.id === c.assignedStaffId);
-      worksheet.addRow({
-        name: c.name,
-        phone: c.phone,
-        email: c.email || '',
-        address: c.address,
-        dob: c.dob ? formatDate(c.dob) : '',
-        tier: c.membershipTier,
-        status: c.customerStatus?.name || '',
-        total: c.totalOrdersValue,
-        staff: staff?.name || 'Chưa gán',
-        staffPhone: staff?.phone || '',
-      });
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), 'Danh_sach_khach_hang.xlsx');
-  };
 
   const handleOpenModal = (customer?: Customer) => {
     if (customer) {
@@ -288,10 +246,6 @@ const CustomerManager = () => {
                     title="Làm mới dữ liệu"
                 >
                     <RefreshCcw size={20} />
-                </ToolbarButton>
-                 <ToolbarButton variant="secondary" onClick={handleExport} className="flex-1 sm:flex-none">
-                    <Download size={20} />
-                    <span className="whitespace-nowrap">Xuất Excel</span>
                 </ToolbarButton>
                 <ToolbarButton variant="primary" onClick={() => handleOpenModal()} className="flex-1 sm:flex-none">
                     <UserPlus size={20} />

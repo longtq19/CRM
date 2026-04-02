@@ -13,7 +13,8 @@ import {
   getOrderStats,
   shippingEditOrder,
   processReturnedOrder,
-  deleteOrder
+  deleteOrder,
+  exportOrders
 } from '../controllers/orderController';
 import { authMiddleware, checkPermission } from '../middleware/authMiddleware';
 
@@ -24,6 +25,9 @@ router.use(authMiddleware);
 
 // Thống kê
 router.get('/stats', checkPermission('VIEW_ORDERS'), getOrderStats);
+
+// Xuất Excel đơn hàng
+router.get('/export', checkPermission('VIEW_ORDERS'), exportOrders);
 
 // Danh sách đơn hàng
 router.get('/', checkPermission('VIEW_ORDERS'), getOrders);
