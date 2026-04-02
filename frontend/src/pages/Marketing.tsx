@@ -39,6 +39,7 @@ import {
   FileSpreadsheet,
   HelpCircle,
   XCircle,
+  Key,
 } from 'lucide-react';
 import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 import type { MarketingSource, MarketingCampaign, MarketingLead } from '../types';
@@ -258,6 +259,7 @@ const Marketing = () => {
     address: '',
     leadSourceId: '',
     campaignId: '',
+    note: '',
   });
 
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
@@ -565,6 +567,7 @@ const Marketing = () => {
       address: '',
       leadSourceId: '',
       campaignId: '',
+      note: '',
     });
     setLeadModalOpen(true);
   };

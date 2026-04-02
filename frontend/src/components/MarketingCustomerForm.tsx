@@ -11,11 +11,11 @@ import { buildWardDuplicateNameKeys, wardSelectLabel } from '../utils/wardOption
 import { administrativeTitleCase } from '../utils/addressDisplayFormat';
 import { CROP_DEFS, CROP_GROUPS_ORDER, ROOT_COUNTABLE_CROPS } from '../constants/cropConfigs';
 
-interface Province { id: string; name: string; }
-interface District { id: string; name: string; provinceId: string; }
-interface Ward { id: string; name: string; code?: string | null; districtId?: string | null; }
-interface MarketingSource { id: string; name: string; code: string; }
-interface MarketingCampaign { id: string; name: string; code: string; sourceId: string | null; }
+import type { 
+  Province, District, Ward, 
+  MarketingSource, MarketingCampaign, 
+  Customer 
+} from '../types';
 
 type AddressType = 'OLD' | 'NEW';
 

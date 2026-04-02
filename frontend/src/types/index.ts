@@ -1,5 +1,26 @@
 export type Role = string;
 
+export interface Province {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+export interface District {
+  id: string;
+  name: string;
+  code?: string;
+  provinceId?: string;
+}
+
+export interface Ward {
+  id: string;
+  name: string;
+  code?: string;
+  districtId?: string | null;
+  vtpDistrictId?: number | null;
+}
+
 export interface Menu {
   id: string;
   label: string;
@@ -51,6 +72,7 @@ export interface User {
 
 export interface Customer {
   id: string;
+  code?: string;
   name: string;
   phone: string;
   email?: string;
@@ -63,15 +85,9 @@ export interface Customer {
   joinedDate: string;
   interests?: string[];
   /** Địa chỉ hành chính chi tiết (API danh sách khách có thể trả kèm) */
-  province?: { id: string; name: string; code?: string };
-  district?: { id: string; name: string; code?: string } | null;
-  ward?: {
-    id: string;
-    name: string;
-    code?: string;
-    districtId?: string | null;
-    vtpDistrictId?: number | null;
-  } | null;
+  province?: Province;
+  district?: District | null;
+  ward?: Ward | null;
   addressRecord?: {
     type: 'NEW' | 'OLD';
     detail: string;
@@ -97,28 +113,6 @@ export interface Customer {
   orders?: Order[];
 }
 
-export interface OrderItem {
-  id: string;
-  productId: string;
-  product?: { id: string; name: string; code: string; thumbnail?: string | null };
-  quantity: number;
-  price: number;
-  total: number;
-}
-
-export interface Order {
-  id: string;
-  code: string;
-  customerId: string;
-  orderDate: string;
-  totalAmount: number;
-  finalAmount: number;
-  status: string;
-  shippingStatus?: string;
-  paymentStatus?: string;
-  items?: OrderItem[];
-  employee?: { id: string; fullName: string };
-}
 
 export interface MarketingSource {
   id: string;
@@ -473,14 +467,16 @@ export type ShippingStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DELIVERED' 
 
 export interface OrderItem {
   id: string;
-  code: string;
-  orderId: string;
-  orderDate: string;
+  code?: string;
+  orderId?: string;
+  orderDate?: string;
   productId: string;
-  product: Product;
+  product?: Product;
   quantity: number;
-  unitPrice: number;
-  totalPrice: number;
+  unitPrice?: number;
+  price?: number; // compat
+  totalPrice?: number;
+  total?: number; // compat
 }
 
 export interface ShippingLog {
@@ -501,9 +497,9 @@ export interface Order {
   code: string;
   orderDate: string;
   customerId: string;
-  customer: Customer;
-  employeeId: string;
-  employee: Employee;
+  customer?: Customer;
+  employeeId?: string;
+  employee?: Employee;
   
   totalAmount: number;
   discount: number;
