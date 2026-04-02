@@ -19,6 +19,8 @@ export const ROUTING_COUNTER_KIND = {
   EXT_MKT_SALES_LEAF: 'EXT_MKT_SALES_LEAF',
   /** Sau khi đã chọn đơn vị lá Sales — chia đều giữa các NV Sales trong đơn vị (đếm thiếu) */
   MKT_SALES_EMPLOYEE_IN_LEAF: 'MKT_SALES_EMPLOYEE_IN_LEAF',
+  /** Tương tự Sales — chia đều NV CSKH trong đơn vị lá */
+  MKT_RESALES_EMPLOYEE_IN_LEAF: 'MKT_RESALES_EMPLOYEE_IN_LEAF',
 } as const;
 
 export type RoutingCounterKind = (typeof ROUTING_COUNTER_KIND)[keyof typeof ROUTING_COUNTER_KIND];
@@ -112,6 +114,25 @@ export async function pickFairSalesEmployeeInLeaf(opts: {
     organizationId: opts.organizationId,
     scopeDivisionId: opts.scopeDivisionId,
     kind: ROUTING_COUNTER_KIND.MKT_SALES_EMPLOYEE_IN_LEAF,
+    weights: eq,
+    candidateIds: ids,
+  });
+}
+
+/** Tương tự Sales trong đơn vị lá: chia đều đếm thiếu giữa các NV CSKH. */
+export async function pickFairResalesEmployeeInLeaf(opts: {
+  organizationId: string;
+  scopeDivisionId: string;
+  employeeIds: string[];
+}): Promise<string | null> {
+  const ids = [...new Set(opts.employeeIds)].filter(Boolean);
+  if (ids.length === 0) return null;
+  if (ids.length === 1) return ids[0]!;
+  const eq = Object.fromEntries(ids.map((id) => [id, 100 / ids.length]));
+  return pickWeightedDeficitTargetAndRecord({
+    organizationId: opts.organizationId,
+    scopeDivisionId: opts.scopeDivisionId,
+    kind: ROUTING_COUNTER_KIND.MKT_RESALES_EMPLOYEE_IN_LEAF,
     weights: eq,
     candidateIds: ids,
   });

@@ -6,41 +6,24 @@ import {
   Users,
   Target,
   Megaphone,
-  List,
   Search,
   Plus,
-  Edit,
   RefreshCcw,
   Loader,
-  Key,
-  Copy,
-  Code,
-  CheckCircle,
-  XCircle,
   TrendingUp,
   Award,
   Calendar,
   ArrowUpDown,
-  HelpCircle,
-  Check,
   Trash2,
   Eye,
-  Clock,
+  Check,
   Package,
-  Phone,
-  Mail,
-  MapPin,
-  User,
-  X as XIcon,
-  Download,
-  Upload,
-  FileSpreadsheet,
-  AlertTriangle,
-  Send,
-  Database,
-  Settings,
   MessageSquare,
+  X as XIcon,
+  Copy,
+  CheckCircle,
 } from 'lucide-react';
+import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 import type { MarketingSource, MarketingCampaign, MarketingLead } from '../types';
 import MarketingCostEffectiveness from '../components/MarketingCostEffectiveness';
 import MarketingCustomerForm from '../components/MarketingCustomerForm';
@@ -57,6 +40,7 @@ import {
 } from '../utils/campaignSchedule';
 import { formatDate, formatDateTime } from '../utils/format';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 
 type MarketingTab = 'leads' | 'sources' | 'campaigns' | 'cost-effectiveness' | 'employee-ranking';
 
@@ -1281,6 +1265,9 @@ const Marketing = () => {
                   {formatVndAmount(lead.firstDeliveredOrderAmount ?? null)}
                 </td>
                 <td className="px-4 py-3">
+                  <CustomerOrderQuickCell orders={lead.orders} />
+                </td>
+                <td className="px-4 py-3">
                   <div className="text-sm text-gray-900">{lead.employee?.fullName || '—'}</div>
                   {lead.employee?.phone && (
                     <a
@@ -1408,6 +1395,10 @@ const Marketing = () => {
             <div className="text-xs text-gray-600">
               NV phụ trách: {lead.employee?.fullName || '—'}
               {lead.employee?.phone ? ` · ${lead.employee.phone}` : ''}
+            </div>
+            <div className="pt-1">
+              <div className="text-xs text-gray-500 mb-1">Lịch sử mua hàng</div>
+              <CustomerOrderQuickCell orders={lead.orders} />
             </div>
             <div className="pt-1" onClick={(e) => e.stopPropagation()}>
               <div className="text-xs text-gray-500 mb-1">Thẻ khách hàng</div>

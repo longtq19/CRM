@@ -43,7 +43,8 @@ import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
-import type { Customer as CrmCustomer } from '../types';
+import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
+import type { Customer as CrmCustomer, Order } from '../types';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -143,6 +144,7 @@ interface Customer {
   }>;
   tags?: Array<{ tag: { id: string; name: string; color: string; bgColor?: string | null } }>;
   addressRecord?: CrmCustomer['addressRecord'];
+  orders?: Order[];
 }
 
 interface CareSchedule {
@@ -1057,6 +1059,7 @@ const Resales = () => {
                       <th className="px-3 py-3 text-left">NV phụ trách</th>
                       <th className="px-3 py-3 text-left min-w-[120px]">NV marketing</th>
                       <th className="px-3 py-3 text-left">Nền tảng</th>
+                      <th className="px-3 py-3 text-left min-w-[150px]">Lịch sử mua</th>
                       <th className="px-3 py-3 text-left min-w-[140px]">Tác động</th>
                       <th className="px-3 py-3 text-center">Cập nhật</th>
                     </tr>
@@ -1211,6 +1214,9 @@ const Resales = () => {
                         </td>
                         <td className="px-3 py-3 text-gray-600 text-xs align-top">
                           {customer.campaign?.name || customer.leadSource?.name || customer.dataPool?.source || '—'}
+                        </td>
+                        <td className="px-3 py-3 align-top">
+                          <CustomerOrderQuickCell orders={customer.orders} />
                         </td>
                         <td className="px-3 py-3 align-top">
                           <button

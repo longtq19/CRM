@@ -130,6 +130,17 @@ export const getMyCustomers = async (req: Request, res: Response) => {
           interactions: {
             orderBy: { createdAt: 'desc' },
             take: 1
+          },
+          orders: {
+            orderBy: { orderDate: 'desc' },
+            take: 5,
+            include: {
+              items: {
+                include: {
+                  product: { select: { id: true, name: true, code: true } }
+                }
+              }
+            }
           }
         }
       })

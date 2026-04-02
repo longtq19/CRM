@@ -6,6 +6,7 @@ import { prisma } from '../config/database';
 import {
   pickWeightedDeficitTargetAndRecord,
   pickFairSalesEmployeeInLeaf,
+  pickFairResalesEmployeeInLeaf,
   ROUTING_COUNTER_KIND,
 } from './divisionFlowRoutingCounterService';
 import { SALES_ROLE_CODES, RESALES_ROLE_CODES } from '../constants/roleIdentification';
@@ -489,7 +490,11 @@ export async function pickNextSalesEmployeeId(opts: {
         where: { ...salesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },
       });
-      const pc = pickFromCandidates(inTarget, exclude, opts.seed + ':cfgSales');
+      const pc = await pickFairSalesEmployeeInLeaf({
+        organizationId: divisionInfo?.organizationId || '',
+        scopeDivisionId: divisionInfo?.divisionId || '',
+        employeeIds: inTarget.map((e) => e.id),
+      });
       if (pc) return pc;
     }
   }
@@ -503,7 +508,11 @@ export async function pickNextSalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p0 = pickFromCandidates(sameDept, exclude, opts.seed);
+    const p0 = await pickFairSalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: sameDept.map((e) => e.id),
+    });
     if (p0) return p0;
   }
 
@@ -543,7 +552,11 @@ export async function pickNextSalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p1 = pickFromCandidates(inBlock, exclude, opts.seed + ':block');
+    const p1 = await pickFairSalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: inBlock.map((e) => e.id),
+    });
     if (p1) return p1;
 
     const divFlowRow = await prisma.department.findUnique({
@@ -656,7 +669,11 @@ export async function pickNextResalesEmployeeId(opts: {
         where: { ...resalesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },
       });
-      const pc = pickFromCandidates(inTarget, exclude, opts.seed + ':cfgCs');
+      const pc = await pickFairResalesEmployeeInLeaf({
+        organizationId: divisionInfo?.organizationId || '',
+        scopeDivisionId: divisionInfo?.divisionId || '',
+        employeeIds: inTarget.map((e) => e.id),
+      });
       if (pc) return pc;
     }
   }
@@ -681,7 +698,11 @@ export async function pickNextResalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p0 = pickFromCandidates(sameDept, exclude, opts.seed);
+    const p0 = await pickFairResalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: sameDept.map((e) => e.id),
+    });
     if (p0) return p0;
   }
 
@@ -712,7 +733,11 @@ export async function pickNextResalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p1 = pickFromCandidates(inBlock, exclude, opts.seed + ':rblock');
+    const p1 = await pickFairResalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: inBlock.map((e) => e.id),
+    });
     if (p1) return p1;
 
     const divRow = await loadDepartmentRow(divisionInfo.divisionId);

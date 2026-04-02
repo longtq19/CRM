@@ -94,6 +94,30 @@ export interface Customer {
     name: string;
     color: string;
   } | null;
+  orders?: Order[];
+}
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  product?: { id: string; name: string; code: string; thumbnail?: string | null };
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+export interface Order {
+  id: string;
+  code: string;
+  customerId: string;
+  orderDate: string;
+  totalAmount: number;
+  finalAmount: number;
+  status: string;
+  shippingStatus?: string;
+  paymentStatus?: string;
+  items?: OrderItem[];
+  employee?: { id: string; fullName: string };
 }
 
 export interface MarketingSource {

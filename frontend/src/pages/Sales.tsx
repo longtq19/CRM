@@ -23,6 +23,7 @@ import ModuleEffectivenessReport from '../components/ModuleEffectivenessReport';
 import { useLeadProcessingStatuses } from '../hooks/useLeadProcessingStatuses';
 import CreateOrderModal from '../components/CreateOrderModal';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 
 const PRIORITY_OPTIONS = [
   { value: '1', label: 'Rất thấp' },
@@ -74,6 +75,7 @@ interface Lead {
     spendingRank?: SpendingRank | null;
     totalOrdersValue?: number;
     interactions: Array<{ id: string; type: string; content: string; createdAt: string }>;
+    orders?: any[];
   };
   assignedTo?: { id: string; code: string; fullName: string; avatarUrl: string | null } | null;
 }
@@ -763,6 +765,7 @@ const Sales = () => {
                 <th className="px-3 py-3 text-left">NV phụ trách</th>
                 <th className="px-3 py-3 text-left min-w-[120px]">NV marketing</th>
                 <th className="px-3 py-3 text-left">Nền tảng</th>
+                <th className="px-3 py-3 text-left min-w-[150px]">Lịch sử mua</th>
                 <th className="px-3 py-3 text-left min-w-[140px]">Tác động</th>
                 <th className="px-3 py-3 text-center">Cập nhật</th>
               </tr>
@@ -903,6 +906,9 @@ const Sales = () => {
                   </td>
                   <td className="px-3 py-3 text-gray-600 text-xs align-top">
                     {lead.customer.campaign?.name || lead.customer.leadSource?.name || lead.source}
+                  </td>
+                  <td className="px-3 py-3 align-top">
+                    <CustomerOrderQuickCell orders={lead.customer.orders} />
                   </td>
                   <td className="px-3 py-3 align-top">
                     <button

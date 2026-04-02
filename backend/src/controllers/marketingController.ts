@@ -878,6 +878,17 @@ export const getMarketingLeads = async (req: Request, res: Response) => {
         },
         _count: {
           select: { marketingContributors: true }
+        },
+        orders: {
+          orderBy: { orderDate: 'desc' },
+          take: 5,
+          include: {
+            items: {
+              include: {
+                product: { select: { id: true, name: true, code: true } }
+              }
+            }
+          }
         }
       }
     });
