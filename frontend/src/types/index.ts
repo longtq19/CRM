@@ -213,10 +213,21 @@ export interface SystemDocument {
   createdAt: string;
   updatedAt: string;
 }
+export interface SystemLog {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  userPhone?: string;
+  action: string;
+  object: string;
+  result: string;
+  details?: string;
+}
 
 export interface NotificationTarget {
-  type: 'all' | 'area' | 'role' | 'specific';
-  value?: string[];
+  type: 'all' | 'area' | 'crop' | 'rank' | 'customer_phone' | 'staff';
+  value?: string | string[];
 }
 
 export interface Notification {
@@ -224,18 +235,21 @@ export interface Notification {
   code?: string;
   title: string;
   content: string;
-  type: string; // 'system_maintenance' | 'promotion' | 'policy_update' | 'order_update' | 'task_reminder'
-  targetType: string;
-  targetValue?: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'SENT' | 'CANCELLED';
-  ctaLabel?: string;
-  ctaUrl?: string;
+  type: 'system_maintenance' | 'knowledge_share' | 'marketing' | 'maintenance_warranty';
+  target: NotificationTarget;
+  status: 'DRAFT' | 'SCHEDULED' | 'SENT' | 'DISABLED';
+  cta?: {
+    label: string;
+    url: string;
+  };
   scheduledAt?: string;
   sentAt?: string;
-  createdBy: string;
-  sentCount: number;
-  readCount: number;
   createdAt: string;
+  createdBy: string;
+  stats: {
+    sent: number;
+    read: number;
+  };
   updatedAt: string;
 }
 

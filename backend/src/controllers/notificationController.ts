@@ -23,6 +23,9 @@ const calculateTargetCount = async (target: Notification['target']): Promise<num
             return Math.floor(customers.length * 0.2);
         case 'customer_phone':
             return Array.isArray(target.value) ? target.value.length : (target.value ? 1 : 0);
+        case 'staff':
+            const staffCount = await prisma.employee.count();
+            return staffCount;
         default:
             return 0;
     }
@@ -82,27 +85,31 @@ export const notificationController = {
       
       // If user does NOT have full management permission, enforce restrictions
       if (!permissions.includes('MANAGE_NOTIFICATIONS')) {
-        // Restricted User (e.g. Staff) MUST create as DRAFT
-        if (finalStatus !== 'DRAFT') {
-           // Either reject or force DRAFT. Let's force DRAFT as per requirement "Nhân viên chỉ được tạo lưu nháp"
-           finalStatus = 'DRAFT';
-        }
+        // Special case: SEND_STAFF_NOTIFICATION allows targeting staff specifically
+        if (target.type === 'staff') {
+          if (!permissions.includes('SEND_STAFF_NOTIFICATION')) {
+             return res.status(403).json({ message: 'Bạn không có quyền gửi thông báo cho nhân sự.' });
+          }
+          // staff target is allowed if you have SEND_STAFF_NOTIFICATION
+        } else {
+          // Normal restrictions for other types (must target customer_phone + draft)
+          if (finalStatus !== 'DRAFT') {
+            finalStatus = 'DRAFT';
+          }
+          if (target.type !== 'customer_phone') {
+            return res.status(403).json({ message: 'Bạn chỉ được gửi thông báo cho khách hàng cụ thể.' });
+          }
+          // Validate customers belong to user
+          const allCustomers = await customerModel.findAll();
+          const myCustomers = allCustomers.filter((c: any) => c.employeeId === userId);
+          const myCustomerPhones = myCustomers.map((c: any) => c.phone);
 
-        // Restricted User MUST target 'customer_phone'
-        if (target.type !== 'customer_phone') {
-          return res.status(403).json({ message: 'Bạn chỉ được gửi thông báo cho khách hàng cụ thể.' });
-        }
+          const targetPhones = Array.isArray(target.value) ? target.value : [target.value];
+          const unauthorizedPhones = targetPhones.filter((p: string) => !myCustomerPhones.includes(p));
 
-        // Validate customers belong to user
-        const allCustomers = await customerModel.findAll();
-        const myCustomers = allCustomers.filter((c: any) => c.employeeId === userId);
-        const myCustomerPhones = myCustomers.map((c: any) => c.phone);
-
-        const targetPhones = Array.isArray(target.value) ? target.value : [target.value];
-        const unauthorizedPhones = targetPhones.filter((p: string) => !myCustomerPhones.includes(p));
-
-        if (unauthorizedPhones.length > 0) {
-          return res.status(403).json({ message: `Bạn không có quyền gửi thông báo cho các SĐT: ${unauthorizedPhones.join(', ')}` });
+          if (unauthorizedPhones.length > 0) {
+            return res.status(403).json({ message: `Bạn không có quyền gửi thông báo cho các SĐT: ${unauthorizedPhones.join(', ')}` });
+          }
         }
       }
 

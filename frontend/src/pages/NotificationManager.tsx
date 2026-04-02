@@ -3,7 +3,6 @@ import { useAuthStore } from '../context/useAuthStore';
 import { useDataStore } from '../context/useDataStore';
 import type { Notification, NotificationTarget } from '../types';
 import { 
-  AlertTriangle, 
   Info, 
   XCircle, 
   Search, 
@@ -16,7 +15,6 @@ import {
   Leaf,
   Award,
   Clock,
-  Check,
   Settings,
   BookOpen,
   Megaphone,
@@ -30,11 +28,8 @@ import { formatDateTime } from '../utils/format';
 
 // Constants for Filters
 const TARGET_TYPES = [
-  { value: 'all', label: 'Tất cả', icon: Users },
-  { value: 'area', label: 'Khu vực', icon: MapPin },
-  { value: 'crop', label: 'Nhóm cây trồng', icon: Leaf },
-  { value: 'rank', label: 'Thứ hạng thành viên', icon: Award },
   { value: 'customer_phone', label: 'Khách hàng cụ thể', icon: Phone },
+  { value: 'staff', label: 'Toàn bộ nhân sự', icon: Users },
 ];
 
 const NOTIFICATION_TYPES = [
@@ -153,6 +148,8 @@ const NotificationManager = ({
   }, [fetchNotifications, fetchCustomers, currentPage, itemsPerPage]);
 
   const canManage = hasPermission('MANAGE_NOTIFICATIONS') || hasPermission('FULL_ACCESS'); 
+  const canSendToStaff = hasPermission('SEND_STAFF_NOTIFICATION') || canManage;
+  const isStaff = !canManage;
 
   const handleSubmit = async (e: React.FormEvent, status: 'DRAFT' | 'SENT' | 'SCHEDULED') => {
     e.preventDefault();
@@ -185,8 +182,13 @@ const NotificationManager = ({
 
     // Validation for Staff
     if (isStaff) {
-      if (formData.targetType !== 'customer_phone') {
-        alert('Nhân viên chỉ được phép gửi thông báo cho khách hàng cụ thể theo số điện thoại');
+      if (formData.targetType === 'staff' && !canSendToStaff) {
+         alert('Bạn không có quyền gửi thông báo cho nhân sự');
+         return;
+      }
+      
+      if (formData.targetType !== 'customer_phone' && formData.targetType !== 'staff') {
+        alert('Bạn chỉ có quyền gửi thông báo cho khách hàng cụ thể hoặc toàn bộ nhân sự (nếu được phép)');
         return;
       }
 
@@ -462,6 +464,7 @@ const NotificationManager = ({
                             notif.target.type === 'crop' ? `Cây trồng: ${notif.target.value}` :
                             notif.target.type === 'rank' ? `Thứ hạng: ${notif.target.value}` :
                             notif.target.type === 'customer_phone' ? `SĐT: ${Array.isArray(notif.target.value) ? notif.target.value.join(', ') : notif.target.value}` :
+                            notif.target.type === 'staff' ? 'Toàn bộ nhân sự' :
                             'Tất cả người dùng'}
                         </span>
                       </div>
@@ -688,7 +691,11 @@ const NotificationManager = ({
                     }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:bg-gray-100"
                   >
-                    {TARGET_TYPES.map(t => (
+                    {TARGET_TYPES.filter(t => {
+                       if (t.value === 'staff') return canSendToStaff;
+                       if (isStaff) return t.value === 'customer_phone';
+                       return true;
+                    }).map(t => (
                       <option key={t.value} value={t.value}>{t.label}</option>
                     ))}
                   </select>

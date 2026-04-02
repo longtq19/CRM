@@ -2,7 +2,7 @@ import { Notification as PrismaNotification, NotificationRead } from '@prisma/cl
 import { prisma } from '../config/database';
 
 export interface NotificationTarget {
-  type: 'all' | 'area' | 'crop' | 'rank' | 'customer_phone';
+  type: 'all' | 'area' | 'crop' | 'rank' | 'customer_phone' | 'staff';
   value?: string | string[];
 }
 

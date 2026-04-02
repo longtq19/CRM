@@ -42,7 +42,7 @@ interface DataState {
   deleteInternalNote: (id: string) => Promise<void>;
 
   fetchNotifications: (page?: number, limit?: number, filters?: any) => Promise<void>;
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'stats' | 'code'>) => Promise<void>;
+  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'stats' | 'code' | 'createdBy' | 'updatedAt'>) => Promise<void>;
   updateNotification: (id: string, notification: Partial<Notification>) => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
 }

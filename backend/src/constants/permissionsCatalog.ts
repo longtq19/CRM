@@ -401,6 +401,11 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Tạo/gửi/sửa thông báo hệ thống (notification manager).',
   },
   {
+    code: 'SEND_STAFF_NOTIFICATION',
+    name: 'Gửi thông báo đến nhân sự',
+    description: 'Tạo và gửi thông báo nội bộ đến toàn bộ hoặc nhóm nhân sự cụ thể.',
+  },
+  {
     code: 'CREATE_DRAFT_NOTIFICATION',
     name: 'Tạo thông báo nháp',
     description: 'Tạo bản nháp thông báo trước khi gửi.',
