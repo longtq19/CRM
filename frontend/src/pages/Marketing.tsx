@@ -22,6 +22,7 @@ import {
   X as XIcon,
   Copy,
   CheckCircle,
+  List,
 } from 'lucide-react';
 import { CustomerOrderQuickCell } from '../components/CustomerOrderQuickCell';
 import type { MarketingSource, MarketingCampaign, MarketingLead } from '../types';
