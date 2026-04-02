@@ -402,7 +402,11 @@ async function pickFromExternalSalesDivision(
       });
       if (fairExt) return fairExt;
     }
-    const pTree = pickFromCandidates(inTree, exclude, seed + ':extws');
+    const pTree = await pickFairSalesEmployeeInLeaf({
+      organizationId: receiver.organizationId,
+      scopeDivisionId: receiver.id,
+      employeeIds: inTree.map((e) => e.id).filter((id) => !exclude.has(id)),
+    });
     if (pTree) return pTree;
   }
 
@@ -416,11 +420,19 @@ async function pickFromExternalSalesDivision(
     });
     if (wd) {
       const inWd = extEmps.filter((e) => e.departmentId === wd);
-      const pwx = pickFromCandidates(inWd, exclude, seed + ':extws');
+      const pwx = await pickFairSalesEmployeeInLeaf({
+        organizationId: receiver.organizationId,
+        scopeDivisionId: receiver.id,
+        employeeIds: inWd.map((e) => e.id).filter((id) => !exclude.has(id)),
+      });
       if (pwx) return pwx;
     }
   }
-  return pickFromCandidates(extEmps, exclude, seed + ':extflat');
+  return pickFairSalesEmployeeInLeaf({
+    organizationId: receiver.organizationId,
+    scopeDivisionId: receiver.id,
+    employeeIds: extEmps.map((e) => e.id).filter((id) => !exclude.has(id)),
+  });
 }
 
 async function pickFromExternalCsDivision(
@@ -446,10 +458,18 @@ async function pickFromExternalCsDivision(
   );
   if (leafFromTree) {
     const inLeaf = inTarget.filter((e) => e.departmentId === leafFromTree);
-    const pc = pickFromCandidates(inLeaf, exclude, seed + ':extcsleaf');
+    const pc = await pickFairResalesEmployeeInLeaf({
+      organizationId: divisionRow.organizationId,
+      scopeDivisionId: divisionRow.id,
+      employeeIds: inLeaf.map((e) => e.id).filter((id) => !exclude.has(id)),
+    });
     if (pc) return pc;
   }
-  return pickFromCandidates(inTarget, exclude, seed + ':cfgExtCs');
+  return pickFairResalesEmployeeInLeaf({
+    organizationId: divisionRow.organizationId,
+    scopeDivisionId: divisionRow.id,
+    employeeIds: inTarget.map((e) => e.id).filter((id) => !exclude.has(id)),
+  });
 }
 
 /**
@@ -589,7 +609,11 @@ export async function pickNextSalesEmployeeId(opts: {
           },
           select: { id: true },
         });
-        const p2 = pickFromCandidates(inSiblings, exclude, opts.seed + ':sib');
+        const p2 = await pickFairSalesEmployeeInLeaf({
+          organizationId: divisionInfo.organizationId,
+          scopeDivisionId: divisionInfo.divisionId,
+          employeeIds: inSiblings.map((e) => e.id).filter((id) => !exclude.has(id)),
+        });
         if (p2) return p2;
       }
     }
@@ -623,7 +647,11 @@ export async function pickNextSalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p3 = pickFromCandidates(inOrg, exclude, opts.seed + ':org');
+    const p3 = await pickFairSalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: inOrg.map((e) => e.id).filter((id) => !exclude.has(id)),
+    });
     if (p3) return p3;
   }
 
@@ -631,7 +659,11 @@ export async function pickNextSalesEmployeeId(opts: {
     where: { ...salesEmployeeFilter, id: { notIn: [...exclude] } },
     select: { id: true },
   });
-  return pickFromCandidates(all, exclude, opts.seed + ':all');
+  return pickFairSalesEmployeeInLeaf({
+    organizationId: 'ROOT',
+    scopeDivisionId: 'GLOBAL',
+    employeeIds: all.map((e) => e.id).filter((id) => !exclude.has(id)),
+  });
 }
 
 export async function pickNextResalesEmployeeId(opts: {
@@ -722,7 +754,11 @@ export async function pickNextResalesEmployeeId(opts: {
         },
         select: { id: true },
       });
-      const p1w = pickFromCandidates(inWeighted, exclude, opts.seed + ':rblock');
+      const p1w = await pickFairResalesEmployeeInLeaf({
+        organizationId: divisionInfo.organizationId,
+        scopeDivisionId: divisionInfo.divisionId,
+        employeeIds: inWeighted.map((e) => e.id).filter((id) => !exclude.has(id)),
+      });
       if (p1w) return p1w;
     }
     const inBlock = await prisma.employee.findMany({
@@ -761,7 +797,11 @@ export async function pickNextResalesEmployeeId(opts: {
           },
           select: { id: true },
         });
-        const p2 = pickFromCandidates(inSiblings, exclude, opts.seed + ':rsib');
+        const p2 = await pickFairResalesEmployeeInLeaf({
+          organizationId: divisionInfo.organizationId,
+          scopeDivisionId: divisionInfo.divisionId,
+          employeeIds: inSiblings.map((e) => e.id).filter((id) => !exclude.has(id)),
+        });
         if (p2) return p2;
       }
     }
@@ -788,7 +828,11 @@ export async function pickNextResalesEmployeeId(opts: {
       },
       select: { id: true },
     });
-    const p3 = pickFromCandidates(inOrg, exclude, opts.seed + ':rorg');
+    const p3 = await pickFairResalesEmployeeInLeaf({
+      organizationId: divisionInfo.organizationId,
+      scopeDivisionId: divisionInfo.divisionId,
+      employeeIds: inOrg.map((e) => e.id).filter((id) => !exclude.has(id)),
+    });
     if (p3) return p3;
   }
 
@@ -796,5 +840,9 @@ export async function pickNextResalesEmployeeId(opts: {
     where: { ...resalesEmployeeFilter, id: { notIn: [...exclude] } },
     select: { id: true },
   });
-  return pickFromCandidates(all, exclude, opts.seed + ':rall');
+  return pickFairResalesEmployeeInLeaf({
+    organizationId: 'ROOT',
+    scopeDivisionId: 'GLOBAL',
+    employeeIds: all.map((e) => e.id).filter((id) => !exclude.has(id)),
+  });
 }
