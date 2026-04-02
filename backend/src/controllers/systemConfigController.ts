@@ -392,34 +392,10 @@ export const seedDefaultConfigs = async () => {
 
   for (const config of allSeed) {
     const row = config as typeof config & { enumOptions?: string };
-    if (config.key === 'pool_push_processing_statuses') {
-      await prisma.systemConfig.upsert({
-        where: { key: config.key },
-        update: {
-          dataType: config.dataType,
-          enumOptions: row.enumOptions ?? null,
-          category: config.category,
-          name: config.name,
-          description: config.description ?? null,
-          sortOrder: config.sortOrder,
-        },
-        create: {
-          key: config.key,
-          value: String(config.value),
-          dataType: config.dataType,
-          enumOptions: row.enumOptions ?? null,
-          category: config.category,
-          name: config.name,
-          description: config.description ?? null,
-          sortOrder: config.sortOrder,
-        },
-      });
-      continue;
-    }
     await prisma.systemConfig.upsert({
       where: { key: config.key },
       update: {
-        value: String(config.value),
+        // Do NOT update 'value' to avoid resetting user preferences
         dataType: config.dataType,
         enumOptions: row.enumOptions ?? null,
         category: config.category,
