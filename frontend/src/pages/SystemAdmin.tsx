@@ -49,17 +49,16 @@ const SystemAdmin = () => {
     isADM ||
     hasPermission('VIEW_ROLE_GROUPS') ||
     hasPermission('MANAGE_ROLE_GROUPS') ||
-    hasPermission('VIEW_SETTINGS') ||
     hasPermission('EDIT_SETTINGS');
-  /** Tab nhật ký: không chỉ system_administrator — đủ VIEW_LOGS / MANAGE_SYSTEM / FULL_ACCESS (hasPermission). */
+  /** Tab nhật ký: VIEW_LOGS là chính */
   const canLogs =
     isADM || hasPermission('VIEW_LOGS') || hasPermission('MANAGE_SYSTEM');
-  /** Tab tài khoản nhân sự: khóa/đăng xuất phiên; thao tác mật khẩu/kiểm tra cần API tương ứng. */
+  /** Tab tài khoản nhân sự: MANAGE_EMPLOYEE_ACCOUNTS là chính */
   const canStaff =
     isADM ||
+    hasPermission('MANAGE_EMPLOYEE_ACCOUNTS') ||
     hasPermission('STAFF_LOCK') ||
     hasPermission('STAFF_LOGOUT') ||
-    hasPermission('MANAGE_HR') ||
     hasPermission('MANAGE_SYSTEM');
 
   const TABS: { id: TabId; label: string; icon: LucideIcon }[] = useMemo(() => {
@@ -274,7 +273,7 @@ const SystemAdmin = () => {
           <ShieldAlert size={48} className="text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Truy cập bị từ chối</h2>
           <p className="text-gray-500">
-            Cần ít nhất một quyền trong nhóm: nhật ký (VIEW_LOGS), nhóm quyền (VIEW/MANAGE_ROLE_GROUPS hoặc cấu hình), hoặc tài khoản nhân sự (STAFF_* / MANAGE_HR / MANAGE_SYSTEM).
+            Cần ít nhất một quyền trong nhóm: Nhật ký (VIEW_LOGS), Nhóm quyền (VIEW/MANAGE_ROLE_GROUPS), hoặc Quản lý tài khoản (MANAGE_EMPLOYEE_ACCOUNTS).
           </p>
         </div>
       </div>

@@ -15,6 +15,7 @@ import { resolveTargetEmployees } from '../services/orgRoutingService';
 import { pickCskhEmployeeIdByTeamRatio } from '../services/teamRatioDistributionService';
 import { userHasCatalogPermission } from '../constants/rbac';
 import { formatICTDateTime } from '../utils/dateFormatter';
+import { isSalesRole, isResalesRole } from '../constants/roleIdentification';
 
 async function getAllSubordinates(employeeId: string): Promise<string[]> {
   return getSubordinateIds(employeeId);
@@ -667,7 +668,13 @@ export const createOrder = async (req: Request, res: Response) => {
     // Phạm vi khách khi tạo đơn: mặc định chỉ khách của bản thân / cấp dưới; bỏ giới hạn khi có quyền catalog CREATE_ORDER_COMPANY, FULL_ACCESS, hoặc nhóm quản trị hệ thống (system_administrator / ADM) — xem userHasCatalogPermission.
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      select: { id: true, employeeId: true }
+      select: { 
+        id: true, 
+        employeeId: true, 
+        lastOrderAt: true, 
+        totalOrders: true,
+        marketingOwnerId: true
+      }
     });
     if (!customer) {
       return res.status(404).json({ message: 'Không tìm thấy khách hàng' });
@@ -759,12 +766,42 @@ export const createOrder = async (req: Request, res: Response) => {
 
     const orderDate = now;
 
+    // Xác định loại đơn (Sales vs Resales) dựa trên khoảng cách với đơn cuối
+    const attributionDays = await getMarketingAttributionEffectiveDaysForCustomer(customerId);
+    const lastAt = customer.lastOrderAt;
+    let isFirstOrder = true;
+    if (lastAt) {
+      const gap = (now.getTime() - lastAt.getTime()) / (1000 * 60 * 60 * 24);
+      if (gap < attributionDays) {
+        isFirstOrder = false;
+      }
+    }
+
+    // Phân bổ nhân viên (Sales / CSKH) dựa trên vai trò và loại đơn
+    let sEmpId: string | null = null;
+    let rEmpId: string | null = null;
+    const role = user.roleGroupCode || '';
+    if (isFirstOrder) {
+      // Đơn Sales: Ưu tiên ghi nhận cho Sales, nếu người tạo là CSKH thì vẫn ghi nhận CSKH
+      if (isSalesRole(role)) sEmpId = user.id;
+      else if (isResalesRole(role)) rEmpId = user.id;
+      else sEmpId = user.id; // Fallback
+    } else {
+      // Đơn Resales: Ưu tiên ghi nhận cho CSKH
+      if (isResalesRole(role)) rEmpId = user.id;
+      else if (isSalesRole(role)) sEmpId = user.id;
+      else rEmpId = user.id; // Fallback
+    }
+
     // Tạo đơn hàng
     const order = await prisma.order.create({
       data: {
         code,
         customerId,
         employeeId: user.id,
+        salesEmployeeId: sEmpId,
+        resalesEmployeeId: rEmpId,
+        isFirstOrder,
         orderDate,
         totalAmount,
         discount: Number(discount),

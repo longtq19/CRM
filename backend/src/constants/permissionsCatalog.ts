@@ -25,8 +25,23 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
   },
   {
     code: 'VIEW_LOGS',
-    name: 'Xem nhật ký hoạt động',
-    description: 'Đọc nhật ký hệ thống (system_logs) qua API và màn hình Nhật ký.',
+    name: 'Xem nhật ký hệ thống',
+    description: 'Đọc nhật ký hoạt động của hệ thống (logs) qua API và màn hình Nhật ký.',
+  },
+  {
+    code: 'VIEW_ROLE_GROUPS',
+    name: 'Xem nhóm quyền',
+    description: 'Xem danh sách nhóm quyền, menu và chức năng đã gán (RBAC).',
+  },
+  {
+    code: 'MANAGE_ROLE_GROUPS',
+    name: 'Chỉnh sửa nhóm quyền',
+    description: 'Tạo mới, chỉnh sửa hoặc xóa các nhóm quyền và gán quyền/menu tương ứng.',
+  },
+  {
+    code: 'MANAGE_EMPLOYEE_ACCOUNTS',
+    name: 'Quản lý tài khoản nhân sự',
+    description: 'Thực hiện các thao tác quản trị tài khoản: khóa/mở khóa, đăng xuất phiên, cấp mật khẩu tạm, kiểm tra tài khoản.',
   },
   {
     code: 'VIEW_SETTINGS',
@@ -49,16 +64,6 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'STAFF_LOCK',
     name: 'Khóa / mở khóa tài khoản',
     description: 'Khóa hoặc mở khóa tài khoản đăng nhập nhân viên.',
-  },
-  {
-    code: 'VIEW_ROLE_GROUPS',
-    name: 'Xem nhóm quyền (RBAC)',
-    description: 'Xem danh sách nhóm quyền, menu và chức năng đã gán (API role-groups đọc).',
-  },
-  {
-    code: 'MANAGE_ROLE_GROUPS',
-    name: 'Quản lý nhóm quyền (menu, quyền, phạm vi xem)',
-    description: 'Tạo/sửa/xóa nhóm quyền, gán menu & quyền, cập nhật phạm vi xem HR/Khách hàng.',
   },
 
   // ── 02. Dashboard & Báo cáo ──

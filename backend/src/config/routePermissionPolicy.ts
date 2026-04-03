@@ -92,11 +92,26 @@ export const ROLE_GROUP_API_WRITE_PERMISSIONS = ['MANAGE_ROLE_GROUPS', 'EDIT_SET
 
 /** Auth admin nhân sự */
 export const AUTH_ADMIN_SET_TEMP_PASSWORD_PERMISSIONS = [
+  'MANAGE_EMPLOYEE_ACCOUNTS',
   'MANAGE_HR',
   'MANAGE_SYSTEM',
   'STAFF_LOCK',
 ] as const;
-export const AUTH_ADMIN_STAFF_CHECK_TOKEN_PERMISSIONS = ['MANAGE_HR', 'MANAGE_SYSTEM'] as const;
+export const AUTH_ADMIN_STAFF_CHECK_TOKEN_PERMISSIONS = [
+  'MANAGE_EMPLOYEE_ACCOUNTS',
+  'MANAGE_HR',
+  'MANAGE_SYSTEM',
+] as const;
+export const AUTH_ADMIN_LOGOUT_PERMISSIONS = [
+  'STAFF_LOGOUT',
+  'MANAGE_EMPLOYEE_ACCOUNTS',
+  'MANAGE_SYSTEM',
+] as const;
+export const AUTH_ADMIN_LOCK_PERMISSIONS = [
+  'STAFF_LOCK',
+  'MANAGE_EMPLOYEE_ACCOUNTS',
+  'MANAGE_SYSTEM',
+] as const;
 
 /** Nhật ký hệ thống */
 export const SYSTEM_LOGS_READ_PERMISSIONS = ['VIEW_LOGS', 'MANAGE_SYSTEM'] as const;
@@ -114,6 +129,7 @@ export const SYSTEM_MODULE_PATH_ACCESS_PERMISSIONS = [
   'MANAGE_SYSTEM',
   'STAFF_LOCK',
   'STAFF_LOGOUT',
+  'MANAGE_EMPLOYEE_ACCOUNTS',
 ] as const;
 
 /** Helper: kiểm tra mảng permission từ JWT (nhóm quyền) */

@@ -20,6 +20,7 @@ export const SYSTEM_MODULE_PATH_ACCESS_PERMISSIONS = [
   'MANAGE_SYSTEM',
   'STAFF_LOCK',
   'STAFF_LOGOUT',
+  'MANAGE_EMPLOYEE_ACCOUNTS',
 ] as const;
 
 /** Vào `/data-pool` khi có quyền xem kho thả nổi hoặc kho theo đơn vị quản lý (không bắt buộc có menu nếu đủ quyền). */

@@ -15,6 +15,8 @@ import { authMiddleware, checkPermission } from '../middleware/authMiddleware';
 import {
   AUTH_ADMIN_SET_TEMP_PASSWORD_PERMISSIONS,
   AUTH_ADMIN_STAFF_CHECK_TOKEN_PERMISSIONS,
+  AUTH_ADMIN_LOGOUT_PERMISSIONS,
+  AUTH_ADMIN_LOCK_PERMISSIONS,
 } from '../config/routePermissionPolicy';
 
 const router = Router();
@@ -39,8 +41,18 @@ router.post(
   issueStaffCheckToken
 );
 router.post('/auth/consume-staff-check-token', consumeStaffCheckToken);
-router.post('/auth/admin/logout-employee', authMiddleware, checkPermission(['STAFF_LOGOUT']), logoutEmployee);
-router.post('/auth/admin/lock-employee', authMiddleware, checkPermission(['STAFF_LOCK']), lockEmployee);
+router.post(
+  '/auth/admin/logout-employee', 
+  authMiddleware, 
+  checkPermission([...AUTH_ADMIN_LOGOUT_PERMISSIONS]), 
+  logoutEmployee
+);
+router.post(
+  '/auth/admin/lock-employee', 
+  authMiddleware, 
+  checkPermission([...AUTH_ADMIN_LOCK_PERMISSIONS]), 
+  lockEmployee
+);
 router.post('/auth/change-password', authMiddleware, changePassword);
 
 export default router;
