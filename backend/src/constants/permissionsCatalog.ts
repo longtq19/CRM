@@ -65,6 +65,16 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Khóa / mở khóa tài khoản',
     description: 'Khóa hoặc mở khóa tài khoản đăng nhập nhân viên.',
   },
+  {
+    code: 'STAFF_TEMP_PASSWORD',
+    name: 'Cấp mật khẩu tạm cho nhân viên',
+    description: 'Thực hiện reset mật khẩu và cấp mật khẩu tạm cho tài khoản nhân viên.',
+  },
+  {
+    code: 'STAFF_INSPECT',
+    name: 'Kiểm tra tài khoản nhân viên',
+    description: 'Xem thông tin bảo mật / phiên đăng nhập (Inspect) của nhân viên.',
+  },
 
   // ── 02. Dashboard & Báo cáo ──
   {

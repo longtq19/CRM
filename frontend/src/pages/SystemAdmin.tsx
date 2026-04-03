@@ -59,6 +59,8 @@ const SystemAdmin = () => {
     hasPermission('MANAGE_EMPLOYEE_ACCOUNTS') ||
     hasPermission('STAFF_LOCK') ||
     hasPermission('STAFF_LOGOUT') ||
+    hasPermission('STAFF_TEMP_PASSWORD') ||
+    hasPermission('STAFF_INSPECT') ||
     hasPermission('MANAGE_SYSTEM');
 
   const TABS: { id: TabId; label: string; icon: LucideIcon }[] = useMemo(() => {
@@ -531,53 +533,63 @@ const SystemAdmin = () => {
                             <span className="text-gray-400 text-xs">(Tài khoản của bạn)</span>
                           ) : (
                             <div className="flex flex-wrap justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setTempPwdEmployee(emp)}
-                                disabled={busy}
-                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 disabled:opacity-50 text-xs"
-                              >
-                                <KeyRound size={14} />
-                                Mật khẩu tạm
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleStaffCheck(emp)}
-                                disabled={busy}
-                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-blue-200 text-blue-800 hover:bg-blue-50 disabled:opacity-50 text-xs"
-                              >
-                                {busy ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
-                                Kiểm tra
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleLogout(emp)}
-                                disabled={busy}
-                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 text-xs"
-                              >
-                                {busy ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                                Đăng xuất
-                              </button>
-                              {emp.isLocked ? (
+                              {(isADM || hasPermission('STAFF_TEMP_PASSWORD') || hasPermission('MANAGE_EMPLOYEE_ACCOUNTS')) && (
                                 <button
                                   type="button"
-                                  onClick={() => handleLock(emp, false)}
+                                  onClick={() => setTempPwdEmployee(emp)}
                                   disabled={busy}
-                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 text-xs"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/5 disabled:opacity-50 text-xs"
                                 >
-                                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
-                                  Mở khóa
+                                  <KeyRound size={14} />
+                                  Mật khẩu tạm
                                 </button>
-                              ) : (
+                              )}
+                              {(isADM || hasPermission('STAFF_INSPECT') || hasPermission('MANAGE_EMPLOYEE_ACCOUNTS')) && (
                                 <button
                                   type="button"
-                                  onClick={() => handleLock(emp, true)}
+                                  onClick={() => handleStaffCheck(emp)}
                                   disabled={busy}
-                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 text-xs"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-blue-200 text-blue-800 hover:bg-blue-50 disabled:opacity-50 text-xs"
                                 >
-                                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
-                                  Tạm khóa
+                                  {busy ? <Loader2 size={14} className="animate-spin" /> : <ExternalLink size={14} />}
+                                  Kiểm tra
                                 </button>
+                              )}
+                              {(isADM || hasPermission('STAFF_LOGOUT') || hasPermission('MANAGE_EMPLOYEE_ACCOUNTS')) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleLogout(emp)}
+                                  disabled={busy}
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-50 text-xs"
+                                >
+                                  {busy ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                                  Đăng xuất
+                                </button>
+                              )}
+                              {(isADM || hasPermission('STAFF_LOCK') || hasPermission('MANAGE_EMPLOYEE_ACCOUNTS')) && (
+                                <>
+                                  {emp.isLocked ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleLock(emp, false)}
+                                      disabled={busy}
+                                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 text-xs"
+                                    >
+                                      {busy ? <Loader2 size={14} className="animate-spin" /> : <Unlock size={14} />}
+                                      Mở khóa
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleLock(emp, true)}
+                                      disabled={busy}
+                                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 text-xs"
+                                    >
+                                      {busy ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+                                      Tạm khóa
+                                    </button>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
