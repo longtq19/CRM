@@ -20,6 +20,20 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
   - **Frontend:** Sử dụng `formatDate`, `formatDateTime`, `formatTime` từ `frontend/src/utils/format.ts`. Đối với các thành phần chat/thông báo cần hiển thị thông minh (Giờ nếu hôm nay, Ngày nếu cũ hơn), sử dụng `formatSmartDate`.
   - **Backend:** Sử dụng `backend/src/utils/dateFormatter.ts` cho các báo cáo Excel và nhật ký hệ thống.
 
+### 1.4. Quy chuẩn Mã định danh và Định dạng Tiền tệ (ID & Currency Standards):
+Để đảm bảo tính nhất quán và dễ dàng tra cứu, hệ thống áp dụng các quy tắc sau:
+- **Mã Kho (Warehouse Code):**
+  - Độ dài: Đúng **2 ký tự**.
+  - Định dạng: Chữ in hoa (A-Z) hoặc số (0-9), không dấu, không khoảng trắng, không ký tự đặc biệt.
+  - Ví dụ: `HN`, `SG`, `K1`.
+- **Mã Đơn hàng (Order Code):**
+  - Định dạng: **`YY`** (2 số cuối năm) + **`WH`** (Mã kho) + **`MM`** (Tháng) + **`DD`** (Ngày) + **`xxxxxxxx`** (Số thứ tự 8 chữ số).
+  - Ví dụ đơn tại kho HN ngày 03/04/2026: `26HN040300000001`.
+- **Định dạng Tiền tệ (Currency Input):**
+  - Dấu phân cách hàng nghìn: Sử dụng dấu chấm (**`.`**).
+  - Xử lý nhập liệu: Tự động loại bỏ số 0 ở đầu khi nhập và định dạng dấu chấm trực tiếp khi gõ.
+  - Hiển thị chi tiết đơn hàng: Luôn hiển thị rõ ràng các mục **Tiền cọc**, **Tổng thanh toán**, và **Tiền thu hộ (COD)** để đảm bảo minh bạch tài chính.
+
 ## 2. Quy tắc chia số (Lead Distribution Rules)
 
 Hệ thống HCRM áp dụng cơ chế chia số (routing) thông minh, đảm bảo công bằng và bám sát tỉ lệ cấu hình tại **Vận hành (Organization Structure)**.
