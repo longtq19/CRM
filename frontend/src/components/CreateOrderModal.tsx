@@ -763,6 +763,11 @@ const CreateOrderModal = ({
       return;
     }
 
+    if (Number(depositAmount || 0) > orderGoodsAfterDiscount) {
+      setError(`Số tiền cọc (${formatCurrency(Number(depositAmount || 0))}) không được vượt quá giá trị đơn hàng sau giảm (${formatCurrency(orderGoodsAfterDiscount)}).`);
+      return;
+    }
+
     const svc = selectedService ?? pickCheapestVtpService(shippingServices);
     if (!svc) {
       setError('Chưa có dịch vụ vận chuyển. Nhấn «Tính phí» để lấy cước từ Viettel Post, hoặc kiểm tra địa chỉ nhận.');

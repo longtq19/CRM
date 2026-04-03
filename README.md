@@ -33,6 +33,7 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
   - Dấu phân cách hàng nghìn: Sử dụng dấu chấm (**`.`**).
   - Xử lý nhập liệu: Tự động loại bỏ số 0 ở đầu khi nhập và định dạng dấu chấm trực tiếp khi gõ.
   - Hiển thị chi tiết đơn hàng: Luôn hiển thị rõ ràng các mục **Tiền cọc**, **Tổng thanh toán**, và **Tiền thu hộ (COD)** để đảm bảo minh bạch tài chính.
+  - Ràng buộc tiền cọc: **Số tiền cọc không được phép vượt quá giá trị đơn hàng sau giảm**. Hệ thống thực hiện kiểm tra (validate) cả ở phía giao diện (FE) và máy chủ (BE) để ngăn chặn sai sót trong tính toán COD.
 
 ## 2. Quy tắc chia số (Lead Distribution Rules)
 

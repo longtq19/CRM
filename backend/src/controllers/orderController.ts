@@ -724,10 +724,14 @@ export const createOrder = async (req: Request, res: Response) => {
     }
 
     const finalAmount = totalAmount - Number(discount);
-    const deposit = Math.min(
-      finalAmount,
-      Math.max(0, Number(depositAmount) || 0)
-    );
+    if (Number(depositAmount || 0) > finalAmount) {
+      const fmt = (n: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
+      return res.status(400).json({ 
+        message: `Số tiền cọc (${fmt(Number(depositAmount || 0))} đ) không được vượt quá giá trị đơn hàng sau giảm (${fmt(finalAmount)} đ)` 
+      });
+    }
+
+    const deposit = Math.max(0, Number(depositAmount) || 0);
     const shipFee =
       shippingFeeBody != null && shippingFeeBody !== ''
         ? Math.max(0, Number(shippingFeeBody) || 0)
