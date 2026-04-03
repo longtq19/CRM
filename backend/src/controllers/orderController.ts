@@ -743,10 +743,17 @@ export const createOrder = async (req: Request, res: Response) => {
         ? Number(receiverWardId)
         : NaN;
 
-    // Tạo mã đơn hàng
+    // Tạo mã đơn hàng mới: YY + WarehouseCode + MM + DD + xxxxxxxx (8 số)
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const day = now.getDate().toString().padStart(2, '0');
+    const warehouseCode = whCheck.code; // Mã kho 2 ký tự (HN, HCM...)
     const count = await prisma.order.count();
-    const code = `DH-${String(count + 1).padStart(6, '0')}`;
-    const orderDate = new Date();
+    const sequence = String(count + 1).padStart(8, '0');
+    const code = `${year}${warehouseCode}${month}${day}${sequence}`;
+
+    const orderDate = now;
 
     // Tạo đơn hàng
     const order = await prisma.order.create({

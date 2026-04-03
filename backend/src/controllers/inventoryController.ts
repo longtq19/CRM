@@ -54,10 +54,15 @@ export const getWarehouseDetail = async (req: Request, res: Response) => {
 export const createWarehouse = async (req: Request, res: Response) => {
   try {
     const { code, name, address, manager, type, contactName, contactPhone, detailAddress, provinceId, districtId, wardId } = req.body;
-    const codeTrim = String(code ?? '').trim();
+    const codeTrim = String(code ?? '').trim().toUpperCase();
     const nameTrim = String(name ?? '').trim();
     if (!codeTrim || !nameTrim) {
       return res.status(400).json({ message: 'Mã kho và tên kho là bắt buộc' });
+    }
+
+    // Validate code: 2 chars, uppercase alphanumeric
+    if (!/^[A-Z0-9]{2}$/.test(codeTrim)) {
+      return res.status(400).json({ message: 'Mã kho phải đúng 2 ký tự (chữ in hoa hoặc số), không chứa khoảng trắng hay ký tự đặc biệt' });
     }
 
     const existed = await prisma.warehouse.findUnique({ where: { code: codeTrim } });
@@ -101,10 +106,15 @@ export const updateWarehouse = async (req: Request, res: Response) => {
   try {
     const id = String(req.params.id);
     const { code, name, address, manager, type, contactName, contactPhone, detailAddress, provinceId, districtId, wardId } = req.body;
-    const codeTrim = String(code ?? '').trim();
+    const codeTrim = String(code ?? '').trim().toUpperCase();
     const nameTrim = String(name ?? '').trim();
     if (!codeTrim || !nameTrim) {
       return res.status(400).json({ message: 'Mã kho và tên kho là bắt buộc' });
+    }
+
+    // Validate code: 2 chars, uppercase alphanumeric
+    if (!/^[A-Z0-9]{2}$/.test(codeTrim)) {
+      return res.status(400).json({ message: 'Mã kho phải đúng 2 ký tự (chữ in hoa hoặc số), không chứa khoảng trắng hay ký tự đặc biệt' });
     }
 
     const existedByCode = await prisma.warehouse.findUnique({ where: { code: codeTrim } });

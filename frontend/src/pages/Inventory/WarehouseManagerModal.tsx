@@ -203,9 +203,13 @@ const WarehouseManagerModal: React.FC<WarehouseManagerModalProps> = ({ isOpen, o
                   <input
                     type="text"
                     value={currentWarehouse.code || ''}
-                    onChange={e => setCurrentWarehouse({...currentWarehouse, code: e.target.value})}
+                    maxLength={2}
+                    onChange={e => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2);
+                      setCurrentWarehouse({...currentWarehouse, code: val});
+                    }}
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    placeholder="VD: KHO-HCM-01"
+                    placeholder="VD: HN"
                   />
                 </div>
                 <div>

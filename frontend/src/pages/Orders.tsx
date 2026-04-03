@@ -1550,15 +1550,15 @@ function OrderDetailModal({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">{item.quantity}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(item.unitPrice)}</td>
-                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
+                      <td className="px-4 py-3 text-right">{formatCurrency(item.unitPrice || 0)}</td>
+                      <td className="px-4 py-3 text-right font-medium">{formatCurrency(item.totalPrice || 0)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan={3} className="px-4 py-2 text-right text-sm text-gray-500">Tổng tiền hàng:</td>
-                    <td className="px-4 py-2 text-right font-medium">{formatCurrency(order.totalAmount)}</td>
+                    <td className="px-4 py-2 text-right font-medium">{formatCurrency(order.totalAmount || 0)}</td>
                   </tr>
                   {order.discount > 0 && (
                     <tr>
@@ -1569,12 +1569,22 @@ function OrderDetailModal({
                   {order.shippingFee > 0 && (
                     <tr>
                       <td colSpan={3} className="px-4 py-2 text-right text-sm text-gray-500">Phí vận chuyển:</td>
-                      <td className="px-4 py-2 text-right font-medium">{formatCurrency(order.shippingFee)}</td>
+                      <td className="px-4 py-2 text-right font-medium">{formatCurrency(order.shippingFee || 0)}</td>
                     </tr>
                   )}
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan={3} className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Tổng thanh toán:</td>
-                    <td className="px-4 py-3 text-right text-lg font-bold text-primary">{formatCurrency(order.finalAmount)}</td>
+                    <td className="px-4 py-3 text-right text-lg font-bold text-primary">{formatCurrency(order.finalAmount || 0)}</td>
+                  </tr>
+                  {(order.depositAmount || 0) > 0 && (
+                    <tr className="bg-orange-50/50">
+                      <td colSpan={3} className="px-4 py-2 text-right text-sm text-amber-700 font-medium">Đã cọc trước:</td>
+                      <td className="px-4 py-2 text-right font-bold text-amber-700">-{formatCurrency(order.depositAmount || 0)}</td>
+                    </tr>
+                  )}
+                  <tr className="bg-blue-50/50">
+                    <td colSpan={3} className="px-4 py-3 text-right text-sm font-bold text-blue-700 uppercase tracking-wider">Tiền thu hộ (COD):</td>
+                    <td className="px-4 py-3 text-right text-xl font-black text-blue-800">{formatCurrency(order.codAmount || 0)}</td>
                   </tr>
                 </tfoot>
               </table>
