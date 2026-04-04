@@ -496,6 +496,7 @@ const DepartmentItem = ({
     showNotification,
     onStaffListChanged,
     flowMeta,
+    allDivisions = [],
 }: any) => {
     const {
         attributes,
@@ -670,6 +671,21 @@ const DepartmentItem = ({
                                     onChanged={onStaffListChanged}
                                 />
                             )}
+
+                            {/* Data Flow Panel for leaf units (Marketting/Sales/CSKH) to allow unit-to-unit routing */}
+                            {!hasChildren && dept.function && (
+                                <div className="mt-4 border-t border-gray-100 pt-4">
+                                   <div className="text-[11px] font-bold text-secondary/40 uppercase tracking-widest mb-3">Phân luồng đơn vị</div>
+                                   <DivisionDataFlowPanel
+                                       division={dept as any}
+                                       departments={allDepartments}
+                                       allDivisions={allDivisions} 
+                                       canEdit={!!canEdit}
+                                       onSaved={(updated) => onStaffListChanged?.()}
+                                       showNotification={showNotification}
+                                   />
+                                </div>
+                            )}
                             
                             {/* Children Departments */}
                             {childDepts.length > 0 && (
@@ -697,6 +713,7 @@ const DepartmentItem = ({
                                                 showNotification={showNotification}
                                                 onStaffListChanged={onStaffListChanged}
                                                 flowMeta={flowMeta}
+                                                allDivisions={allDivisions}
                                             />
                                         ))}
                                     </SortableContext>
@@ -946,6 +963,7 @@ const SortableDivisionSection = ({
                                             showNotification={showNotification}
                                             onStaffListChanged={onStaffListChanged}
                                             flowMeta={flowMeta}
+                                            allDivisions={allDivisions}
                                         />
                                     ))}
                                 </div>

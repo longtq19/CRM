@@ -185,20 +185,30 @@ export default function DivisionDataFlowPanel({
   const hasCs = cs.length > 0;
   const csOnly = !hasMkt && !hasSales && hasCs;
 
-  const peerOptions = useMemo(() => {
-    const siblingDivisions = allDivisions.filter(
-      (d) => d.id !== division.id && (d.parentId || null) === (division.parentId || null)
-    );
+  const allSiblings = useMemo(() => {
+    const sibs: (Division | Department)[] = [];
+    allDivisions.forEach((d) => {
+      if (d.id !== division.id && (d.parentId || null) === (division.parentId || null)) {
+        sibs.push(d);
+      }
+    });
+    departments.forEach((d) => {
+      if (d.id !== division.id && (d.parentId || null) === (division.parentId || null)) {
+        sibs.push(d);
+      }
+    });
+    return sibs;
+  }, [allDivisions, departments, division.id, division.parentId]);
 
-    const withCsLeaf = siblingDivisions.filter((d) =>
-      getLeafDepartmentsInDivisionSubtree(d.id, departments, allDivisions).some((leaf) => leaf.function === 'CSKH')
-    );
+  const peerOptions = useMemo(() => {
+    const withCs = allSiblings.filter((s) => {
+      if ('function' in s && s.function === 'CSKH') return true;
+      return getLeafDepartmentsInDivisionSubtree(s.id, departments, allDivisions).some((leaf) => leaf.function === 'CSKH');
+    });
 
     const byName = new Set<string>();
-    const uniqueByName = withCsLeaf.filter((d) => {
-      const key = String(d.name || '')
-        .trim()
-        .toLowerCase();
+    const uniqueByName = withCs.filter((d) => {
+      const key = String(d.name || '').trim().toLowerCase();
       if (!key) return true;
       if (byName.has(key)) return false;
       byName.add(key);
@@ -208,20 +218,19 @@ export default function DivisionDataFlowPanel({
     return uniqueByName.sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' })
     );
-  }, [allDivisions, division.id, division.parentId, departments]);
+  }, [allSiblings, departments, allDivisions]);
 
   const peerOptionsSales = useMemo(() => {
-    const siblingDivisions = allDivisions.filter(
-      (d) => d.id !== division.id && (d.parentId || null) === (division.parentId || null)
-    );
-    const withSalesLeaf = siblingDivisions.filter((d) =>
-      getLeafDepartmentsInDivisionSubtree(d.id, departments, allDivisions).some((leaf) => leaf.function === 'SALES')
-    );
+    const withSales = allSiblings.filter((s) => {
+      if ('function' in s && s.function === 'SALES') return true;
+      return getLeafDepartmentsInDivisionSubtree(s.id, departments, allDivisions).some(
+        (leaf) => leaf.function === 'SALES'
+      );
+    });
+
     const byName = new Set<string>();
-    const uniqueByName = withSalesLeaf.filter((d) => {
-      const key = String(d.name || '')
-        .trim()
-        .toLowerCase();
+    const uniqueByName = withSales.filter((d) => {
+      const key = String(d.name || '').trim().toLowerCase();
       if (!key) return true;
       if (byName.has(key)) return false;
       byName.add(key);
@@ -230,7 +239,7 @@ export default function DivisionDataFlowPanel({
     return uniqueByName.sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' })
     );
-  }, [allDivisions, division.id, division.parentId, departments]);
+  }, [allSiblings, departments, allDivisions]);
 
   /** Khối DIVISION con trực tiếp có ít nhất một đơn vị lá Sales trong cây con. */
   const directChildDivisionsWithSalesLeaf = useMemo(
@@ -699,12 +708,12 @@ export default function DivisionDataFlowPanel({
           {!linkedExternalSales ? (
             <>
               <div className="text-[11px] font-semibold text-secondary/80 uppercase tracking-wide">
-                Chưa có Sales — nối sang khối đồng cấp
+                Chưa có Sales — nối sang đơn vị đồng cấp
               </div>
               <p className="text-[11px] text-secondary/65">
                 {defaultViaParentSales && parentDivisionInTree
                   ? 'Luồng theo khối cha (khung dưới).'
-                  : 'Chọn khối có Sales. % đích: mở khối Sales nhận.'}
+                  : 'Chọn đơn vị có Sales. % đích: mở khối Sales nhận.'}
               </p>
             </>
           ) : (
@@ -727,9 +736,9 @@ export default function DivisionDataFlowPanel({
                     Nối mặc định (không chọn khác)
                   </div>
                   <div className="mt-1">
-                    Khối Sales đích: <strong>{translate(peerOptionsSales[0].name)}</strong>
+                    Đơn vị Sales đích: <strong>{translate(peerOptionsSales[0].name)}</strong>
                   </div>
-                  <p className="mt-1 text-xs text-secondary/65">Chỉ có một khối đồng cấp có đơn vị lá Sales.</p>
+                  <p className="mt-1 text-xs text-secondary/65">Chỉ có một đơn vị đồng cấp có Sales.</p>
                 </div>
               ) : defaultViaParentSales && parentDivisionInTree ? (
                 <div className={FLOW_DEFAULT_LOCK_CARD_CLASS}>
@@ -740,29 +749,29 @@ export default function DivisionDataFlowPanel({
                     Luồng qua khối cha: <strong>{translate(parentDivisionInTree.name)}</strong>
                   </div>
                   <p className="mt-1 text-xs text-secondary/65">
-                    Không có khối đồng cấp có Sales — không trỏ khối ngoài trên khối này; cấu hình nối Sales (nếu cần) tại khối
-                    cha.
+                    Không có đơn vị đồng cấp có Sales — không trỏ đơn vị ngoài trên khối này; cấu hình nối Sales (nếu cần) tại
+                    khối cha.
                   </p>
                 </div>
               ) : (
-                <select
-                  className="w-full max-w-md border rounded px-2 py-2 text-sm bg-white"
-                  value={externalSalesDivisionId}
-                  onChange={(e) => setExternalSalesDivisionId(e.target.value)}
-                >
-                  <option value="">— Không chọn —</option>
-                  {peerOptionsSales.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {translate(d.name)}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    className="w-full max-w-md border rounded px-2 py-2 text-sm bg-white"
+                    value={externalSalesDivisionId}
+                    onChange={(e) => setExternalSalesDivisionId(e.target.value)}
+                  >
+                    <option value="">— Không chọn —</option>
+                    {peerOptionsSales.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {translate(d.name)}
+                      </option>
+                    ))}
+                  </select>
               )}
             </>
           ) : (
             <div className="text-xs text-secondary/90 space-y-1">
               {division.externalSalesDivision ? (
-                <div>Khối Sales ngoài: {translate(division.externalSalesDivision.name)}</div>
+                <div>Đơn vị Sales ngoài: {translate(division.externalSalesDivision.name)}</div>
               ) : lockedSinglePeerSalesId && peerOptionsSales[0] ? (
                 <div className="space-y-2">
                   <div className={FLOW_DEFAULT_LOCK_CARD_CLASS}>
@@ -770,9 +779,9 @@ export default function DivisionDataFlowPanel({
                       Nối mặc định (không chọn khác)
                     </div>
                     <div className="mt-1">
-                      Khối Sales đích: <strong>{translate(peerOptionsSales[0].name)}</strong>
+                      Đơn vị Sales đích: <strong>{translate(peerOptionsSales[0].name)}</strong>
                     </div>
-                    <p className="mt-1 text-xs text-secondary/65">Chỉ một khối đồng cấp có Sales — không đổi được.</p>
+                    <p className="mt-1 text-xs text-secondary/65">Chỉ một đơn vị đồng cấp có Sales — không đổi được.</p>
                   </div>
                 </div>
               ) : defaultViaParentSales && parentDivisionInTree ? (
@@ -784,11 +793,11 @@ export default function DivisionDataFlowPanel({
                     Luồng qua khối cha: <strong>{translate(parentDivisionInTree.name)}</strong>
                   </div>
                   <p className="mt-1 text-xs text-secondary/65">
-                    Không có khối đồng cấp có Sales — không trỏ khối ngoài trên khối này.
+                    Không có đơn vị đồng cấp có Sales — không trỏ đơn vị ngoài trên khối này.
                   </p>
                 </div>
               ) : (
-                <div>Chưa chọn khối Sales ngoài.</div>
+                <div>Chưa chọn đơn vị Sales ngoài.</div>
               )}
             </div>
           )}
@@ -930,7 +939,7 @@ export default function DivisionDataFlowPanel({
       {showExternalCs && (
         <div className="space-y-2">
           <div className="text-[11px] font-semibold text-secondary/80 uppercase tracking-wide">
-            Có Sales, chưa có CSKH — nối khối đồng cấp
+            Có Sales, chưa có CSKH — nối đơn vị đồng cấp
           </div>
           {canEdit ? (
             lockedSinglePeerCsId && peerOptions[0] ? (
@@ -939,9 +948,9 @@ export default function DivisionDataFlowPanel({
                   Nối mặc định (không chọn khác)
                 </div>
                 <div className="mt-1">
-                  Khối CSKH đích: <strong>{translate(peerOptions[0].name)}</strong>
+                  Đơn vị CSKH đích: <strong>{translate(peerOptions[0].name)}</strong>
                 </div>
-                <p className="mt-1 text-xs text-secondary/65">Chỉ có một khối đồng cấp có đơn vị lá CSKH.</p>
+                <p className="mt-1 text-xs text-secondary/65">Chỉ có một đơn vị đồng cấp có CSKH.</p>
               </div>
             ) : defaultViaParentCs && parentDivisionInTree ? (
               <div className={FLOW_DEFAULT_LOCK_CARD_CLASS}>
@@ -952,7 +961,8 @@ export default function DivisionDataFlowPanel({
                   Luồng qua khối cha: <strong>{translate(parentDivisionInTree.name)}</strong>
                 </div>
                 <p className="mt-1 text-xs text-secondary/65">
-                  Không có khối đồng cấp có CSKH — không trỏ khối ngoài trên khối này; cấu hình nối CSKH (nếu cần) tại khối cha.
+                  Không có đơn vị đồng cấp có CSKH — không trỏ đơn vị ngoài trên khối này; cấu hình nối CSKH (nếu cần) tại khối
+                  cha.
                 </p>
               </div>
             ) : (
@@ -972,16 +982,16 @@ export default function DivisionDataFlowPanel({
           ) : (
             <div className="text-xs text-secondary/90 space-y-2">
               {division.externalCsDivision ? (
-                <div>Khối đích: {translate(division.externalCsDivision.name)}</div>
+                <div>Đơn vị đích: {translate(division.externalCsDivision.name)}</div>
               ) : lockedSinglePeerCsId && peerOptions[0] ? (
                 <div className={FLOW_DEFAULT_LOCK_CARD_CLASS}>
                   <div className="text-[11px] font-semibold uppercase tracking-wide text-secondary/70">
                     Nối mặc định (không chọn khác)
                   </div>
                   <div className="mt-1">
-                    Khối CSKH đích: <strong>{translate(peerOptions[0].name)}</strong>
+                    Đơn vị CSKH đích: <strong>{translate(peerOptions[0].name)}</strong>
                   </div>
-                  <p className="mt-1 text-xs text-secondary/65">Chỉ một khối đồng cấp có CSKH — không đổi được.</p>
+                  <p className="mt-1 text-xs text-secondary/65">Chỉ một đơn vị đồng cấp có CSKH — không đổi được.</p>
                 </div>
               ) : defaultViaParentCs && parentDivisionInTree ? (
                 <div className={FLOW_DEFAULT_LOCK_CARD_CLASS}>
@@ -992,7 +1002,7 @@ export default function DivisionDataFlowPanel({
                     Luồng qua khối cha: <strong>{translate(parentDivisionInTree.name)}</strong>
                   </div>
                   <p className="mt-1 text-xs text-secondary/65">
-                    Không có khối đồng cấp có CSKH — không trỏ khối ngoài trên khối này.
+                    Không có đơn vị đồng cấp có CSKH — không trỏ đơn vị ngoài trên khối này.
                   </p>
                 </div>
               ) : (

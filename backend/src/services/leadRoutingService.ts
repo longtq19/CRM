@@ -503,12 +503,13 @@ export async function pickNextSalesEmployeeId(opts: {
   while (walkerId) {
     const d = await prisma.department.findUnique({
       where: { id: walkerId },
-      select: { id: true, targetSalesUnitId: true, parentId: true, type: true, organizationId: true },
+      select: { id: true, targetSalesUnitId: true, externalSalesDivisionId: true, parentId: true, type: true, organizationId: true },
     });
     if (!d) break;
 
-    if (d.targetSalesUnitId) {
-      const targetSubtree = await collectSubtreeDepartmentIds(d.targetSalesUnitId);
+    if (d.targetSalesUnitId || d.externalSalesDivisionId) {
+      const linkId = d.targetSalesUnitId || d.externalSalesDivisionId;
+      const targetSubtree = await collectSubtreeDepartmentIds(linkId!);
       const inTarget = await prisma.employee.findMany({
         where: { ...salesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },
@@ -700,12 +701,13 @@ export async function pickNextResalesEmployeeId(opts: {
   while (walkerCsId) {
     const d = await prisma.department.findUnique({
       where: { id: walkerCsId },
-      select: { id: true, targetCsUnitId: true, parentId: true, type: true, organizationId: true },
+      select: { id: true, targetCsUnitId: true, externalCsDivisionId: true, parentId: true, type: true, organizationId: true },
     });
     if (!d) break;
 
-    if (d.targetCsUnitId) {
-      const targetSubtree = await collectSubtreeDepartmentIds(d.targetCsUnitId);
+    if (d.targetCsUnitId || d.externalCsDivisionId) {
+      const linkId = d.targetCsUnitId || d.externalCsDivisionId;
+      const targetSubtree = await collectSubtreeDepartmentIds(linkId!);
       const inTarget = await prisma.employee.findMany({
         where: { ...resalesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },

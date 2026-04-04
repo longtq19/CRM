@@ -301,6 +301,19 @@ export interface Department {
       name: string;
     };
   };
+  dataFlowShares?: DivisionDataFlowShares | null;
+  /** Đơn vị CSKH đích cố định (target). */
+  targetCsUnitId?: string | null;
+  targetCsUnit?: { id: string; name: string } | null;
+  /** Đơn vị Sales đích cố định (target). */
+  targetSalesUnitId?: string | null;
+  targetSalesUnit?: { id: string; name: string } | null;
+  /** Đơn vị CSKH đồng cấp kết nối (external). */
+  externalCsDivisionId?: string | null;
+  externalCsDivision?: { id: string; name: string } | null;
+  /** Đơn vị Sales đồng cấp kết nối (external). */
+  externalSalesDivisionId?: string | null;
+  externalSalesDivision?: { id: string; name: string } | null;
 }
 
 export interface Division {
@@ -324,6 +337,12 @@ export interface Division {
   externalCsDivision?: { id: string; name: string } | null;
   externalSalesDivisionId?: string | null;
   externalSalesDivision?: { id: string; name: string } | null;
+  /** Đơn vị CSKH đích cố định (target). */
+  targetCsUnitId?: string | null;
+  targetCsUnit?: { id: string; name: string } | null;
+  /** Đơn vị Sales đích cố định (target). */
+  targetSalesUnitId?: string | null;
+  targetSalesUnit?: { id: string; name: string } | null;
 }
 
 export interface Subsidiary {

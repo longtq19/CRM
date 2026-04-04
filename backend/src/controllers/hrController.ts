@@ -909,7 +909,7 @@ export const updateDivisionDataFlow = async (req: Request, res: Response) => {
     const { id } = req.params;
     const body = req.body || {};
     const div = await prisma.department.findFirst({
-      where: { id: String(id), type: 'DIVISION' },
+      where: { id: String(id) },
       select: {
         id: true,
         organizationId: true,
@@ -918,7 +918,7 @@ export const updateDivisionDataFlow = async (req: Request, res: Response) => {
         externalSalesDivisionId: true,
       },
     });
-    if (!div) return res.status(404).json({ message: 'Không tìm thấy khối' });
+    if (!div) return res.status(404).json({ message: 'Không tìm thấy đơn vị' });
 
     if (
       body.dataFlowShares === undefined &&
@@ -955,12 +955,12 @@ export const updateDivisionDataFlow = async (req: Request, res: Response) => {
       nextExt = body.externalCsDivisionId ? String(body.externalCsDivisionId) : null;
       if (nextExt) {
         const target = await prisma.department.findFirst({
-          where: { id: nextExt, organizationId: div.organizationId, type: 'DIVISION' },
+          where: { id: nextExt, organizationId: div.organizationId },
           select: { id: true },
         });
         if (!target) {
           return res.status(400).json({
-            message: 'Khối đích luồng CS ngoài không hợp lệ hoặc không cùng tổ chức',
+            message: 'Đơn vị đích luồng CS ngoài không hợp lệ hoặc không cùng tổ chức',
           });
         }
       }
@@ -973,12 +973,12 @@ export const updateDivisionDataFlow = async (req: Request, res: Response) => {
       nextExtSales = body.externalSalesDivisionId ? String(body.externalSalesDivisionId) : null;
       if (nextExtSales) {
         const target = await prisma.department.findFirst({
-          where: { id: nextExtSales, organizationId: div.organizationId, type: 'DIVISION' },
+          where: { id: nextExtSales, organizationId: div.organizationId },
           select: { id: true },
         });
         if (!target) {
           return res.status(400).json({
-            message: 'Khối Sales ngoài không hợp lệ hoặc không cùng tổ chức',
+            message: 'Đơn vị Sales ngoài không hợp lệ hoặc không cùng tổ chức',
           });
         }
       }
