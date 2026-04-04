@@ -4223,14 +4223,26 @@ export const importEmployees = async (req: Request, res: Response) => {
         const statusName = rowGet(row, 'status', 'Trạng thái', 'Status');
         const typeName = rowGet(row, 'employmentType', 'Loại hợp đồng', 'Contract Type');
         const employeeTypeRaw = rowGet(row, 'employeeType', 'Loại nhân viên');
+
         if (!employeeTypeRaw) {
           throw new Error('Thiếu thông tin Loại nhân viên');
         }
-        const employeeTypeRow = employeeTypes.find(
-          (t) =>
-            normalize(String(t.name || '')) === normalize(String(employeeTypeRaw)) ||
-            normalize(String(t.code || '')) === normalize(String(employeeTypeRaw))
-        );
+
+        const resolveType = (raw: string) => {
+            const n = normalize(String(raw));
+            let match = employeeTypes.find(t => normalize(t.name) === n || normalize(t.code) === n);
+            if (match) return match;
+            // Aliases
+            if (['cskh', 'customer_service'].includes(n)) return employeeTypes.find(t => t.code === 'customer_service');
+            if (['mkt', 'marketing'].includes(n)) return employeeTypes.find(t => t.code === 'marketing');
+            if (['bod', 'bod/ceo', 'ban giam doc', 'management', 'executive'].includes(n)) return employeeTypes.find(t => t.code === 'executive');
+            if (['tech', 'kỹ thuật'].includes(n)) return employeeTypes.find(t => t.code === 'it');
+            if (['van don', 'logistics'].includes(n)) return employeeTypes.find(t => t.code === 'logistics');
+            if (['kho van', 'warehouse'].includes(n)) return employeeTypes.find(t => t.code === 'warehouse');
+            if (['ke toan', 'accounting'].includes(n)) return employeeTypes.find(t => t.code === 'accounting');
+            return null;
+        };
+        const employeeTypeRow = resolveType(employeeTypeRaw);
         if (!employeeTypeRow) {
           throw new Error(`Không tìm thấy Loại nhân viên: ${employeeTypeRaw}`);
         }
@@ -4274,9 +4286,18 @@ export const importEmployees = async (req: Request, res: Response) => {
         let status = statuses.find((s) => normalize(s.name) === normalize(statusName) || s.code === statusName);
         if (!status) status = statuses.find((s) => s.code === 'WORKING');
 
-        let empType = employmentTypes.find((t) => normalize(t.name) === normalize(typeName));
-        if (!empType) empType = employmentTypes.find((t) => t.code === 'PROBATION' || t.code === 'probation');
-        if (!empType && employmentTypes.length > 0) empType = employmentTypes[0];
+        const resolveEmploymentType = (raw: any) => {
+            if (!raw) return null;
+            const n = normalize(String(raw));
+            let match = employmentTypes.find(t => normalize(t.name) === n || normalize(t.code) === n);
+            if (match) return match;
+            if (['chính thức', 'chinh thuc'].includes(n)) return employmentTypes.find(t => t.code === 'official');
+            if (['thử việc', 'thu viec'].includes(n)) return employmentTypes.find(t => t.code === 'probation');
+            return null;
+        };
+
+        let empType = resolveEmploymentType(typeName);
+        if (!empType) empType = employmentTypes.find((t) => t.code === 'probation' || t.code === 'official') || employmentTypes[0];
 
         const subsidiaryRaw = rowGet(row, 'subsidiary', 'Công ty con', 'Subsidiary');
         let subsidiariesInput: any[] | undefined;
