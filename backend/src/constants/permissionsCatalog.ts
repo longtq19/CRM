@@ -142,6 +142,11 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     description: 'Xem danh sách đơn nghỉ phép của nhân viên.',
   },
   {
+    code: 'CREATE_LEAVE_REQUEST',
+    name: 'Tạo đơn nghỉ phép',
+    description: 'Tạo yêu cầu nghỉ phép mới cá nhân hoặc cho nhân viên.',
+  },
+  {
     code: 'APPROVE_LEAVE_REQUESTS',
     name: 'Duyệt đơn nghỉ phép',
     description: 'Thực hiện phê duyệt hoặc từ chối đơn nghỉ phép.',
@@ -151,6 +156,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Xóa đơn nghỉ phép',
     description: 'Xóa vĩnh viễn dữ liệu đơn nghỉ phép.',
   },
+
   // ── 04. Kho số & Phân bổ (Data Pool) ──
   {
     code: 'VIEW_FLOATING_POOL',
@@ -191,6 +197,16 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'VIEW_CSKH_POOL',
     name: 'Xem kho số CSKH',
     description: 'Truy cập kho dữ liệu dành riêng cho Chăm sóc khách hàng.',
+  },
+  {
+    code: 'DISTRIBUTE_FLOATING_POOL',
+    name: 'Phân bổ kho thả nổi',
+    description: 'Thực hiện chia lead từ kho thả nổi xuống các đơn vị đầu phễu.',
+  },
+  {
+    code: 'DISTRIBUTE_FLOATING_CROSS_ORG',
+    name: 'Phân bổ chéo khối thả nổi',
+    description: 'Điều phối lead giữa các khối/đơn vị khác nhau trong kho thả nổi.',
   },
 
   // ── 05. Khách hàng ──
@@ -273,6 +289,11 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Quản lý Sales (Leader)',
     description: 'Quản lý toàn bộ lead và tương tác của team/đơn vị phụ trách.',
   },
+  {
+    code: 'VIEW_SALES_EFFECTIVENESS',
+    name: 'Xem hiệu quả Sales',
+    description: 'Xem báo cáo tỷ lệ chốt và doanh thu Sales.',
+  },
 
   // ── 08. CSKH (Resales) ──
   {
@@ -289,6 +310,11 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'MANAGE_RESALES',
     name: 'Quản lý CSKH (Leader)',
     description: 'Điều phối khách hàng và giám sát tương tác của team CSKH.',
+  },
+  {
+    code: 'VIEW_CSKH_EFFECTIVENESS',
+    name: 'Xem hiệu quả CSKH',
+    description: 'Xem báo cáo tái mua và tỷ lệ giữ chân khách hàng.',
   },
 
   // ── 09. Sản phẩm (Products) ──
@@ -334,6 +360,17 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     name: 'Xóa ticket hỗ trợ',
     description: 'Xóa vĩnh viễn các yêu cầu hỗ trợ.',
   },
+  {
+    code: 'CREATE_SUPPORT_TICKET',
+    name: 'Tạo ticket hỗ trợ',
+    description: 'Ghi nhận yêu cầu hỗ trợ mới cho khách hàng.',
+  },
+  {
+    code: 'VIEW_SUPPORT_WIZARD',
+    name: 'Xem trung tâm trợ giúp',
+    description: 'Xem hướng dẫn và sơ đồ xử lý hỗ trợ khách hàng.',
+  },
+
   // ── 11. Đơn hàng & Vận chuyển ──
   {
     code: 'VIEW_ORDERS',
@@ -393,7 +430,7 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
 
   // ── 12. Kho vận (Inventory) ──
   {
-    code: 'VIEW_WAREHOUSE',
+    code: 'VIEW_INVENTORY',
     name: 'Xem kho hàng',
     description: 'Xem danh sách kho, vị trí và tồn kho thực tế.',
   },
@@ -433,6 +470,16 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'MANAGE_ACCOUNTING',
     name: 'Toàn quyền kế toán',
     description: 'Quản lý toàn bộ nghiệp vụ kế toán, dòng tiền và bảng lương.',
+  },
+  {
+    code: 'VIEW_PAYROLLS',
+    name: 'Xem bảng lương',
+    description: 'Xem chi tiết bảng tính lương nhân viên.',
+  },
+  {
+    code: 'APPROVE_PAYROLLS',
+    name: 'Duyệt bảng lương',
+    description: 'Chốt và duyệt bảng lương hàng tháng.',
   },
 
   // ── 14. Vận hành & Cơ cấu ──
@@ -497,5 +544,15 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'DELETE_CONVERSATION',
     name: 'Xóa cuộc trò chuyện',
     description: 'Xóa các nhóm chat hoặc hội thoại tin nhắn nội bộ.',
+  },
+  {
+    code: 'VIEW_CHATS',
+    name: 'Xem tin nhắn nội bộ',
+    description: 'Truy cập module hội thoại và chat nội bộ công ty.',
+  },
+  {
+    code: 'VIEW_TUTORIALS',
+    name: 'Xem hướng dẫn sử dụng',
+    description: 'Xem tài liệu và video hướng dẫn vận hành hệ thống.',
   },
 ];

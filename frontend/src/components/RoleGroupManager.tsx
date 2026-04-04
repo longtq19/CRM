@@ -242,6 +242,8 @@ const RoleGroupManager: React.FC = () => {
         FULL_ACCESS: '01. Hệ thống',
         MANAGE_SYSTEM: '01. Hệ thống',
         VIEW_LOGS: '01. Hệ thống',
+        VIEW_ROLE_GROUPS: '01. Hệ thống',
+        MANAGE_ROLE_GROUPS: '01. Hệ thống',
         VIEW_SETTINGS: '01. Hệ thống',
         EDIT_SETTINGS: '01. Hệ thống',
         VIEW_EMPLOYEE_ACCOUNTS: '01. Hệ thống',
@@ -249,8 +251,6 @@ const RoleGroupManager: React.FC = () => {
         STAFF_LOCK: '01. Hệ thống',
         STAFF_TEMP_PASSWORD: '01. Hệ thống',
         STAFF_INSPECT: '01. Hệ thống',
-        VIEW_ROLE_GROUPS: '01. Hệ thống',
-        MANAGE_ROLE_GROUPS: '01. Hệ thống',
         // 02. Dashboard & Báo cáo
         VIEW_DASHBOARD: '02. Dashboard & Báo cáo',
         VIEW_REPORTS: '02. Dashboard & Báo cáo',
@@ -264,11 +264,11 @@ const RoleGroupManager: React.FC = () => {
         VIEW_EMPLOYEE_TYPE_CATALOG: '03. Nhân sự',
         MANAGE_EMPLOYEE_TYPE_CATALOG: '03. Nhân sự',
         VIEW_CONTRACTS: '03. Nhân sự',
+        MANAGE_CONTRACTS: '03. Nhân sự',
         VIEW_LEAVE_REQUESTS: '03. Nhân sự',
         CREATE_LEAVE_REQUEST: '03. Nhân sự',
-        MANAGE_LEAVE_REQUESTS: '03. Nhân sự',
+        APPROVE_LEAVE_REQUESTS: '03. Nhân sự',
         DELETE_LEAVE_REQUESTS: '03. Nhân sự',
-        APPROVE_LEAVE_REQUEST: '03. Nhân sự',
         // 04. Kho số & Phân bổ
         VIEW_FLOATING_POOL: '04. Kho số & Phân bổ',
         MANAGE_DATA_POOL: '04. Kho số & Phân bổ',
@@ -276,14 +276,10 @@ const RoleGroupManager: React.FC = () => {
         CONFIG_DISTRIBUTION: '04. Kho số & Phân bổ',
         CLAIM_LEAD: '04. Kho số & Phân bổ',
         ASSIGN_LEAD: '04. Kho số & Phân bổ',
+        RECALL_LEAD: '04. Kho số & Phân bổ',
+        VIEW_CSKH_POOL: '04. Kho số & Phân bổ',
         DISTRIBUTE_FLOATING_POOL: '04. Kho số & Phân bổ',
         DISTRIBUTE_FLOATING_CROSS_ORG: '04. Kho số & Phân bổ',
-        CLAIM_FLOATING_POOL: '04. Kho số & Phân bổ',
-        VIEW_CSKH_POOL: '04. Kho số & Phân bổ',
-        MANAGE_CSKH_POOL: '04. Kho số & Phân bổ',
-        DISTRIBUTE_SALES_CROSS_ORG: '04. Kho số & Phân bổ',
-        VIEW_MANAGED_UNIT_POOL: '04. Kho số & Phân bổ',
-        RECALL_MANAGED_UNIT_LEADS: '04. Kho số & Phân bổ',
         // 05. Khách hàng
         VIEW_CUSTOMERS: '05. Khách hàng',
         VIEW_ALL_COMPANY_CUSTOMERS: '05. Khách hàng',
@@ -292,21 +288,20 @@ const RoleGroupManager: React.FC = () => {
         DELETE_CUSTOMER: '05. Khách hàng',
         MANAGE_CUSTOMERS: '05. Khách hàng',
         // 06. Marketing
-        VIEW_MARKETING_PLATFORMS: '06. Marketing',
-        CREATE_MARKETING_PLATFORM: '06. Marketing',
-        UPDATE_MARKETING_PLATFORM: '06. Marketing',
-        DELETE_MARKETING_PLATFORM: '06. Marketing',
-        MANAGE_MARKETING_GROUPS: '06. Marketing',
         VIEW_MARKETING_CAMPAIGNS: '06. Marketing',
         CREATE_MARKETING_CAMPAIGN: '06. Marketing',
         UPDATE_MARKETING_CAMPAIGN: '06. Marketing',
         DELETE_MARKETING_CAMPAIGN: '06. Marketing',
+        VIEW_MARKETING_PLATFORMS: '06. Marketing',
+        MANAGE_MARKETING_PLATFORMS: '06. Marketing',
         // 07. Sales
         VIEW_SALES: '07. Sales',
+        UPDATE_SALES_LEAD: '07. Sales',
         MANAGE_SALES: '07. Sales',
         VIEW_SALES_EFFECTIVENESS: '07. Sales',
         // 08. CSKH
         VIEW_RESALES: '08. CSKH',
+        UPDATE_RESALES_LEAD: '08. CSKH',
         MANAGE_RESALES: '08. CSKH',
         VIEW_CSKH_EFFECTIVENESS: '08. CSKH',
         // 09. Sản phẩm
@@ -316,14 +311,15 @@ const RoleGroupManager: React.FC = () => {
         DELETE_PRODUCT: '09. Sản phẩm',
         MANAGE_PRODUCTS: '09. Sản phẩm',
         // 10. Hỗ trợ
-        MANAGE_SUPPORT_TICKETS: '10. Hỗ trợ',
-        VIEW_SUPPORT_WIZARD: '10. Hỗ trợ',
+        VIEW_SUPPORT_TICKETS: '10. Hỗ trợ',
+        UPDATE_SUPPORT_TICKETS: '10. Hỗ trợ',
+        DELETE_SUPPORT_TICKETS: '10. Hỗ trợ',
         CREATE_SUPPORT_TICKET: '10. Hỗ trợ',
+        VIEW_SUPPORT_WIZARD: '10. Hỗ trợ',
         // 11. Đơn hàng & Vận chuyển
         VIEW_ORDERS: '11. Đơn hàng & Vận chuyển',
         VIEW_ALL_COMPANY_ORDERS: '11. Đơn hàng & Vận chuyển',
         CREATE_ORDER: '11. Đơn hàng & Vận chuyển',
-        CREATE_ORDER_COMPANY: '11. Đơn hàng & Vận chuyển',
         EDIT_ORDER: '11. Đơn hàng & Vận chuyển',
         CONFIRM_ORDER: '11. Đơn hàng & Vận chuyển',
         PUSH_ORDER_TO_SHIPPING: '11. Đơn hàng & Vận chuyển',
@@ -334,11 +330,13 @@ const RoleGroupManager: React.FC = () => {
         ASSIGN_SHIPPING_DAILY_QUOTA: '11. Đơn hàng & Vận chuyển',
         // 12. Kho vận
         VIEW_INVENTORY: '12. Kho vận',
-        CREATE_INVENTORY_IMPORT: '12. Kho vận',
-        UPDATE_INVENTORY_IMPORT: '12. Kho vận',
+        MANAGE_INVENTORY_IN: '12. Kho vận',
+        MANAGE_INVENTORY_OUT: '12. Kho vận',
         MANAGE_WAREHOUSE: '12. Kho vận',
         // 13. Kế toán
         VIEW_ACCOUNTING: '13. Kế toán',
+        CREATE_ACCOUNTING: '13. Kế toán',
+        UPDATE_ACCOUNTING: '13. Kế toán',
         MANAGE_ACCOUNTING: '13. Kế toán',
         VIEW_PAYROLLS: '13. Kế toán',
         APPROVE_PAYROLLS: '13. Kế toán',
@@ -348,17 +346,19 @@ const RoleGroupManager: React.FC = () => {
         CONFIG_DATA_FLOW: '14. Vận hành & Cơ cấu',
         VIEW_DIVISIONS: '14. Vận hành & Cơ cấu',
         // 15. Tiện ích
-        VIEW_CHATS: '15. Tiện ích',
-        DELETE_CONVERSATION: '15. Tiện ích',
-        VIEW_TUTORIALS: '15. Tiện ích',
         MANAGE_NOTIFICATIONS: '15. Tiện ích',
-        CREATE_DRAFT_NOTIFICATION: '15. Tiện ích',
-        MANAGE_DOCUMENTS: '15. Tiện ích',
         SEND_STAFF_NOTIFICATION: '15. Tiện ích',
+        CREATE_DRAFT_NOTIFICATION: '15. Tiện ích',
+        VIEW_DOCUMENTS: '15. Tiện ích',
+        UPLOAD_DOCUMENT: '15. Tiện ích',
+        DELETE_DOCUMENT: '15. Tiện ích',
         MANAGE_INTERNAL_NOTES: '15. Tiện ích',
+        DELETE_CONVERSATION: '15. Tiện ích',
+        VIEW_CHATS: '15. Tiện ích',
+        VIEW_TUTORIALS: '15. Tiện ích',
     };
 
-    const getPermissionGroup = (code: string) => PERMISSION_GROUPS[code] || '99. Khác';
+    const getPermissionGroup = (code: string) => PERMISSION_GROUPS[code] || '99. Lỗi: Chưa phân nhóm';
 
     const groupedPermissions = allPermissions.reduce((acc, perm) => {
         const group = getPermissionGroup(perm.code);
