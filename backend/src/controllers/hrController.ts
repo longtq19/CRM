@@ -4123,8 +4123,11 @@ export const importEmployees = async (req: Request, res: Response) => {
         const dobRaw = rowGet(row, 'dob', 'Ngày sinh', 'Date of Birth');
         const hrUnitRaw = rowGet(row, 'departmentUnit', 'Bộ phận', 'bộ phận');
 
-        if (!fullName || !phone || !emailPersonal) {
-          throw new Error(`Thiếu thông tin bắt buộc (Họ tên, SĐT, Email cá nhân)`);
+        if (!fullName) {
+          throw new Error(`Dòng ${rowNum}: Thiếu thông tin Họ tên`);
+        }
+        if (!phone && !emailPersonal) {
+          throw new Error(`Dòng ${rowNum}: Thiếu ít nhất SĐT hoặc Email cá nhân`);
         }
 
         if (!genderRaw) {
