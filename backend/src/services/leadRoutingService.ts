@@ -498,25 +498,31 @@ export async function pickNextSalesEmployeeId(opts: {
     }
   }
 
-  // Config-first: ưu tiên targetSalesUnitId nếu department gốc đã cấu hình
-  if (anchorDept) {
-    const deptRow = await prisma.department.findUnique({
-      where: { id: anchorDept },
-      select: { targetSalesUnitId: true },
+  // Config-first: đi ngược lên tới Khối để tìm "nối" (targetSalesUnitId) — trường hợp không có lựa chọn nối mới nối lên khối cha.
+  let walkerId = anchorDept;
+  while (walkerId) {
+    const d = await prisma.department.findUnique({
+      where: { id: walkerId },
+      select: { id: true, targetSalesUnitId: true, parentId: true, type: true, organizationId: true },
     });
-    if (deptRow?.targetSalesUnitId) {
-      const targetSubtree = await collectSubtreeDepartmentIds(deptRow.targetSalesUnitId);
+    if (!d) break;
+
+    if (d.targetSalesUnitId) {
+      const targetSubtree = await collectSubtreeDepartmentIds(d.targetSalesUnitId);
       const inTarget = await prisma.employee.findMany({
         where: { ...salesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },
       });
-      const pc = await pickFairSalesEmployeeInLeaf({
-        organizationId: divisionInfo?.organizationId || '',
-        scopeDivisionId: divisionInfo?.divisionId || '',
+      const pcLink = await pickFairSalesEmployeeInLeaf({
+        organizationId: divisionInfo?.organizationId || d.organizationId,
+        scopeDivisionId: divisionInfo?.divisionId || d.id,
         employeeIds: inTarget.map((e) => e.id),
       });
-      if (pc) return pc;
+      if (pcLink) return pcLink;
     }
+
+    if (d.type === 'DIVISION') break;
+    walkerId = d.parentId;
   }
 
   if (divisionInfo && anchorDept) {
@@ -689,25 +695,31 @@ export async function pickNextResalesEmployeeId(opts: {
     }
   }
 
-  // Config-first: ưu tiên targetCsUnitId, rồi externalCsDivisionId trên bản ghi khối
-  if (anchorDept) {
-    const deptRow = await prisma.department.findUnique({
-      where: { id: anchorDept },
-      select: { targetCsUnitId: true },
+  // Config-first: đi ngược lên tới Khối để tìm "nối" (targetCsUnitId) — trường hợp không có lựa chọn nối mới nối lên khối cha.
+  let walkerCsId = anchorDept;
+  while (walkerCsId) {
+    const d = await prisma.department.findUnique({
+      where: { id: walkerCsId },
+      select: { id: true, targetCsUnitId: true, parentId: true, type: true, organizationId: true },
     });
-    if (deptRow?.targetCsUnitId) {
-      const targetSubtree = await collectSubtreeDepartmentIds(deptRow.targetCsUnitId);
+    if (!d) break;
+
+    if (d.targetCsUnitId) {
+      const targetSubtree = await collectSubtreeDepartmentIds(d.targetCsUnitId);
       const inTarget = await prisma.employee.findMany({
         where: { ...resalesEmployeeFilter, id: { notIn: [...exclude] }, departmentId: { in: [...targetSubtree] } },
         select: { id: true },
       });
-      const pc = await pickFairResalesEmployeeInLeaf({
-        organizationId: divisionInfo?.organizationId || '',
-        scopeDivisionId: divisionInfo?.divisionId || '',
+      const pcLink = await pickFairResalesEmployeeInLeaf({
+        organizationId: divisionInfo?.organizationId || d.organizationId,
+        scopeDivisionId: divisionInfo?.divisionId || d.id,
         employeeIds: inTarget.map((e) => e.id),
       });
-      if (pc) return pc;
+      if (pcLink) return pcLink;
     }
+
+    if (d.type === 'DIVISION') break;
+    walkerCsId = d.parentId;
   }
 
   if (divisionInfo) {

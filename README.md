@@ -48,7 +48,12 @@ Hệ thống HCRM áp dụng cơ chế chia số (routing) thông minh, đảm b
 - **Tỉ lệ cấu hình:** Tại mỗi Khối (Division), người quản lý có thể cấu hình tỉ lệ % phân bổ lead cho các Khối con (`marketingToSalesChildDivisionPct`) hoặc các Đơn vị lá trực thuộc (`marketingToSalesPct`).
 - **Chia lập tức:** Lead đi từ gốc cây hoặc Khối cha sẽ được gán lập tức xuống cấp dưới theo đúng tỉ lệ này.
 - **Ưu tiên lệch:** Tương tự như nhân viên, Khối/Đơn vị nào đang có số lượng lead thực tế thấp nhất so với tỉ lệ cấu hình (%) sẽ được gán lead tiếp theo. Nếu chưa cấu hình %, hệ thống mặc định chia đều có đếm (Uniform distribution).
-- **Luồng Fallback:** Nếu đơn vị được chọn không có nhân viên hoạt động, hệ thống sẽ tự động tìm kiếm ứng viên trong cùng Khối, các Khối anh em, hoặc cuối cùng là toàn tổ chức để đảm bảo lead không bị bỏ sót.
+- **Luồng Nối & Fallback (Expanded Logic):**
+  - **Nối linh hoạt (Peer-to-Peer):** Hệ thống cho phép cấu hình "nối" (`externalSalesDivisionId`, `externalCsDivisionId`) giữa các đơn vị đồng cấp bất kể là Khối hay Đơn vị (Unit-to-Unit, Division-to-Unit, Unit-to-Division).
+  - **Tìm kiếm ngược (Walk-up):** Khi tìm đích gán lead, hệ thống bắt đầu từ Đơn vị gốc (anchor) và **đi ngược lên cấp cha** để tìm cấu hình `targetSalesUnitId` hoặc `targetCsUnitId`.
+  - **Thứ tự ưu tiên:** Hệ thống ưu tiên các cấu hình "nối" cụ thể ở cấp thấp nhất trước. Nếu tìm thấy một link hợp lệ, lead sẽ được gán ngay vào đơn vị đích đó.
+  - **Fallback Khối cha:** Trường hợp không tìm thấy bất kỳ cấu hình nối nào từ Đơn vị lên tới cấp Khối, hệ thống mới sử dụng logic phân bổ tự động dựa trên `dataFlowShares` (cơ chế % hoặc chia đều) của Khối cha.
+  - **Đảm bảo không bỏ sót:** Nếu đơn vị được chọn không có nhân viên hoạt động, hệ thống sẽ tự động tìm kiếm ứng viên trong cùng Khối, các Khối anh em, hoặc cuối cùng là toàn tổ chức.
 
 ### 2.3. Quy trình tự động (Cron & Webhook):
 - **Marketing Lead:** Tự động chia ngay khi lead vào từ API/Form website.

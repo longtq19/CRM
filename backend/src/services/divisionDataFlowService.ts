@@ -22,7 +22,7 @@ function inDivision(
   return computeDivisionId(deptId) === divisionId;
 }
 
-function isSiblingDivision(
+function isSiblingDepartment(
   aId: string,
   bId: string,
   departments: { id: string; parentId: string | null; type: string }[]
@@ -30,7 +30,7 @@ function isSiblingDivision(
   if (aId === bId) return false;
   const a = departments.find((d) => d.id === aId);
   const b = departments.find((d) => d.id === bId);
-  if (!a || !b || a.type !== 'DIVISION' || b.type !== 'DIVISION') return false;
+  if (!a || !b) return false;
   return (a.parentId || null) === (b.parentId || null);
 }
 
@@ -424,8 +424,8 @@ export function validateDivisionDataFlow(input: ValidateDivisionDataFlowInput): 
     if (externalSalesDivisionId === divisionId) {
       return { ok: false, message: 'Không chọn chính khối làm khối Sales ngoài.' };
     }
-    if (!isSiblingDivision(divisionId, externalSalesDivisionId, departments)) {
-      return { ok: false, message: 'Khối Sales ngoài phải là khối đồng cấp (cùng nút cha).' };
+    if (!isSiblingDepartment(divisionId, externalSalesDivisionId, departments)) {
+      return { ok: false, message: 'Khối Sales ngoài phải là đơn vị đồng cấp (cùng nút cha).' };
     }
     if (hasSales) {
       return { ok: false, message: 'Không chọn khối Sales ngoài khi khối đã có đơn vị lá Sales.' };
@@ -440,8 +440,8 @@ export function validateDivisionDataFlow(input: ValidateDivisionDataFlowInput): 
     if (externalCsDivisionId === divisionId) {
       return { ok: false, message: 'Không chọn chính khối làm khối đích CS ngoài.' };
     }
-    if (!isSiblingDivision(divisionId, externalCsDivisionId, departments)) {
-      return { ok: false, message: 'Khối đích CS ngoài phải là khối đồng cấp (cùng nút cha).' };
+    if (!isSiblingDepartment(divisionId, externalCsDivisionId, departments)) {
+      return { ok: false, message: 'Khối đích CS ngoài phải là đơn vị đồng cấp (cùng nút cha).' };
     }
   }
 
