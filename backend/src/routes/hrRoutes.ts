@@ -87,9 +87,9 @@ router.get('/departments', getDepartments);
 router.get('/divisions', getDivisions);
 router.get('/role-groups', getRoleGroups);
 router.get('/subsidiaries', getSubsidiaries);
-router.post('/subsidiaries', checkPermission('MANAGE_HR'), createSubsidiary);
-router.put('/subsidiaries/:id', checkPermission('MANAGE_HR'), updateSubsidiary);
-router.delete('/subsidiaries/:id', checkPermission('MANAGE_HR'), deleteSubsidiary);
+router.post('/subsidiaries', checkPermission(['MANAGE_HR', 'CREATE_HR']), createSubsidiary);
+router.put('/subsidiaries/:id', checkPermission(['MANAGE_HR', 'UPDATE_HR']), updateSubsidiary);
+router.delete('/subsidiaries/:id', checkPermission(['MANAGE_HR', 'DELETE_HR']), deleteSubsidiary);
 router.get('/banks', getBanks);
 router.get('/employment-types', getEmploymentTypes);
 router.get('/employee-statuses', getEmployeeStatuses);
@@ -110,9 +110,9 @@ router.delete(
   deleteEmployeeType
 );
 router.get('/hr-department-units', getHrDepartmentUnits);
-router.post('/hr-department-units', checkPermission('MANAGE_HR'), createHrDepartmentUnit);
-router.put('/hr-department-units/:id', checkPermission('MANAGE_HR'), updateHrDepartmentUnit);
-router.delete('/hr-department-units/:id', checkPermission('MANAGE_HR'), deleteHrDepartmentUnit);
+router.post('/hr-department-units', checkPermission(['MANAGE_HR', 'CREATE_HR']), createHrDepartmentUnit);
+router.put('/hr-department-units/:id', checkPermission(['MANAGE_HR', 'UPDATE_HR']), updateHrDepartmentUnit);
+router.delete('/hr-department-units/:id', checkPermission(['MANAGE_HR', 'DELETE_HR']), deleteHrDepartmentUnit);
 
 // Create Master Data Routes
 router.post('/divisions', checkPermission([...ORG_STRUCTURE_WRITE_PERMISSIONS]), createDivision);
@@ -140,18 +140,18 @@ router.put('/positions/:id', checkPermission([...ORG_STRUCTURE_WRITE_PERMISSIONS
 router.delete('/positions/:id', checkPermission([...ORG_STRUCTURE_WRITE_PERMISSIONS]), deletePosition);
 
 // Employee Routes
-router.get('/employees/import-template', checkPermission('MANAGE_HR'), getEmployeeImportTemplate);
+router.get('/employees/import-template', checkPermission(['MANAGE_HR', 'CREATE_HR']), getEmployeeImportTemplate);
 router.get('/employees/birthdays-in-month', getEmployeesBirthdaysInMonth);
 router.get('/employees', getEmployees);
 router.get('/employees/:id', getEmployeeById);
-router.post('/employees', checkPermission('MANAGE_HR'), createEmployee);
-router.put('/employees/:id', checkPermission('MANAGE_HR'), updateEmployee);
-router.delete('/employees/:id', checkPermission('MANAGE_HR'), deleteEmployee);
+router.post('/employees', checkPermission(['MANAGE_HR', 'CREATE_HR']), createEmployee);
+router.put('/employees/:id', checkPermission(['MANAGE_HR', 'UPDATE_HR']), updateEmployee);
+router.delete('/employees/:id', checkPermission(['MANAGE_HR', 'DELETE_HR']), deleteEmployee);
 router.post(
   '/employees/assign-role-group',
   checkPermission([...HR_ASSIGN_ROLE_GROUP_PERMISSIONS]),
   assignRoleGroup
 );
-router.post('/employees/import', checkPermission('MANAGE_HR'), excelUploadMiddleware.single('file'), importEmployees);
+router.post('/employees/import', checkPermission(['MANAGE_HR', 'CREATE_HR']), excelUploadMiddleware.single('file'), importEmployees);
 
 export default router;

@@ -766,15 +766,12 @@ export const createOrder = async (req: Request, res: Response) => {
       }
     }
 
-    // Tạo mã đơn hàng mới: YY + Mã kho + MM + DD + XXXXXXX (7 ký tự, tăng từ 2184928) + [SA/RS]
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, "0");
-    const day = now.getDate().toString().padStart(2, "0");
+    // Tạo mã đơn hàng mới (13 ký tự): KG + mã kho (2 ký tự) + 7 ký tự định danh (từ 0000001) + [SA/RS]
     const warehouseCode = whCheck.code;
     const count = await prisma.order.count();
-    const sequence = String(2184928 + count).padStart(7, "0");
+    const sequence = String(count + 1).padStart(7, "0");
     const suffix = isFirstOrder ? "SA" : "RS";
-    const code = `${year}${warehouseCode}${month}${day}${sequence}${suffix}`;
+    const code = `KG${warehouseCode}${sequence}${suffix}`;
 
     const orderDate = now;
 

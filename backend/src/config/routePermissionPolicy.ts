@@ -18,7 +18,13 @@ export const ORG_MASTER_READ_PERMISSIONS = [
 ] as const;
 
 /** Ghi cấu trúc tổ chức (org, khối, đơn vị, chức danh) */
-export const ORG_STRUCTURE_WRITE_PERMISSIONS = ['MANAGE_HR', 'CONFIG_ORG_STRUCTURE'] as const;
+export const ORG_STRUCTURE_WRITE_PERMISSIONS = [
+  'MANAGE_HR',
+  'CREATE_HR',
+  'UPDATE_HR',
+  'DELETE_HR',
+  'CONFIG_ORG_STRUCTURE',
+] as const;
 
 /** Ghi luồng dữ liệu / cập nhật đơn vị có nhánh data-flow */
 export const DIVISION_DATA_FLOW_WRITE_PERMISSIONS = [
@@ -28,7 +34,12 @@ export const DIVISION_DATA_FLOW_WRITE_PERMISSIONS = [
 ] as const;
 
 /** Đọc danh mục phục vụ hồ sơ NV (công ty con, ngân hàng, loại HĐ, trạng thái, …) */
-export const HR_MASTER_CATALOG_READ_PERMISSIONS = ['MANAGE_HR', 'VIEW_HR'] as const;
+export const HR_MASTER_CATALOG_READ_PERMISSIONS = [
+  'MANAGE_HR',
+  'VIEW_HR',
+  'CREATE_HR',
+  'UPDATE_HR',
+] as const;
 
 /**
  * Xóa hẳn bản ghi đơn nghỉ phép (POST .../permanent-delete). Chỉ mã này — không dùng MANAGE_HR/MANAGE_LEAVE.
@@ -45,7 +56,11 @@ export const EMPLOYEE_TYPE_CATALOG_VIEW_PERMISSIONS = [
 ] as const;
 
 /** Thêm / sửa / xóa bản ghi loại nhân viên */
-export const EMPLOYEE_TYPE_CATALOG_WRITE_PERMISSIONS = ['MANAGE_EMPLOYEE_TYPE_CATALOG', 'MANAGE_HR'] as const;
+export const EMPLOYEE_TYPE_CATALOG_WRITE_PERMISSIONS = [
+  'MANAGE_EMPLOYEE_TYPE_CATALOG',
+  'MANAGE_HR',
+  'UPDATE_HR',
+] as const;
 
 /** GET /hr/role-groups (dropdown HR / RBAC) */
 export const HR_ROLE_GROUP_LIST_PERMISSIONS = [
@@ -57,18 +72,19 @@ export const HR_ROLE_GROUP_LIST_PERMISSIONS = [
 /** POST /hr/employees/assign-role-group */
 export const HR_ASSIGN_ROLE_GROUP_PERMISSIONS = [
   'MANAGE_HR',
+  'UPDATE_HR',
   'MANAGE_ROLE_GROUPS',
   'EDIT_SETTINGS',
 ] as const;
 
 /**
  * Gỡ nhân viên khỏi đơn vị lá vận hành (DELETE staff-assignment).
- * Trước đây chỉ theo mã vai trò CRM/technical — chuyển sang quyền gán trên Nhóm quyền.
  */
 export const OPS_LEAF_STAFF_REMOVE_PERMISSIONS = [
   'CONFIG_ORG_STRUCTURE',
   'CONFIG_DATA_FLOW',
   'MANAGE_HR',
+  'DELETE_HR',
 ] as const;
 
 /** Bỏ lọc phạm vi HR khi xem danh sách/chi tiết NV (đủ quyền RBAC/cấu hình) */
@@ -82,6 +98,8 @@ export const MARKETING_OWNER_DROPDOWN_READ_PERMISSIONS = [
   'MANAGE_SALES',
   'VIEW_SALES',
   'MANAGE_CUSTOMERS',
+  'CREATE_CUSTOMER',
+  'UPDATE_CUSTOMER',
   'VIEW_CUSTOMERS',
   'MANAGE_RESALES',
 ] as const;
@@ -110,9 +128,11 @@ export const SYSTEM_MODULE_PATH_ACCESS_PERMISSIONS = [
   'EDIT_SETTINGS',
   'VIEW_LOGS',
   'MANAGE_SYSTEM',
+  'VIEW_EMPLOYEE_ACCOUNTS',
   'STAFF_LOCK',
   'STAFF_LOGOUT',
-  'MANAGE_EMPLOYEE_ACCOUNTS',
+  'STAFF_TEMP_PASSWORD',
+  'STAFF_INSPECT',
 ] as const;
 
 /** Helper: kiểm tra mảng permission từ JWT (nhóm quyền) */

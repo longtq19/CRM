@@ -39,7 +39,7 @@ const TAG_CUSTOMER_WRITE_PERMS = [
 ] as const;
 
 /** Tạo khách từ Sales / CSKH (hoặc quản lý khách). */
-const CUSTOMER_CREATE_PERMS = ['MANAGE_CUSTOMERS', 'MANAGE_SALES', 'MANAGE_RESALES'] as const;
+const CUSTOMER_CREATE_PERMS = ['MANAGE_CUSTOMERS', 'CREATE_CUSTOMER', 'MANAGE_SALES', 'MANAGE_RESALES'] as const;
 
 // Customer Tags
 router.get('/customer-tags', authMiddleware, getCustomerTags);
@@ -51,15 +51,15 @@ router.delete('/customer-tags/:customerId/:tagId', authMiddleware, checkPermissi
 
 // Customer Farms
 router.get('/customers/:customerId/farms', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerFarms);
-router.post('/customers/:customerId/farms', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), createCustomerFarm);
-router.put('/customers/farms/:farmId', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), updateCustomerFarm);
-router.delete('/customers/farms/:farmId', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), deleteCustomerFarm);
+router.post('/customers/:customerId/farms', authMiddleware, checkPermission(['MANAGE_CUSTOMERS', 'CREATE_CUSTOMER']), createCustomerFarm);
+router.put('/customers/farms/:farmId', authMiddleware, checkPermission(['MANAGE_CUSTOMERS', 'UPDATE_CUSTOMER']), updateCustomerFarm);
+router.delete('/customers/farms/:farmId', authMiddleware, checkPermission(['MANAGE_CUSTOMERS', 'DELETE_CUSTOMER']), deleteCustomerFarm);
 
 // Customers
 router.get('/customers/stats', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerStats);
 router.get('/customers/viewable-employees', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getViewableEmployees);
 router.get('/customers/import/template', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerImportTemplate);
-router.post('/customers/import', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), excelUploadMiddleware.single('file'), importCustomersExcel);
+router.post('/customers/import', authMiddleware, checkPermission(['MANAGE_CUSTOMERS', 'CREATE_CUSTOMER']), excelUploadMiddleware.single('file'), importCustomersExcel);
 router.get('/customers/:id', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomerById);
 router.get('/customers', authMiddleware, checkPermission('VIEW_CUSTOMERS'), getCustomers);
 router.post('/customers', authMiddleware, checkPermission([...CUSTOMER_CREATE_PERMS]), createCustomer);
@@ -87,7 +87,7 @@ router.patch(
   checkPermission(['MANAGE_SALES', 'MANAGE_RESALES', 'MANAGE_CUSTOMERS']),
   patchCustomerQuickMainCrops,
 );
-router.put('/customers/:id', authMiddleware, checkPermission('MANAGE_CUSTOMERS'), updateCustomer);
+router.put('/customers/:id', authMiddleware, checkPermission(['MANAGE_CUSTOMERS', 'UPDATE_CUSTOMER']), updateCustomer);
 router.delete('/customers/:id', authMiddleware, checkPermission('DELETE_CUSTOMER'), deleteCustomer);
 
 export default router;

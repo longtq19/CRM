@@ -27,8 +27,8 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
   - Định dạng: Chữ in hoa (A-Z) hoặc số (0-9), không dấu, không khoảng trắng, không ký tự đặc biệt.
   - Ví dụ: `HN`, `SG`, `K1`.
 - **Mã Đơn hàng (Order Code):**
-  - Định dạng: **`YY`** (2 số cuối năm) + **`WH`** (Mã kho) + **`MM`** (Tháng) + **`DD`** (Ngày) + **`xxxxxxx`** (Số thứ tự 7 chữ số, tăng từ **2184928** đến 9999999) + **`Hậu tố`** (**SA** cho đơn Sales, **RS** cho đơn CSKH).
-  - Ví dụ đơn tại kho HN ngày 04/04/2026: `26HN04042184928SA`.
+  - Định dạng (13 ký tự): **`KG`** (Cố định 2 ký tự) + **`WH`** (Mã kho - 2 ký tự) + **`xxxxxxx`** (Số thứ tự 7 chữ số, tăng từ **0000001** đến 9999999) + **`Hậu tố`** (**SA** cho đơn Sales, **RS** cho đơn CSKH).
+  - Ví dụ đơn tại kho HN: `KGHN0000001SA`.
 - **Định dạng Tiền tệ (Currency Input):**
   - Dấu phân cách hàng nghìn: Sử dụng dấu chấm (**`.`**).
   - Xử lý nhập liệu: Tự động loại bỏ số 0 ở đầu khi nhập và định dạng dấu chấm trực tiếp khi gõ.
@@ -103,7 +103,7 @@ Các bảng **nhật ký hệ thống** (`system_logs`), **khách hàng** (`cust
 | Schema DB / model | `backend/prisma/schema.prisma` → `npx prisma generate` (trong `backend/`) |
 | Auth JWT, cookie, `checkPermission` | `backend/src/middleware/authMiddleware.ts` |
 | Mã quyền theo nhóm API (policy, không gán theo mã vai trò trong code) | `backend/src/config/routePermissionPolicy.ts` — `SYSTEM_MODULE_PATH_ACCESS_PERMISSIONS` đồng bộ với `frontend/src/constants/routePermissionPolicy.ts` (vào `/system` khi có quyền nghiệp vụ dù chưa gắn menu) |
-| Catalog quyền (tên, mô tả tooltip, upsert DB) | `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`; khởi động backend qua `ensureDefaultPermissionsCatalog` trong `authController.ts` |
+| Catalog quyền (tên, mô tả tooltip, upsert DB) | `backend/src/constants/permissionsCatalog.ts` — `DEFAULT_PERMISSIONS`; khởi động backend qua `ensureDefaultPermissionsCatalog` trong `authController.ts`. Toàn bộ catalog đã được kiểm toán và chia nhỏ (granular CRUD) theo 15 module nghiệp vụ. |
 | Phạm vi xem khách (view scope) | `backend/src/utils/viewScopeHelper.ts` và các controller khách hàng / data pool |
 | Cron lead / pool | `backend/src/cron/leadDistribution.ts`, cấu hình số trong `system_configs` (mục 3.6) |
 | Webhook Viettel Post (public) | `backend/src/app.ts` mount `/api/webhook` → `backend/src/routes/webhookRoutes.ts` |
@@ -186,8 +186,8 @@ JSON gồm: `marketingToSalesPct` (MKT → từng đơn vị lá Sales **trực 
 **Hệ thống (Quản trị) → Nhật ký / Nhóm quyền / Tài khoản:** Tab phân quyền (`RoleGroupManager`) và quản trị nằm trong `frontend/src/pages/SystemAdmin.tsx`. Truy cập các tab và thao tác được giới hạn chặt chẽ theo mã quyền catalog (không chỉ dành riêng cho ADM):
 - **Nhật ký hệ thống:** Yêu cầu quyền **`VIEW_LOGS`** (Xem nhật ký hệ thống).
 - **Nhóm quyền (RBAC):** Cần **`VIEW_ROLE_GROUPS`** (Xem nhóm quyền) để đọc và **`MANAGE_ROLE_GROUPS`** (Chỉnh sửa nhóm quyền) để tạo mới/sửa/xóa hoặc gán menu/quyền.
-- **Tài khoản nhân sự:** Yêu cầu quyền **`MANAGE_EMPLOYEE_ACCOUNTS`** (Quản lý tài khoản nhân sự) để thực hiện khóa/mở khóa, đăng xuất phiên, cấp mật khẩu tạm và kiểm tra tài khoản (staff check).
-Truy cập route `/system` (SPA): Ưu tiên có menu **Hệ thống** (`/system`); nếu thiếu menu nhưng có một trong các quyền nghiệp vụ trên, `PermissionRoute` vẫn cho cho phép vào. Tổng cộng **78 quyền** trong catalog (tại `backend/src/constants/permissionsCatalog.ts`), đồng bộ với DB qua `ensureDefaultPermissionsCatalog` khi khởi động backend.
+- **Tài khoản nhân sự:** Yêu cầu các quyền cụ thể như **`VIEW_EMPLOYEE_ACCOUNTS`** (Xem danh sách tài khoản), **`STAFF_LOCK`** (Khóa/Mở khóa), **`STAFF_LOGOUT`** (Đăng xuất phiên), **`STAFF_TEMP_PASSWORD`** (Cấp mật khẩu tạm) và **`STAFF_INSPECT`** (Kiểm tra tài khoản). Hệ thống đã loại bỏ các quyền quản lý chung chung (`MANAGE_*`) để thay bằng cơ chế phân quyền chi tiết (Granular CRUD).
+Truy cập route `/system` (SPA): Ưu tiên có menu **Hệ thống** (`/system`); nếu thiếu menu nhưng có một trong các quyền nghiệp vụ trên, `PermissionRoute` vẫn cho cho phép vào. Tổng cộng **85 quyền** trong catalog (tại `backend/src/constants/permissionsCatalog.ts`), đồng bộ với DB qua `ensureDefaultPermissionsCatalog` khi khởi động backend.
 
 ## 3. Luồng vận hành “end-to-end”
 
@@ -328,7 +328,7 @@ Các key (chỉnh khi có quyền `CONFIG_OPERATIONS` hoặc `EDIT_SETTINGS`, ho
 ### 3.7 Ngôn ngữ hiển thị trên FE (tiếng Việt)
 
 - Sidebar hiển thị trực tiếp `menus.label` từ DB (FE không tự map menu). `syncDefaultMenus()` trong `backend/src/controllers/authController.ts` cập nhật `label` theo `path` để đảm bảo nhãn menu hiển thị tiếng Việt (ví dụ: `Bảng điều khiển`, `Tiếp thị`, `Kinh doanh`).
-- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **15 nhóm theo module** trên UI (tiền tố `01.`–`15.` để sắp thứ tự): Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Khách hàng, Marketing, Sales, CSKH, Sản phẩm, Hỗ trợ, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **78 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
+- Màn hình phân quyền nhóm (`RoleGroupManager`, Hệ thống → Nhóm quyền): nhãn chức năng lấy từ `translatePermissionLabel(code, name)` trong `frontend/src/utils/dictionary.ts` — ưu tiên tra nhãn tiếng Việt theo `Permission.code` trong `DICTIONARY`, rồi mới dịch `name`. DB lưu `name` và **`description`** (mô tả ngắn tiếng Việt cho tooltip/hướng dẫn; đồng bộ từ catalog `backend/src/constants/permissionsCatalog.ts` khi `syncDefaultMenus`). Chức năng được chia thành **15 nhóm theo module** trên UI (tiền tố `01.`–`15.` để sắp thứ tự): Hệ thống, Dashboard & Báo cáo, Nhân sự, Kho số & Phân bổ, Khách hàng, Marketing, Sales, CSKH, Sản phẩm, Hỗ trợ, Đơn hàng & Vận chuyển, Kho vận, Kế toán, Vận hành & Cơ cấu, Tiện ích (map `PERMISSION_GROUPS` trong `RoleGroupManager.tsx`; quyền trong nhóm **sắp theo mã**). Tổng cộng **85 quyền** trong catalog (cùng file `permissionsCatalog.ts`), đồng bộ `dictionary.ts` (FE) và `checkPermission()` (routes). Khi server khởi động, `syncDefaultMenus()` tự upsert các quyền catalog vào DB và **xóa quyền "ma"** (permission trong DB nhưng không nằm trong danh sách chính thức) qua `cleanupOrphanPermissions()`.
 - **Địa danh hành chính (tỉnh/thành, quận/huyện, phường/xã):** FE hiển thị dạng Title Case (mỗi từ viết hoa đầu, `vi-VN`) qua `administrativeTitleCase` / `formatAdminGeoLine` trong `frontend/src/utils/addressDisplayFormat.ts`; bản đồ phân bố khách dùng `matchAdministrativeNameKey` để khớp tên tỉnh từ API (có thể chữ thường) với bảng tọa độ cố định.
 
 ## 4. Nghiệp vụ theo chức năng chính

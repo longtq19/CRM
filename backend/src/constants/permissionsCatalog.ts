@@ -15,454 +15,487 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
   {
     code: 'FULL_ACCESS',
     name: 'Toàn quyền hệ thống',
-    description:
-      'JWT coi như có mọi mã quyền: toàn bộ API và nút trên giao diện (trừ chỉnh sửa nhóm Quản trị hệ thống trên UI).',
+    description: 'Có mọi quyền trong hệ thống. Dành cho Quản trị viên cao cấp nhất.',
   },
   {
     code: 'MANAGE_SYSTEM',
-    name: 'Quản lý hệ thống',
-    description: 'Truy cập tab Hệ thống (nhật ký, tài khoản nhân sự) và các API tương ứng cùng VIEW_LOGS.',
+    name: 'Quản trị hệ thống',
+    description: 'Truy cập tab Hệ thống, xem nhật ký, quản lý cấu hình và tài khoản nhân sự.',
   },
   {
     code: 'VIEW_LOGS',
     name: 'Xem nhật ký hệ thống',
-    description: 'Đọc nhật ký hoạt động của hệ thống (logs) qua API và màn hình Nhật ký.',
+    description: 'Xem nhật ký hoạt động (audit logs) của toàn bộ hệ thống.',
   },
   {
     code: 'VIEW_ROLE_GROUPS',
     name: 'Xem nhóm quyền',
-    description: 'Xem danh sách nhóm quyền, menu và chức năng đã gán (RBAC).',
+    description: 'Xem danh sách nhóm quyền và các menu/quyền được gán.',
   },
   {
     code: 'MANAGE_ROLE_GROUPS',
-    name: 'Chỉnh sửa nhóm quyền',
-    description: 'Tạo mới, chỉnh sửa hoặc xóa các nhóm quyền và gán quyền/menu tương ứng.',
-  },
-  {
-    code: 'MANAGE_EMPLOYEE_ACCOUNTS',
-    name: 'Quản lý tài khoản nhân sự',
-    description: 'Thực hiện các thao tác quản trị tài khoản: khóa/mở khóa, đăng xuất phiên, cấp mật khẩu tạm, kiểm tra tài khoản.',
+    name: 'Quản lý nhóm quyền',
+    description: 'Tạo mới, chỉnh sửa và xóa các nhóm quyền (RBAC).',
   },
   {
     code: 'VIEW_SETTINGS',
-    name: 'Xem cấu hình hệ thống',
-    description:
-      'Xem cấu hình chung, danh mục trạng thái khách, thống kê phân hạng; đọc API role-groups / system-config (đọc).',
+    name: 'Xem cấu hình chung',
+    description: 'Xem các tham số cấu hình hệ thống, danh mục trạng thái, phân hạng.',
   },
   {
     code: 'EDIT_SETTINGS',
-    name: 'Chỉnh sửa cấu hình hệ thống',
-    description:
-      'Sửa cấu hình hệ thống, danh mục trạng thái khách, phân hạng chi tiêu; cập nhật system-config; chỉnh RBAC cùng MANAGE_ROLE_GROUPS.',
+    name: 'Chỉnh sửa cấu hình chung',
+    description: 'Cập nhật tham số cấu hình hệ thống, danh mục trạng thái, quy tắc phân hạng.',
+  },
+  {
+    code: 'VIEW_EMPLOYEE_ACCOUNTS',
+    name: 'Xem tài khoản nhân sự',
+    description: 'Xem danh sách tài khoản đăng nhập của nhân viên.',
   },
   {
     code: 'STAFF_LOGOUT',
-    name: 'Đăng xuất nhân viên',
-    description: 'Buộc đăng xuất / vô hiệu phiên tài khoản nhân viên (auth admin).',
+    name: 'Buộc đăng xuất nhân viên',
+    description: 'Buộc kết thúc phiên làm việc của tài khoản nhân viên.',
   },
   {
     code: 'STAFF_LOCK',
-    name: 'Khóa / mở khóa tài khoản',
-    description: 'Khóa hoặc mở khóa tài khoản đăng nhập nhân viên.',
+    name: 'Khóa / Mở khóa tài khoản',
+    description: 'Khóa hoặc mở khóa quyền đăng nhập của nhân viên.',
   },
   {
     code: 'STAFF_TEMP_PASSWORD',
-    name: 'Cấp mật khẩu tạm cho nhân viên',
-    description: 'Thực hiện reset mật khẩu và cấp mật khẩu tạm cho tài khoản nhân viên.',
+    name: 'Cấp mật khẩu tạm',
+    description: 'Reset và cung cấp mật khẩu tạm cho nhân viên.',
   },
   {
     code: 'STAFF_INSPECT',
-    name: 'Kiểm tra tài khoản nhân viên',
-    description: 'Xem thông tin bảo mật / phiên đăng nhập (Inspect) của nhân viên.',
+    name: 'Kiểm tra phiên đăng nhập',
+    description: 'Kiểm tra chi tiết bảo mật và trạng thái hoạt động của nhân viên.',
   },
 
   // ── 02. Dashboard & Báo cáo ──
   {
     code: 'VIEW_DASHBOARD',
     name: 'Xem Dashboard',
-    description: 'Vào trang Dashboard và các API báo cáo tổng quan gắn Dashboard.',
+    description: 'Xem biểu đồ tổng quan và các báo cáo nhanh trên trang chủ.',
   },
   {
     code: 'VIEW_REPORTS',
-    name: 'Xem báo cáo',
-    description: 'Xem module Báo cáo và các endpoint báo cáo yêu cầu VIEW_REPORTS hoặc kết hợp VIEW_PERFORMANCE.',
+    name: 'Xem module Báo cáo',
+    description: 'Truy cập vào module Báo cáo chuyên sâu.',
   },
   {
     code: 'VIEW_PERFORMANCE',
-    name: 'Xem hiệu suất làm việc',
-    description: 'Xem báo cáo hiệu suất, marketing, báo cáo tổng hợp (performance API).',
+    name: 'Xem báo cáo hiệu suất',
+    description: 'Xem báo cáo hiệu suất làm việc của Marketing, Sales và CSKH.',
   },
 
-  // ── 3. Nhân sự ──
-  {
-    code: 'MANAGE_HR',
-    name: 'Quản lý nhân sự',
-    description:
-      'Tạo/sửa/xóa hồ sơ NV, import Excel, cấu trúc org (cùng CONFIG_ORG_STRUCTURE khi route yêu cầu), gán nhóm quyền NV.',
-  },
+  // ── 03. Nhân sự (HR) ──
   {
     code: 'VIEW_HR',
-    name: 'Xem nhân sự (theo phạm vi)',
-    description: 'Xem danh sách/chi tiết NV trong phạm vi phân quyền HR (không tự có quyền ghi).',
+    name: 'Xem hồ sơ nhân sự',
+    description: 'Xem danh sách và chi tiết hồ sơ nhân viên trong phạm vi quản lý.',
+  },
+  {
+    code: 'CREATE_HR',
+    name: 'Tạo hồ sơ nhân viên',
+    description: 'Thêm mới nhân viên vào hệ thống (thủ công hoặc import).',
+  },
+  {
+    code: 'UPDATE_HR',
+    name: 'Sửa hồ sơ nhân viên',
+    description: 'Cập nhật thông tin chi tiết của nhân sự.',
+  },
+  {
+    code: 'DELETE_HR',
+    name: 'Xóa hồ sơ nhân viên',
+    description: 'Xóa vĩnh viễn hồ sơ nhân sự khỏi hệ thống.',
+  },
+  {
+    code: 'MANAGE_HR',
+    name: 'Toàn quyền nhân sự',
+    description: 'Toàn quyền thao tác trên module HR (Tạo/Sửa/Xóa/Import).',
   },
   {
     code: 'VIEW_EMPLOYEE_TYPE_CATALOG',
     name: 'Xem danh mục loại nhân viên',
-    description: 'Xem danh sách loại nhân viên (tab Danh mục HR).',
+    description: 'Xem danh sách các loại nhân viên (Vận đơn, Sales, HR...).',
   },
   {
     code: 'MANAGE_EMPLOYEE_TYPE_CATALOG',
     name: 'Quản lý danh mục loại nhân viên',
-    description: 'Thêm/sửa/xóa loại nhân viên trong danh mục.',
+    description: 'Thêm/Sửa/Xóa các loại nhân viên trong hệ thống.',
   },
   {
     code: 'VIEW_CONTRACTS',
-    name: 'Xem hợp đồng',
-    description: 'Xem hợp đồng lao động trong phạm vi module HR.',
+    name: 'Xem hợp đồng lao động',
+    description: 'Xem danh sách và chi tiết hợp đồng lao động.',
+  },
+  {
+    code: 'MANAGE_CONTRACTS',
+    name: 'Quản lý hợp đồng lao động',
+    description: 'Tạo mới, cập nhật và xóa hợp đồng lao động.',
   },
   {
     code: 'VIEW_LEAVE_REQUESTS',
     name: 'Xem đơn nghỉ phép',
-    description: 'Xem đơn nghỉ phép (theo luồng phê duyệt/phạm vi).',
+    description: 'Xem danh sách đơn nghỉ phép của nhân viên.',
   },
   {
-    code: 'MANAGE_LEAVE_REQUESTS',
-    name: 'Quản lý đơn nghỉ phép',
-    description: 'Duyệt/từ chối/cập nhật đơn nghỉ phép (trừ xóa vĩnh viễn — xem DELETE_LEAVE_REQUESTS).',
+    code: 'APPROVE_LEAVE_REQUESTS',
+    name: 'Duyệt đơn nghỉ phép',
+    description: 'Thực hiện phê duyệt hoặc từ chối đơn nghỉ phép.',
   },
   {
     code: 'DELETE_LEAVE_REQUESTS',
     name: 'Xóa đơn nghỉ phép',
-    description: 'Xóa vĩnh viễn bản ghi đơn nghỉ phép (API permanent-delete; không thay cho MANAGE_LEAVE_REQUESTS).',
+    description: 'Xóa vĩnh viễn dữ liệu đơn nghỉ phép.',
   },
-
-  // ── 04. Kho số & Phân bổ ──
+  // ── 04. Kho số & Phân bổ (Data Pool) ──
   {
     code: 'VIEW_FLOATING_POOL',
     name: 'Xem kho số thả nổi',
-    description: 'Mở kho thả nổi (GET data-pool); có thể kết hợp VIEW_SALES hoặc VIEW_MANAGED_UNIT_POOL tùy route.',
+    description: 'Xem danh sách lead trong kho thả nổi công ty.',
   },
   {
     code: 'MANAGE_DATA_POOL',
     name: 'Quản lý kho số thả nổi',
-    description: 'Thêm/thu hồi lead vào kho, quản lý dữ liệu pool (POST add, recall khi đủ quyền).',
+    description: 'Thêm/Thu hồi lead vào kho, quản lý dữ liệu pool.',
   },
   {
     code: 'DATA_POOL_CONFIG',
     name: 'Cấu hình kho số thả nổi',
-    description: 'Đọc/ghi cấu hình phân phối kho thả nổi (GET/PUT /data-pool/config).',
+    description: 'Cấu hình các tham số vận hành và phân phối kho số.',
   },
   {
     code: 'CONFIG_DISTRIBUTION',
     name: 'Cấu hình tỷ lệ phân bổ',
-    description: 'Cấu hình tỉ lệ phân bổ giữa đơn vị (distribution-ratios).',
+    description: 'Thiết lập tỷ lệ chia lead cho các đơn vị/nhân sự.',
   },
   {
     code: 'CLAIM_LEAD',
-    name: 'Nhận khách từ kho Sales (chưa phân)',
-    description: 'Nhận lead từ kho Sales mở, cập nhật trạng thái xử lý (claim, processing-status).',
+    name: 'Nhận lead từ kho Sales',
+    description: 'Tự nhận lead chưa phân công từ kho chung của Sales.',
   },
   {
     code: 'ASSIGN_LEAD',
-    name: 'Phân bổ khách',
-    description: 'Gán lead, phân tự động, phân ngay (assign, auto-distribute, immediate-distribute).',
+    name: 'Phân bổ lead chủ động',
+    description: 'Giao lead cho nhân viên cụ thể hoặc kích hoạt phân tự động.',
   },
   {
-    code: 'DISTRIBUTE_FLOATING_POOL',
-    name: 'Phân chia số từ kho thả nổi (trong phạm vi quản lý)',
-    description: 'Phân số từ kho thả nổi trong phạm vi quản lý được (API distribute).',
-  },
-  {
-    code: 'DISTRIBUTE_FLOATING_CROSS_ORG',
-    name: 'Phân kho thả nổi ra mọi khối/đơn vị',
-    description: 'Phân kho thả nổi không giới hạn một khối (cross org).',
-  },
-  {
-    code: 'CLAIM_FLOATING_POOL',
-    name: 'Nhận khách từ kho thả nổi',
-    description: 'Nhận khách từ kho thả nổi (claim-customer).',
+    code: 'RECALL_LEAD',
+    name: 'Thu hồi lead',
+    description: 'Thu hồi lead đã gán cho nhân viên về kho chung hoặc chuyển người khác.',
   },
   {
     code: 'VIEW_CSKH_POOL',
     name: 'Xem kho số CSKH',
-    description: 'Xem kho số CSKH (API pool CSKH).',
-  },
-  {
-    code: 'MANAGE_CSKH_POOL',
-    name: 'Quản lý kho số CSKH',
-    description: 'Thao tác gán/phân trong kho CSKH (kết hợp MANAGE_DATA_POOL hoặc DISTRIBUTE_SALES_CROSS_ORG tùy API).',
-  },
-  {
-    code: 'VIEW_MANAGED_UNIT_POOL',
-    name: 'Xem kho số theo đơn vị quản lý',
-    description: 'Xem kho số trong phạm vi đơn vị mình quản lý (GET data-pool).',
-  },
-  {
-    code: 'RECALL_MANAGED_UNIT_LEADS',
-    name: 'Thu hồi lead trong phạm vi đơn vị quản lý',
-    description: 'Thu hồi lead đã gán cho NV trong phạm vi đơn vị quản lý (recall).',
-  },
-  {
-    code: 'DISTRIBUTE_SALES_CROSS_ORG',
-    name: 'Phân kho Sales/CSKH cho bất kỳ khối/đơn vị/NV',
-    description: 'Phân lead cho mọi khối/đơn vị/nhân viên (quyền phân phối rộng).',
+    description: 'Truy cập kho dữ liệu dành riêng cho Chăm sóc khách hàng.',
   },
 
   // ── 05. Khách hàng ──
   {
     code: 'VIEW_CUSTOMERS',
-    name: 'Xem khách hàng',
-    description: 'Xem danh sách/chi tiết khách, xuất Excel, mẫu import (theo phạm vi xem CUSTOMER).',
+    name: 'Xem danh sách khách hàng',
+    description: 'Xem khách hàng trong phạm vi phân quyền (cá nhân/nhóm/đơn vị).',
   },
   {
     code: 'VIEW_ALL_COMPANY_CUSTOMERS',
     name: 'Xem toàn bộ khách hàng công ty',
-    description: 'Bỏ lọc phạm vi cây — xem khách toàn công ty (helper viewScope).',
+    description: 'Xem mọi khách hàng trên hệ thống, không bị hạn chế bởi cơ cấu tổ chức.',
   },
   {
-    code: 'MANAGE_CUSTOMERS',
-    name: 'Quản lý khách hàng & Marketing',
-    description:
-      'Sửa khách, lead Marketing, chi phí chiến dịch (khi đủ quyền chiến dịch), tag khách; xem nền tảng cho dropdown cần VIEW_MARKETING_PLATFORMS hoặc quyền tạo/sửa/xóa nền tảng; CRUD chiến dịch dùng VIEW/CREATE/UPDATE/DELETE_MARKETING_CAMPAIGN; không gồm xóa khách (DELETE_CUSTOMER).',
+    code: 'CREATE_CUSTOMER',
+    name: 'Thêm khách hàng mới',
+    description: 'Tạo mới hồ sơ khách hàng (thủ công hoặc import).',
+  },
+  {
+    code: 'UPDATE_CUSTOMER',
+    name: 'Sửa thông tin khách hàng',
+    description: 'Cập nhật thông tin chi tiết, phân loại, tag khách hàng.',
   },
   {
     code: 'DELETE_CUSTOMER',
     name: 'Xóa khách hàng',
-    description: 'Xóa vĩnh viễn bản ghi khách (API DELETE customer).',
+    description: 'Xóa hồ sơ khách hàng khỏi hệ thống.',
+  },
+  {
+    code: 'MANAGE_CUSTOMERS',
+    name: 'Toàn quyền quản lý khách hàng',
+    description: 'Gồm tất cả quyền Thêm/Sửa/Xóa và quản lý danh mục khách hàng.',
   },
 
   // ── 06. Marketing ──
   {
-    code: 'VIEW_MARKETING_PLATFORMS',
-    name: 'Xem tab quản trị danh mục nền tảng (Marketing)',
-    description:
-      'Mở tab «Nền tảng» trên module Marketing (bảng quản trị). Danh sách đọc API `GET /marketing/sources` dùng chung cho mọi NV đã đăng nhập — không cần quyền này để đọc danh sách; tạo/sửa/xóa dùng quyền riêng.',
-  },
-  {
-    code: 'CREATE_MARKETING_PLATFORM',
-    name: 'Tạo nền tảng marketing',
-    description: 'POST tạo nền tảng (marketing_sources).',
-  },
-  {
-    code: 'UPDATE_MARKETING_PLATFORM',
-    name: 'Sửa nền tảng marketing',
-    description: 'PUT cập nhật nền tảng (marketing_sources).',
-  },
-  {
-    code: 'DELETE_MARKETING_PLATFORM',
-    name: 'Xóa nền tảng marketing',
-    description: 'DELETE nền tảng khi đủ điều kiện nghiệp vụ (marketing_sources).',
-  },
-  {
-    code: 'MANAGE_MARKETING_GROUPS',
-    name: 'Quản lý nhóm Marketing',
-    description: 'Quản lý nhóm Marketing (module nhóm / gán — theo route marketing-group).',
-  },
-  {
     code: 'VIEW_MARKETING_CAMPAIGNS',
-    name: 'Xem chiến dịch marketing',
-    description:
-      'GET danh sách/chi tiết chiến dịch, API info chiến dịch; dropdown chiến dịch trên form Kinh doanh (không gồm tạo/sửa/xóa).',
+    name: 'Xem chiến dịch Marketing',
+    description: 'Xem danh sách và kết quả các chiến dịch Marketing.',
   },
   {
     code: 'CREATE_MARKETING_CAMPAIGN',
-    name: 'Tạo chiến dịch marketing',
-    description: 'POST tạo chiến dịch mới (marketing_campaigns).',
+    name: 'Tạo chiến dịch Marketing',
+    description: 'Thiết lập chiến dịch, API key, Webhook tích hợp lead.',
   },
   {
     code: 'UPDATE_MARKETING_CAMPAIGN',
-    name: 'Sửa chiến dịch marketing',
-    description:
-      'PUT cập nhật chiến dịch; cấu hình API key / webhook / allowed-origins / tích hợp public lead cho chiến dịch.',
+    name: 'Sửa chiến dịch Marketing',
+    description: 'Cập nhật tham số, chi phí và trạng thái chiến dịch.',
   },
   {
     code: 'DELETE_MARKETING_CAMPAIGN',
-    name: 'Xóa chiến dịch marketing',
-    description: 'DELETE chiến dịch (gỡ gán khách, xóa chi phí/cơ hội gắn chiến dịch khi đủ điều kiện nghiệp vụ).',
+    name: 'Xóa chiến dịch Marketing',
+    description: 'Gỡ bỏ hoàn toàn chiến dịch khỏi hệ thống.',
+  },
+  {
+    code: 'VIEW_MARKETING_PLATFORMS',
+    name: 'Xem nền tảng Marketing',
+    description: 'Xem danh mục các nguồn/nền tảng (Facebook, TikTok, v.v.).',
+  },
+  {
+    code: 'MANAGE_MARKETING_PLATFORMS',
+    name: 'Quản lý nền tảng Marketing',
+    description: 'Thêm/Sửa/Xóa các nền tảng Marketing.',
   },
 
   // ── 07. Sales ──
   {
     code: 'VIEW_SALES',
-    name: 'Xem Sales',
-    description: 'Xem pipeline Sales, lead của mình, tương tác (API sales).',
+    name: 'Xem module Sales',
+    description: 'Xem pipeline, danh sách lead đang xử lý.',
+  },
+  {
+    code: 'UPDATE_SALES_LEAD',
+    name: 'Cập nhật trạng thái Sales',
+    description: 'Chuyển trạng thái lead, ghi chú tương tác và cập nhật ưu tiên.',
   },
   {
     code: 'MANAGE_SALES',
-    name: 'Quản lý Sales',
-    description: 'Cập nhật trạng thái/ưu tiên lead, tương tác Sales; tạo khách nếu route cho phép.',
-  },
-  {
-    code: 'VIEW_SALES_EFFECTIVENESS',
-    name: 'Xem báo cáo hiệu quả & xếp hạng Sales',
-    description: 'Tab báo cáo hiệu quả / xếp hạng trong module Sales (performance API).',
+    name: 'Quản lý Sales (Leader)',
+    description: 'Quản lý toàn bộ lead và tương tác của team/đơn vị phụ trách.',
   },
 
-  // ── 08. CSKH ──
+  // ── 08. CSKH (Resales) ──
   {
     code: 'VIEW_RESALES',
-    name: 'Xem CSKH',
-    description: 'Xem khách CSKH, lịch chăm sóc, tương tác (API resales).',
+    name: 'Xem module CSKH',
+    description: 'Xem danh sách khách hàng cần chăm sóc lại/đã mua.',
+  },
+  {
+    code: 'UPDATE_RESALES_LEAD',
+    name: 'Cập nhật tương tác CSKH',
+    description: 'Ghi nhận lịch sử chăm sóc, trạng thái tái tiêu dùng.',
   },
   {
     code: 'MANAGE_RESALES',
-    name: 'Quản lý CSKH',
-    description: 'Cập nhật khách CSKH, tương tác, chuyển khách, ưu tiên lead.',
-  },
-  {
-    code: 'VIEW_CSKH_EFFECTIVENESS',
-    name: 'Xem báo cáo hiệu quả & xếp hạng CSKH',
-    description: 'Tab báo cáo hiệu quả / xếp hạng trong module CSKH (performance API).',
+    name: 'Quản lý CSKH (Leader)',
+    description: 'Điều phối khách hàng và giám sát tương tác của team CSKH.',
   },
 
-  // ── 09. Sản phẩm ──
+  // ── 09. Sản phẩm (Products) ──
+  {
+    code: 'VIEW_PRODUCTS',
+    name: 'Xem danh sách sản phẩm',
+    description: 'Xem thông tin sản phẩm và danh mục hàng hóa.',
+  },
+  {
+    code: 'CREATE_PRODUCT',
+    name: 'Thêm sản phẩm mới',
+    description: 'Tạo mới bản ghi sản phẩm vào kho hàng bán.',
+  },
+  {
+    code: 'UPDATE_PRODUCT',
+    name: 'Cập nhật sản phẩm',
+    description: 'Sửa thông tin, giá bán, mô tả sản phẩm.',
+  },
+  {
+    code: 'DELETE_PRODUCT',
+    name: 'Xóa sản phẩm',
+    description: 'Gỡ bỏ sản phẩm khỏi danh mục kinh doanh.',
+  },
   {
     code: 'MANAGE_PRODUCTS',
-    name: 'Quản lý sản phẩm',
-    description: 'CRUD sản phẩm, danh mục gắn bán hàng (product routes).',
+    name: 'Toàn quyền quản lý sản phẩm',
+    description: 'Gồm tất cả quyền Thêm/Sửa/Xóa và quản lý danh mục sản phẩm.',
   },
 
-  // ── 10. Hỗ trợ ──
+  // ── 10. Hỗ trợ (Support) ──
   {
-    code: 'MANAGE_SUPPORT_TICKETS',
-    name: 'Quản lý ticket hỗ trợ',
-    description: 'Quản lý ticket module Hỗ trợ (support routes).',
+    code: 'VIEW_SUPPORT_TICKETS',
+    name: 'Xem ticket hỗ trợ',
+    description: 'Xem danh sách các yêu cầu hỗ trợ từ khách hàng.',
   },
-
+  {
+    code: 'UPDATE_SUPPORT_TICKETS',
+    name: 'Xử lý ticket hỗ trợ',
+    description: 'Phản hồi, cập nhật trạng thái và giải quyết khiếu nại.',
+  },
+  {
+    code: 'DELETE_SUPPORT_TICKETS',
+    name: 'Xóa ticket hỗ trợ',
+    description: 'Xóa vĩnh viễn các yêu cầu hỗ trợ.',
+  },
   // ── 11. Đơn hàng & Vận chuyển ──
   {
     code: 'VIEW_ORDERS',
     name: 'Xem đơn hàng',
-    description: 'Xem danh sách/chi tiết đơn, trạng thái vận chuyển (đọc) trong phạm vi.',
+    description: 'Xem danh sách và chi tiết đơn hàng (trong phạm vi phân quyền).',
   },
   {
     code: 'VIEW_ALL_COMPANY_ORDERS',
     name: 'Xem toàn bộ đơn hàng công ty',
-    description: 'Bỏ lọc phạm vi — xem mọi đơn công ty (helper viewScope ORDER).',
+    description: 'Xem mọi đơn hàng trên hệ thống, không bị hạn chế bởi cây tổ chức.',
   },
   {
     code: 'CREATE_ORDER',
-    name: 'Tạo đơn hàng (của bản thân)',
-    description: 'Tạo đơn mới (POST order) khi không cần quyền sửa toàn bộ đơn.',
-  },
-  {
-    code: 'CREATE_ORDER_COMPANY',
-    name: 'Tạo đơn cho khách toàn công ty',
-    description:
-      'Bỏ giới hạn «chỉ khách của mình / cấp dưới» khi POST tạo đơn — được chọn khách do NV khác phụ trách hặcc khách chưa gán NV (kết hợp CREATE_ORDER hoặc MANAGE_ORDERS).',
+    name: 'Tạo đơn hàng',
+    description: 'Tạo đơn hàng mới (Sales/CSKH).',
   },
   {
     code: 'EDIT_ORDER',
     name: 'Sửa đơn hàng',
-    description: 'Chỉnh sửa thông tin đơn hàng đã tạo (thông tin người nhận, ghi chú, trạng thái thanh toán...).',
-  },
-  {
-    code: 'MANAGE_ORDERS',
-    name: 'Quản lý đơn hàng (Toàn quyền sửa)',
-    description: 'Sửa đơn, tạo đơn (kết hợp CREATE_ORDER), quản lý dòng đơn và các quyền chỉnh sửa chuyên sâu.',
+    description: 'Cập nhật thông tin người nhận, ghi chú, sản phẩm trong đơn.',
   },
   {
     code: 'CONFIRM_ORDER',
     name: 'Xác nhận đơn hàng',
-    description: 'Thực hiện xác nhận đơn hàng (Chuyển trạng thái từ Chờ xác nhận sang Đã xác nhận).',
+    description: 'Phê duyệt đơn hàng, chuẩn bị để gửi vận chuyển.',
   },
   {
     code: 'PUSH_ORDER_TO_SHIPPING',
-    name: 'Gửi đơn sang đơn vị vận chuyển',
-    description: 'Thực hiện đẩy thông tin đơn hàng sang Viettel Post hoặc đơn vị vận chuyển khác.',
+    name: 'Gửi đơn sang vận chuyển (VTP)',
+    description: 'Đẩy thông tin sang Viettel Post hoặc đơn vị vận chuyển khác.',
   },
   {
     code: 'CANCEL_ORDER',
     name: 'Hủy đơn hàng',
-    description: 'Thực hiện hủy đơn hàng (trên hệ thống hoặc hủy vận đơn trên cổng vận chuyển).',
+    description: 'Thực hiện hủy đơn trên hệ thống hoặc trên cổng vận chuyển.',
+  },
+  {
+    code: 'DELETE_ORDER',
+    name: 'Xóa đơn hàng (vĩnh viễn)',
+    description: 'Xóa hoàn toàn bản ghi đơn hàng khỏi hệ thống.',
+  },
+  {
+    code: 'MANAGE_ORDERS',
+    name: 'Toàn quyền đơn hàng',
+    description: 'Toàn quyền Thêm/Sửa/Xóa/Xác nhận và quản lý đơn hàng.',
   },
   {
     code: 'MANAGE_SHIPPING',
-    name: 'Quản lý vận đơn (Trạng thái giao)',
-    description: 'Theo dõi và cập nhật trạng thái giao hàng, xử lý hàng hoàn.',
+    name: 'Quản lý vận đơn',
+    description: 'Cập nhật trạng thái giao hàng, xử lý hàng hoàn.',
   },
   {
     code: 'ASSIGN_SHIPPING_DAILY_QUOTA',
-    name: 'Gán chỉ tiêu xử lý vận đơn theo ngày',
-    description:
-      'Gán chỉ tiêu ngày cho nhân viên loại «Vận đơn» (mã SHP, logistics hoặc tên chứa Vận đơn); đặt 0 để xóa chỉ tiêu ngày đó.',
+    name: 'Gán chỉ tiêu vận đơn',
+    description: 'Thiết lập chỉ tiêu xử lý đơn hàng ngày cho nhân viên logistics.',
   },
 
-  // ── 12. Kho vận ──
+  // ── 12. Kho vận (Inventory) ──
+  {
+    code: 'VIEW_WAREHOUSE',
+    name: 'Xem kho hàng',
+    description: 'Xem danh sách kho, vị trí và tồn kho thực tế.',
+  },
+  {
+    code: 'MANAGE_INVENTORY_IN',
+    name: 'Nhập kho',
+    description: 'Tạo phiếu nhập kho, cập nhật tăng số lượng tồn hàng.',
+  },
+  {
+    code: 'MANAGE_INVENTORY_OUT',
+    name: 'Xuất kho',
+    description: 'Tạo phiếu xuất kho, cập nhật giảm số lượng tồn hàng.',
+  },
   {
     code: 'MANAGE_WAREHOUSE',
-    name: 'Quản lý kho',
-    description: 'Nhập/xuất/tồn, quản lý kho vận (inventory routes).',
+    name: 'Toàn quyền quản lý kho',
+    description: 'Quản lý toàn bộ hoạt động nhập/xuất/tồn và cấu hình kho.',
   },
 
-  // ── 13. Kế toán ──
+  // ── 13. Kế toán (Accounting) ──
   {
     code: 'VIEW_ACCOUNTING',
     name: 'Xem kế toán',
-    description: 'Xem dữ liệu module kế toán (đọc).',
+    description: 'Xem dữ liệu thu chi, dòng tiền và báo cáo tài chính.',
+  },
+  {
+    code: 'CREATE_ACCOUNTING',
+    name: 'Tạo chứng từ kế toán',
+    description: 'Lập phiếu thu, phiếu chi, hóa đơn.',
+  },
+  {
+    code: 'UPDATE_ACCOUNTING',
+    name: 'Sửa chứng từ kế toán',
+    description: 'Cập nhật thông tin chứng từ đã lập.',
   },
   {
     code: 'MANAGE_ACCOUNTING',
-    name: 'Quản lý kế toán',
-    description: 'Ghi/sửa chứng từ, bảng lương, hóa đơn kế toán (theo route).',
+    name: 'Toàn quyền kế toán',
+    description: 'Quản lý toàn bộ nghiệp vụ kế toán, dòng tiền và bảng lương.',
   },
 
   // ── 14. Vận hành & Cơ cấu ──
   {
     code: 'CONFIG_OPERATIONS',
-    name: 'Cấu hình Vận hành',
-    description: 'Tham số vận hành, mục tiêu KD (cùng EDIT_SETTINGS trên một số API), cấu hình hệ thống dạng key-value.',
+    name: 'Cấu hình vận hành',
+    description: 'Thiết lập các tham số hệ thống, mục tiêu kinh doanh.',
   },
   {
     code: 'CONFIG_ORG_STRUCTURE',
     name: 'Cấu hình cơ cấu tổ chức',
-    description: 'Tạo/sửa tổ chức, khối, đơn vị, chức danh; sắp xếp cây (không gồm luồng data-flow — xem CONFIG_DATA_FLOW).',
+    description: 'Tạo/Sửa Khối, Đơn vị, Bộ phận và chức danh.',
   },
   {
     code: 'CONFIG_DATA_FLOW',
     name: 'Cấu hình luồng dữ liệu',
-    description: 'Cập nhật luồng phân data trên khối, gán đơn vị lá (data-flow, staff một số route).',
+    description: 'Thiết lập luồng phân phối data tự động giữa các khối.',
   },
   {
     code: 'VIEW_DIVISIONS',
-    name: 'Xem khối / cấu trúc tổ chức',
-    description: 'Xem cấu trúc khối/đơn vị trong báo cáo và màn Vận hành (đọc).',
+    name: 'Xem cấu trúc tổ chức',
+    description: 'Xem sơ đồ tổ chức và danh sách đơn vị.',
   },
 
   // ── 15. Tiện ích ──
   {
     code: 'MANAGE_NOTIFICATIONS',
-    name: 'Quản lý thông báo',
-    description: 'Tạo/gửi/sửa thông báo hệ thống (notification manager).',
+    name: 'Quản lý thông báo chung',
+    description: 'Tạo và quản lý các thông báo trên toàn hệ thống.',
   },
   {
     code: 'SEND_STAFF_NOTIFICATION',
-    name: 'Gửi thông báo đến nhân sự',
-    description: 'Tạo và gửi thông báo nội bộ đến toàn bộ hoặc nhóm nhân sự cụ thể.',
+    name: 'Gửi thông báo nhân sự',
+    description: 'Gửi thông báo riêng đến từng nhân viên hoặc nhóm nhân sự.',
   },
   {
     code: 'CREATE_DRAFT_NOTIFICATION',
-    name: 'Tạo thông báo nháp',
-    description: 'Tạo bản nháp thông báo trước khi gửi.',
+    name: 'Soạn thông báo nháp',
+    description: 'Tạo bản nháp thông báo trước khi gửi chính thức.',
   },
   {
-    code: 'MANAGE_DOCUMENTS',
-    name: 'Quản lý tài liệu',
-    description: 'Upload/quản lý tài liệu module Tài liệu.',
+    code: 'VIEW_DOCUMENTS',
+    name: 'Xem tài liệu công ty',
+    description: 'Xem và tải các tài liệu nội bộ.',
+  },
+  {
+    code: 'UPLOAD_DOCUMENT',
+    name: 'Tải lên tài liệu',
+    description: 'Tải tài liệu mới lên module quản lý tài liệu.',
+  },
+  {
+    code: 'DELETE_DOCUMENT',
+    name: 'Xóa tài liệu',
+    description: 'Xóa bỏ các tài liệu trong module Tài liệu.',
   },
   {
     code: 'MANAGE_INTERNAL_NOTES',
     name: 'Quản lý ghi chú nội bộ',
-    description: 'Tạo/sửa ghi chú nội bộ trên khách (internal notes API).',
+    description: 'Thêm và sửa các ghi chú bảo mật trên khách hàng.',
   },
   {
     code: 'DELETE_CONVERSATION',
     name: 'Xóa cuộc trò chuyện',
-    description: 'Xóa nhóm chat / cuộc trò chuyện trong Tin nhắn nội bộ.',
-  },
-  {
-    code: 'DELETE_ORDER',
-    name: 'Xóa đơn hàng (vĩnh viễn)',
-    description: 'Xóa vĩnh viễn bản ghi đơn hàng khỏi hệ thống (kết hợp VIEW_ORDERS).',
+    description: 'Xóa các nhóm chat hoặc hội thoại tin nhắn nội bộ.',
   },
 ];
