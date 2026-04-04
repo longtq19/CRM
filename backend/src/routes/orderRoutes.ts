@@ -35,7 +35,7 @@ router.get('/', checkPermission('VIEW_ORDERS'), getOrders);
 // Chia xác nhận hàng loạt đơn chờ xác nhận cho NV vận đơn (phải đặt trước /:id/:orderDate)
 router.post(
   '/distribute-pending-confirm',
-  checkPermission('ASSIGN_SHIPPING_DAILY_QUOTA'),
+  checkPermission(['CONFIRM_ORDER', 'ASSIGN_SHIPPING_DAILY_QUOTA']),
   distributePendingOrdersConfirm
 );
 
@@ -45,29 +45,29 @@ router.get('/:id/:orderDate', checkPermission('VIEW_ORDERS'), getOrderById);
 // Tạo đơn hàng
 router.post('/', checkPermission(['CREATE_ORDER', 'MANAGE_ORDERS']), createOrder);
 
-// Cập nhật đơn hàng
-router.put('/:id/:orderDate', checkPermission('MANAGE_ORDERS'), updateOrder);
+// Cập nhật đơn hàng (Sửa đơn)
+router.put('/:id/:orderDate', checkPermission(['EDIT_ORDER', 'MANAGE_ORDERS']), updateOrder);
 
 // Xác nhận đơn hàng (NV vận đơn)
-router.post('/:id/:orderDate/confirm', checkPermission('MANAGE_SHIPPING'), confirmOrder);
+router.post('/:id/:orderDate/confirm', checkPermission(['CONFIRM_ORDER', 'MANAGE_SHIPPING']), confirmOrder);
 
-// Nhân viên vận đơn sửa đơn hàng
-router.put('/:id/:orderDate/shipping-edit', checkPermission('MANAGE_SHIPPING'), shippingEditOrder);
+// Nhân viên vận đơn sửa đơn hàng (cho phép Logistics sửa thông tin vận chuyển)
+router.put('/:id/:orderDate/shipping-edit', checkPermission(['CONFIRM_ORDER', 'MANAGE_SHIPPING']), shippingEditOrder);
 
 // Xử lý hàng hoàn
-router.post('/:id/:orderDate/process-return', checkPermission('MANAGE_SHIPPING'), processReturnedOrder);
+router.post('/:id/:orderDate/process-return', checkPermission(['MANAGE_SHIPPING', 'MANAGE_ORDERS']), processReturnedOrder);
 
 // Đẩy sang Viettel Post
-router.post('/:id/:orderDate/push-viettel-post', checkPermission('MANAGE_SHIPPING'), pushToViettelPost);
+router.post('/:id/:orderDate/push-viettel-post', checkPermission(['PUSH_ORDER_TO_SHIPPING', 'MANAGE_SHIPPING']), pushToViettelPost);
 
-// Hủy vận đơn trên Viettel Post (đơn đã có trackingNumber VTP)
-router.post('/:id/:orderDate/cancel-viettel-post', checkPermission('MANAGE_SHIPPING'), cancelViettelPostOrder);
+// Hủy vận đơn trên Viettel Post / Hủy đơn hàng nội bộ
+router.post('/:id/:orderDate/cancel-viettel-post', checkPermission(['CANCEL_ORDER', 'MANAGE_SHIPPING', 'MANAGE_ORDERS']), cancelViettelPostOrder);
 
 // Lấy trạng thái vận chuyển
 router.get('/:id/:orderDate/shipping-status', checkPermission('VIEW_ORDERS'), getShippingStatus);
 
-// Cập nhật trạng thái vận chuyển
-router.put('/:id/:orderDate/shipping-status', checkPermission('MANAGE_SHIPPING'), updateShippingStatus);
+// Cập nhật trạng thái vận chuyển (Manual status update)
+router.put('/:id/:orderDate/shipping-status', checkPermission(['MANAGE_SHIPPING']), updateShippingStatus);
 
 // Xóa vĩnh viễn đơn hàng
 router.delete('/:id/:orderDate', checkPermission('DELETE_ORDER'), deleteOrder);

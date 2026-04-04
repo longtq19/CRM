@@ -65,6 +65,10 @@ const todayVnYmd = () =>
 const Orders = () => {
   const { hasPermission } = useAuthStore();
   const canCreateOrder = hasPermission('CREATE_ORDER') || hasPermission('MANAGE_ORDERS');
+  const canEditOrder = hasPermission('EDIT_ORDER') || hasPermission('MANAGE_ORDERS');
+  const canConfirmOrder = hasPermission('CONFIRM_ORDER') || hasPermission('MANAGE_SHIPPING');
+  const canPushToShipping = hasPermission('PUSH_ORDER_TO_SHIPPING') || hasPermission('MANAGE_SHIPPING');
+  const canCancelOrder = hasPermission('CANCEL_ORDER') || hasPermission('MANAGE_SHIPPING') || hasPermission('MANAGE_ORDERS');
   const canManageShipping = hasPermission('MANAGE_SHIPPING');
   const canAssignShippingQuota = hasPermission('ASSIGN_SHIPPING_DAILY_QUOTA');
   const canDeleteOrder = hasPermission('DELETE_ORDER');
@@ -133,7 +137,7 @@ const Orders = () => {
   >([]);
   const [quotaSaving, setQuotaSaving] = useState(false);
   const [distributeLoading, setDistributeLoading] = useState(false);
-  const showShippingQuotaTab = canManageShipping || canAssignShippingQuota;
+  const showShippingQuotaTab = canManageShipping || canConfirmOrder || canAssignShippingQuota;
   const [ordersMainTab, setOrdersMainTab] = useState<'list' | 'quota' | 'split'>('list');
 
   // Bulk selection
@@ -1153,7 +1157,7 @@ const Orders = () => {
                                 <Eye size={18} />
                               </button>
                               
-                              {canManageShipping && order.shippingStatus === 'PENDING' && (
+                              {canConfirmOrder && order.shippingStatus === 'PENDING' && (
                                 <button
                                   onClick={() => handleConfirmOrder(order)}
                                   disabled={actionLoading === order.id}
@@ -1164,7 +1168,7 @@ const Orders = () => {
                                 </button>
                               )}
                               
-                              {canManageShipping && order.shippingStatus === 'CONFIRMED' && (
+                              {canPushToShipping && order.shippingStatus === 'CONFIRMED' && (
                                 <button
                                   onClick={() => handlePushToVTP(order)}
                                   disabled={actionLoading === order.id}
@@ -1186,7 +1190,7 @@ const Orders = () => {
                                 </button>
                               )}
 
-                              {canManageShipping &&
+                              {canCancelOrder &&
                                 order.trackingNumber &&
                                 order.shippingProvider === 'VIETTEL_POST' &&
                                 !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.shippingStatus) && (
@@ -1265,6 +1269,9 @@ const Orders = () => {
           onUpdateStatus={handleUpdateShippingStatus}
           onDelete={handleOrderDelete}
           canManageShipping={canManageShipping}
+          canConfirmOrder={canConfirmOrder}
+          canPushToShipping={canPushToShipping}
+          canCancelOrder={canCancelOrder}
           canDeleteOrder={canDeleteOrder}
           actionLoading={actionLoading}
         />
@@ -1421,13 +1428,16 @@ interface OrderDetailModalProps {
   onUpdateStatus: (order: Order, status: string) => void;
   onDelete: (id: string, orderDate: string, code: string) => void;
   canManageShipping: boolean;
+  canConfirmOrder: boolean;
+  canPushToShipping: boolean;
+  canCancelOrder: boolean;
   canDeleteOrder: boolean;
   actionLoading: string | null;
 }
 
 function OrderDetailModal({ 
   order, onClose, onConfirm, onPushVTP, onCancelVTP, onPrintVTP, onUpdateStatus, onDelete,
-  canManageShipping, canDeleteOrder, actionLoading 
+  canManageShipping, canConfirmOrder, canPushToShipping, canCancelOrder, canDeleteOrder, actionLoading 
 }: OrderDetailModalProps) {
   const shippingConfig = SHIPPING_STATUS_CONFIG[order.shippingStatus] || SHIPPING_STATUS_CONFIG.PENDING;
   const orderConfig = ORDER_STATUS_CONFIG[order.orderStatus] || ORDER_STATUS_CONFIG.DRAFT;
@@ -1662,98 +1672,96 @@ function OrderDetailModal({
         </div>
 
         {/* Footer Actions */}
-        {canManageShipping && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
-            {order.shippingStatus === 'PENDING' && (
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-3">
+          {canConfirmOrder && order.shippingStatus === 'PENDING' && (
+            <button
+              onClick={() => onConfirm(order)}
+              disabled={actionLoading === order.id}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              <CheckCircle size={18} />
+              Xác nhận đơn
+            </button>
+          )}
+          
+          {canPushToShipping && order.shippingStatus === 'CONFIRMED' && (
+            <button
+              onClick={() => onPushVTP(order)}
+              disabled={actionLoading === order.id}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              <Send size={18} />
+              Đẩy Viettel Post
+            </button>
+          )}
+
+          {canDeleteOrder && (
+            <button
+              onClick={() => onDelete(order.id, order.orderDate, order.code)}
+              disabled={actionLoading === order.id}
+              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 ml-auto"
+            >
+              {actionLoading === order.id ? <Loader className="animate-spin" size={18} /> : <Trash2 size={18} />}
+              Xóa vĩnh viễn
+            </button>
+          )}
+          
+          {canManageShipping && order.shippingStatus === 'SHIPPING' && (
+            <>
               <button
-                onClick={() => onConfirm(order)}
+                onClick={() => onUpdateStatus(order, 'DELIVERED')}
                 disabled={actionLoading === order.id}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
               >
-                <CheckCircle size={18} />
-                Xác nhận đơn
+                <Check size={18} />
+                Xác nhận đã giao
               </button>
-            )}
-            
-            {order.shippingStatus === 'CONFIRMED' && (
               <button
-                onClick={() => onPushVTP(order)}
+                onClick={() => onUpdateStatus(order, 'RETURNED')}
                 disabled={actionLoading === order.id}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
               >
-                <Send size={18} />
-                Đẩy Viettel Post
+                <AlertCircle size={18} />
+                Hoàn trả
+              </button>
+            </>
+          )}
+
+          {canCancelOrder && order.trackingNumber &&
+            order.shippingProvider === 'VIETTEL_POST' &&
+            !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.shippingStatus) && (
+              <button
+                onClick={() => onCancelVTP(order)}
+                disabled={actionLoading === order.id}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-rose-600 text-rose-700 rounded-lg hover:bg-rose-50 disabled:opacity-50"
+              >
+                <Ban size={18} />
+                Hủy trên Viettel Post
               </button>
             )}
 
-            {canDeleteOrder && (
-              <button
-                onClick={() => onDelete(order.id, order.orderDate, order.code)}
-                disabled={actionLoading === order.id}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 ml-auto"
-              >
-                {actionLoading === order.id ? <Loader className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                Xóa vĩnh viễn
-              </button>
-            )}
-            
-            {order.shippingStatus === 'SHIPPING' && (
-              <>
-                <button
-                  onClick={() => onUpdateStatus(order, 'DELIVERED')}
-                  disabled={actionLoading === order.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                >
-                  <Check size={18} />
-                  Xác nhận đã giao
-                </button>
-                <button
-                  onClick={() => onUpdateStatus(order, 'RETURNED')}
-                  disabled={actionLoading === order.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
-                >
-                  <AlertCircle size={18} />
-                  Hoàn trả
-                </button>
-              </>
-            )}
-
-            {order.trackingNumber &&
-              order.shippingProvider === 'VIETTEL_POST' &&
-              !['DELIVERED', 'CANCELLED', 'RETURNED'].includes(order.shippingStatus) && (
-                <button
-                  onClick={() => onCancelVTP(order)}
-                  disabled={actionLoading === order.id}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-rose-600 text-rose-700 rounded-lg hover:bg-rose-50 disabled:opacity-50"
-                >
-                  <Ban size={18} />
-                  Hủy trên Viettel Post
-                </button>
-              )}
-
-            {order.trackingNumber && order.shippingProvider === 'VIETTEL_POST' && (
-              <button
-                onClick={() => onPrintVTP(order)}
-                disabled={actionLoading === order.id}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
-              >
-                <Printer size={18} />
-                In vận đơn
-              </button>
-            )}
-            
-            {['PENDING', 'CONFIRMED'].includes(order.shippingStatus) && (
-              <button
-                onClick={() => onUpdateStatus(order, 'CANCELLED')}
-                disabled={actionLoading === order.id}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                <X size={18} />
-                Hủy đơn
-              </button>
-            )}
-          </div>
-        )}
+          {(canPushToShipping || canManageShipping) && order.trackingNumber && order.shippingProvider === 'VIETTEL_POST' && (
+            <button
+              onClick={() => onPrintVTP(order)}
+              disabled={actionLoading === order.id}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+            >
+              <Printer size={18} />
+              In vận đơn
+            </button>
+          )}
+          
+          {canCancelOrder && ['PENDING', 'CONFIRMED'].includes(order.shippingStatus) && (
+            <button
+              onClick={() => onUpdateStatus(order, 'CANCELLED')}
+              disabled={actionLoading === order.id}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              <X size={18} />
+              Hủy đơn
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

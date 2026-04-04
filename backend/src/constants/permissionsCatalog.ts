@@ -349,23 +349,43 @@ export const DEFAULT_PERMISSIONS: PermissionCatalogEntry[] = [
     code: 'CREATE_ORDER_COMPANY',
     name: 'Tạo đơn cho khách toàn công ty',
     description:
-      'Bỏ giới hạn «chỉ khách của mình / cấp dưới» khi POST tạo đơn — được chọn khách do NV khác phụ trách hoặc khách chưa gán NV (kết hợp CREATE_ORDER hoặc MANAGE_ORDERS). Quản trị hệ thống và FULL_ACCESS không cần gán riêng.',
+      'Bỏ giới hạn «chỉ khách của mình / cấp dưới» khi POST tạo đơn — được chọn khách do NV khác phụ trách hặcc khách chưa gán NV (kết hợp CREATE_ORDER hoặc MANAGE_ORDERS).',
+  },
+  {
+    code: 'EDIT_ORDER',
+    name: 'Sửa đơn hàng',
+    description: 'Chỉnh sửa thông tin đơn hàng đã tạo (thông tin người nhận, ghi chú, trạng thái thanh toán...).',
   },
   {
     code: 'MANAGE_ORDERS',
-    name: 'Quản lý đơn hàng (sửa đơn)',
-    description: 'Sửa đơn, tạo đơn (kết hợp CREATE_ORDER), quản lý dòng đơn.',
+    name: 'Quản lý đơn hàng (Toàn quyền sửa)',
+    description: 'Sửa đơn, tạo đơn (kết hợp CREATE_ORDER), quản lý dòng đơn và các quyền chỉnh sửa chuyên sâu.',
+  },
+  {
+    code: 'CONFIRM_ORDER',
+    name: 'Xác nhận đơn hàng',
+    description: 'Thực hiện xác nhận đơn hàng (Chuyển trạng thái từ Chờ xác nhận sang Đã xác nhận).',
+  },
+  {
+    code: 'PUSH_ORDER_TO_SHIPPING',
+    name: 'Gửi đơn sang đơn vị vận chuyển',
+    description: 'Thực hiện đẩy thông tin đơn hàng sang Viettel Post hoặc đơn vị vận chuyển khác.',
+  },
+  {
+    code: 'CANCEL_ORDER',
+    name: 'Hủy đơn hàng',
+    description: 'Thực hiện hủy đơn hàng (trên hệ thống hoặc hủy vận đơn trên cổng vận chuyển).',
   },
   {
     code: 'MANAGE_SHIPPING',
-    name: 'Quản lý vận đơn',
-    description: 'Xác nhận đơn, sửa vận chuyển, Viettel Post, trạng thái giao.',
+    name: 'Quản lý vận đơn (Trạng thái giao)',
+    description: 'Theo dõi và cập nhật trạng thái giao hàng, xử lý hàng hoàn.',
   },
   {
     code: 'ASSIGN_SHIPPING_DAILY_QUOTA',
     name: 'Gán chỉ tiêu xử lý vận đơn theo ngày',
     description:
-      'Gán chỉ tiêu ngày cho nhân viên loại «Vận đơn» (mã SHP, logistics hoặc tên chứa Vận đơn); đặt 0 để xóa chỉ tiêu ngày đó; có thể gán cho chính mình nếu hồ sơ cũng là Vận đơn. API chia đều (round-robin) hàng loạt đơn chờ xác nhận (`POST /orders/distribute-pending-confirm`, mode even) cho NV vận đơn.',
+      'Gán chỉ tiêu ngày cho nhân viên loại «Vận đơn» (mã SHP, logistics hoặc tên chứa Vận đơn); đặt 0 để xóa chỉ tiêu ngày đó.',
   },
 
   // ── 12. Kho vận ──
