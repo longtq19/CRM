@@ -754,18 +754,7 @@ export const createOrder = async (req: Request, res: Response) => {
         ? Number(receiverWardId)
         : NaN;
 
-    // Tạo mã đơn hàng mới: YY + WarehouseCode + MM + DD + xxxxxxxx (8 số)
     const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const warehouseCode = whCheck.code; // Mã kho 2 ký tự (HN, HCM...)
-    const count = await prisma.order.count();
-    const sequence = String(count + 1).padStart(8, '0');
-    const code = `${year}${warehouseCode}${month}${day}${sequence}`;
-
-    const orderDate = now;
-
     // Xác định loại đơn (Sales vs Resales) dựa trên khoảng cách với đơn cuối
     const attributionDays = await getMarketingAttributionEffectiveDaysForCustomer(customerId);
     const lastAt = customer.lastOrderAt;
@@ -777,10 +766,22 @@ export const createOrder = async (req: Request, res: Response) => {
       }
     }
 
+    // Tạo mã đơn hàng mới: YY + Mã kho + MM + DD + XXXXXXX (7 ký tự, tăng từ 2184928) + [SA/RS]
+    const year = now.getFullYear().toString().slice(-2);
+    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+    const day = now.getDate().toString().padStart(2, "0");
+    const warehouseCode = whCheck.code;
+    const count = await prisma.order.count();
+    const sequence = String(2184928 + count).padStart(7, "0");
+    const suffix = isFirstOrder ? "SA" : "RS";
+    const code = `${year}${warehouseCode}${month}${day}${sequence}${suffix}`;
+
+    const orderDate = now;
+
     // Phân bổ nhân viên (Sales / CSKH) dựa trên vai trò và loại đơn
     let sEmpId: string | null = null;
     let rEmpId: string | null = null;
-    const role = user.roleGroupCode || '';
+    const role = user.roleGroupCode || "";
     if (isFirstOrder) {
       // Đơn Sales: Ưu tiên ghi nhận cho Sales, nếu người tạo là CSKH thì vẫn ghi nhận CSKH
       if (isSalesRole(role)) sEmpId = user.id;

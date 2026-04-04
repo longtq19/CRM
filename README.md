@@ -27,8 +27,8 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
   - Định dạng: Chữ in hoa (A-Z) hoặc số (0-9), không dấu, không khoảng trắng, không ký tự đặc biệt.
   - Ví dụ: `HN`, `SG`, `K1`.
 - **Mã Đơn hàng (Order Code):**
-  - Định dạng: **`YY`** (2 số cuối năm) + **`WH`** (Mã kho) + **`MM`** (Tháng) + **`DD`** (Ngày) + **`xxxxxxxx`** (Số thứ tự 8 chữ số).
-  - Ví dụ đơn tại kho HN ngày 03/04/2026: `26HN040300000001`.
+  - Định dạng: **`YY`** (2 số cuối năm) + **`WH`** (Mã kho) + **`MM`** (Tháng) + **`DD`** (Ngày) + **`xxxxxxx`** (Số thứ tự 7 chữ số, tăng từ **2184928** đến 9999999) + **`Hậu tố`** (**SA** cho đơn Sales, **RS** cho đơn CSKH).
+  - Ví dụ đơn tại kho HN ngày 04/04/2026: `26HN04042184928SA`.
 - **Định dạng Tiền tệ (Currency Input):**
   - Dấu phân cách hàng nghìn: Sử dụng dấu chấm (**`.`**).
   - Xử lý nhập liệu: Tự động loại bỏ số 0 ở đầu khi nhập và định dạng dấu chấm trực tiếp khi gõ.
