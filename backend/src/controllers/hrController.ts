@@ -4030,12 +4030,22 @@ export const importEmployees = async (req: Request, res: Response) => {
     }
     await getCompanyRootForOrg(impOrgId);
 
-    const [employmentTypes, statuses, employeeTypes, roleGroups] = await Promise.all([
+    const [employmentTypes, statuses, employeeTypes, roleGroups, existingCodes, existingContacts] = await Promise.all([
       prisma.employmentType.findMany(),
       prisma.employeeStatus.findMany(),
       prisma.employeeType.findMany(),
       prisma.roleGroup.findMany({ select: { id: true, name: true, code: true } }),
+      prisma.employee.findMany({ where: { code: { startsWith: 'NV' } }, select: { code: true } }),
+      prisma.employee.findMany({ select: { phone: true, emailPersonal: true } }),
     ]);
+
+    // Tìm số lớn nhất hiện tại để sinh mã NV tiếp theo (tránh lỗi sắp xếp chuỗi NV0099 > NV0100)
+    let maxNvSequence = 0;
+    for (const e of existingCodes) {
+        const num = parseInt(e.code.replace('NV', ''), 10);
+        if (!isNaN(num) && num > maxNvSequence) maxNvSequence = num;
+    }
+    let nextNvSequenceBatch = maxNvSequence + 1;
 
     const results = {
       total: data.length,
@@ -4163,6 +4173,7 @@ export const importEmployees = async (req: Request, res: Response) => {
             });
             if (dupOther.length) {
               const e0 = dupOther[0]!;
+              const dupMsg = `SĐT hoặc email khác với mã NV này đã thuộc nhân viên ${e0.fullName} (${e0.code})`;
               results.duplicates.push({
                 row: rowNum,
                 phone: String(phone),
@@ -4173,9 +4184,10 @@ export const importEmployees = async (req: Request, res: Response) => {
                   fullName: e0.fullName,
                   departmentUnit: e0.hrDepartmentUnit?.name || '—',
                 },
-                reason: 'SĐT hoặc email khác với mã NV này đã thuộc nhân viên khác',
+                reason: dupMsg,
               });
               results.failed++;
+              results.errors.push(`Dòng ${rowNum} (${fullName}): ${dupMsg}`);
               continue;
             }
           }
@@ -4189,6 +4201,7 @@ export const importEmployees = async (req: Request, res: Response) => {
           const existing = existingList[0];
 
           if (existing) {
+            const dupMsg = `Thông tin SĐT/Email đã tồn tại (Nhân viên: ${existing.fullName} - Mã: ${existing.code})`;
             results.duplicates.push({
               row: rowNum,
               phone: String(phone),
@@ -4201,6 +4214,7 @@ export const importEmployees = async (req: Request, res: Response) => {
               },
             });
             results.failed++;
+            results.errors.push(`Dòng ${rowNum} (${fullName}): ${dupMsg}`);
             continue;
           }
         }
@@ -4352,25 +4366,14 @@ export const importEmployees = async (req: Request, res: Response) => {
         }
 
         const codeFromFile = rowGet(row, 'code', 'Mã NV');
-        const prefix = 'NV';
         let finalCode: string;
         if (updateTargetId && trimmedCodeEarly) {
           finalCode = trimmedCodeEarly;
         } else if (codeFromFile && String(codeFromFile).trim()) {
           finalCode = String(codeFromFile).trim();
         } else {
-          const lastEmp = await prisma.employee.findFirst({
-            where: { code: { startsWith: prefix } },
-            orderBy: { code: 'desc' },
-          });
-          let sequence = '0000';
-          if (lastEmp) {
-            const lastSeq = lastEmp.code.replace(prefix, '');
-            if (!isNaN(Number(lastSeq))) {
-              sequence = String(Number(lastSeq) + 1).padStart(4, '0');
-            }
-          }
-          finalCode = `${prefix}${sequence}`;
+          finalCode = `NV${String(nextNvSequenceBatch).padStart(4, '0')}`;
+          nextNvSequenceBatch++;
         }
 
         const employeeCreateOrUpdateData = {
