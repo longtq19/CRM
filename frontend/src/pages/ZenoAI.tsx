@@ -114,7 +114,7 @@ const ZenoAI = () => {
         socketUrl = window.location.origin;
       }
     }
-    console.log('KagriAI: Connecting to socket at', socketUrl);
+    console.log('ZenoAI: Connecting to socket at', socketUrl);
     
     const newSocket = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -126,15 +126,15 @@ const ZenoAI = () => {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('KagriAI: Connected to socket server, id:', newSocket.id);
+      console.log('ZenoAI: Connected to socket server, id:', newSocket.id);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('KagriAI: Socket connection error:', error);
+      console.error('ZenoAI: Socket connection error:', error);
     });
 
     newSocket.on('stream_chunk', (data: { chunk: string, isLast: boolean }) => {
-      console.log('KagriAI: Received stream_chunk:', data);
+      console.log('ZenoAI: Received stream_chunk:', data);
       setIsStreaming(true);
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
@@ -158,7 +158,7 @@ const ZenoAI = () => {
     });
 
     return () => {
-      console.log('KagriAI: Disconnecting socket');
+      console.log('ZenoAI: Disconnecting socket');
       newSocket.disconnect();
     };
   }, []);
@@ -181,7 +181,7 @@ const ZenoAI = () => {
     // Prepare for streaming response
     setMessages(prev => [...prev, { id: 'streaming', role: 'bot', content: '' }]);
     
-    console.log('KagriAI: Emitting chat_message:', { type: 'text', content: input });
+    console.log('ZenoAI: Emitting chat_message:', { type: 'text', content: input });
     socket.emit('chat_message', { type: 'text', content: input });
     setInput('');
   };
