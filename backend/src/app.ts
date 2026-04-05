@@ -12,7 +12,7 @@ import { apiErrorHandler } from './middleware/apiErrorHandler';
 import { getRootDir } from './utils/pathHelper';
 import { auditLog } from './middleware/auditLogMiddleware';
 
-console.log('[HCRM] Backend loading...');
+console.log('[ZENO] Backend loading...');
 
 const app = express();
 
@@ -121,7 +121,7 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(path.join(frontendDis
   });
 } else {
   app.get('/', (req, res) => {
-    res.send('Kagri Tech Backend Server');
+    res.send('Zeno ERP Backend Server');
   });
 }
 

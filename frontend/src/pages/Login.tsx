@@ -74,9 +74,9 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="bg-white p-8 rounded-card shadow-lg w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <img src="/logo.png" alt="Kagri Tech" className="h-24 w-auto mb-4 object-contain" />
+          <img src="/logo.png" alt="Zeno ERP" className="h-24 w-auto mb-4 object-contain" />
           <p className="text-secondary font-bold text-lg mb-2">Chuẩn mới cho nông nghiệp hiện đại</p>
-          <p className="text-secondary text-center">Đăng nhập hệ thống CRM</p>
+          <p className="text-secondary text-center">Đăng nhập hệ thống Zeno ERP</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

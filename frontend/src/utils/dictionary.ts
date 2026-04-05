@@ -711,7 +711,7 @@ const I18N_KEYS: Record<string, string> = {
   'role.hr_assistant': 'Nhân viên Nhân sự',
   'role.hr_manager': 'Quản lý Nhân sự',
   'menu.dashboard': 'Dashboard',
-  'menu.ai': 'Kagri AI',
+  'menu.ai': 'Zeno AI',
   'menu.marketing': 'Marketing',
   'menu.data_pool': 'Kho số Sales',
   'menu.sales': 'Sales',

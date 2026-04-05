@@ -77,13 +77,13 @@ const quickQuestionGroups: QuickQuestionGroup[] = [
   }
 ];
 
-const KagriAI = () => {
+const ZenoAI = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'bot',
-      content: 'Xin chào! Tôi là Kagri AI. Tôi có thể giúp gì cho bạn hôm nay?'
+      content: 'Xin chào! Tôi là Zeno AI. Tôi đã được cấp quyền truy cập toàn bộ hệ thống qua MCP. Tôi có thể giúp gì cho bạn hôm nay?'
     }
   ]);
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -250,9 +250,9 @@ const KagriAI = () => {
       <div className="mb-4">
         <div className="flex items-center gap-3">
           <img src="/logo-AI.gif" alt="AI Logo" className="h-12" />
-          <h2 className="text-2xl font-bold text-gray-900">Kagri AI</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Zeno AI</h2>
         </div>
-        <p className="text-gray-500 text-sm ml-15">Trợ lý ảo thông minh cho nông nghiệp</p>
+        <p className="text-gray-500 text-sm ml-15">Trợ lý vận hành doanh nghiệp thông minh (MCP Powered)</p>
       </div>
 
       <div className="flex-1 bg-white rounded-card shadow-sm p-6 flex flex-col">
@@ -349,4 +349,4 @@ const KagriAI = () => {
   );
 };
 
-export default KagriAI;
+export default ZenoAI;

@@ -31,6 +31,6 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error("[HCRM] Failed to start server:", err);
+  console.error("[ZENO] Failed to start server:", err);
   process.exit(1);
 });

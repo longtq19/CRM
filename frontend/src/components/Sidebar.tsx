@@ -91,7 +91,7 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
         )}>
           <img 
             src="/sideBarLogo.png" 
-            alt="Kagri Tech" 
+            alt="Zeno ERP" 
             className={clsx(
               "object-contain transition-all duration-300",
               isCollapsed ? "w-12 h-12" : "w-44 h-auto"

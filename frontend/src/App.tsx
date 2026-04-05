@@ -9,7 +9,7 @@ import { useNotificationStore } from './context/useNotificationStore';
 
 const Login = React.lazy(() => import('./pages/Login'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const KagriAI = React.lazy(() => import('./pages/KagriAI'));
+const ZenoAI = React.lazy(() => import('./pages/ZenoAI'));
 const CustomerManager = React.lazy(() => import('./pages/CustomerManager'));
 const CustomerDetail = React.lazy(() => import('./pages/CustomerDetail'));
 const PointManager = React.lazy(() => import('./pages/PointManager'));
@@ -96,7 +96,7 @@ function AppContent() {
             <Route index element={<Dashboard />} />
             <Route path="reports" element={<PermissionRoute modulePath="/reports"><Reports /></PermissionRoute>} />
             <Route path="marketing" element={<PermissionRoute modulePath="/marketing"><Marketing /></PermissionRoute>} />
-            <Route path="ai" element={<PermissionRoute modulePath="/ai"><KagriAI /></PermissionRoute>} />
+            <Route path="ai" element={<PermissionRoute modulePath="/ai"><ZenoAI /></PermissionRoute>} />
             <Route path="documents" element={<PermissionRoute modulePath="/documents"><Documents /></PermissionRoute>} />
             {/* Legacy routes - redirect to new modules */}
             <Route path="customers" element={<Navigate to="/data-pool" replace />} />

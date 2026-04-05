@@ -35,7 +35,7 @@ export const connectDB = async () => {
   try {
     await prisma.$connect();
     console.log('PostgreSQL connected via Prisma');
-    const { syncDefaultMenus } = await import('../controllers/authController');
+    const { syncDefaultMenus } = await import('../modules/auth/auth.controller');
     await syncDefaultMenus();
     const { ensureOrgRootCompany, ensureHrDepartmentUnits, ensureEmploymentTypes } = await import(
       '../controllers/hrController'
@@ -54,8 +54,8 @@ export const connectDB = async () => {
     const { ensureAddressCatalog } = await import('../controllers/viettelPostController');
     await ensureAddressCatalog();
   } catch (error) {
-    console.error('[HCRM] Error connecting to database:', error);
-    process.stderr.write('[HCRM] DB connection failed, exiting.\n');
+    console.error('[ZENO] Error connecting to database:', error);
+    process.stderr.write('[ZENO] DB connection failed, exiting.\n');
     process.exit(1);
   }
 };

@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { prisma } from './config/database';
+import { AiService } from './modules/ai/ai.service';
 
 let io: Server;
 
@@ -10,7 +11,6 @@ let io: Server;
 // const subClient = pubClient.duplicate();
 // io.adapter(createAdapter(pubClient, subClient));
 
-const RESPONSE_MESSAGE = "Hạ tầng thiết bị hiện chưa đáp ứng Kagri AI. Vui lòng trở lại sau khi chủ tịch duyệt nâng cấp tính năng này.";
 
 export const initSocket = (serverIo: Server) => {
   io = serverIo;
@@ -106,33 +106,23 @@ export const initSocket = (serverIo: Server) => {
       socket.to(data.groupId).emit('call:ice-candidate', data);
     });
 
-    // Kagri AI Logic - Stream response like real AI
+    // Zeno AI Logic - Stream response with Tool Access (MCP)
     socket.on('chat_message', async (data) => {
       console.log('Received chat_message from socket:', socket.id, data);
+      const text = data.text || data; // handle object or string
       
       try {
-        // Simulate AI thinking delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const words = RESPONSE_MESSAGE.split(' ');
-        for (let i = 0; i < words.length; i++) {
-          const chunk = words[i] + (i < words.length - 1 ? ' ' : '');
-          const isLast = i === words.length - 1;
-          
-          console.log(`Streaming chunk ${i + 1}/${words.length}: "${chunk}"`);
-          
-          socket.emit('stream_chunk', { chunk, isLast });
-          
-          // Simulate typing delay (50-150ms random for more natural feel)
-          const delay = 50 + Math.random() * 100;
-          await new Promise(resolve => setTimeout(resolve, delay));
+        // Stream back using the AI Service
+        for await (const chunk of AiService.streamChat(userId || 'system', text)) {
+            socket.emit('stream_chunk', { chunk, isLast: false });
         }
         
-        console.log('Finished streaming response to socket:', socket.id);
+        socket.emit('stream_chunk', { chunk: '', isLast: true });
+        console.log('Finished streaming Zeno AI response to socket:', socket.id);
       } catch (error) {
-        console.error('Error in chat_message handler:', error);
+        console.error('Error in Zeno AI chat_message handler:', error);
         socket.emit('stream_chunk', { 
-          chunk: 'Đã xảy ra lỗi. Vui lòng thử lại sau.', 
+          chunk: 'Hệ thống AI hiện chưa đáp ứng đầy đủ. Vui lòng kiểm tra API Key.', 
           isLast: true 
         });
       }

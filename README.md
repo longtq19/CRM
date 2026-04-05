@@ -1,6 +1,6 @@
-# HCRM (Kagri Tech CRM) - README
+# Zeno ERP - README
 
-Tài liệu này mô tả tổng quan dự án, luồng vận hành hệ thống và nghiệp vụ theo từng chức năng chính.
+Tài liệu này mô tả tổng quan dự án, luồng vận hành hệ thống và nghiệp vụ theo từng chức năng chính của **Zeno ERP**.
 
 ## 1. Vị trí file README
 
@@ -27,8 +27,8 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
   - Định dạng: Chữ in hoa (A-Z) hoặc số (0-9), không dấu, không khoảng trắng, không ký tự đặc biệt.
   - Ví dụ: `HN`, `SG`, `K1`.
 - **Mã Đơn hàng (Order Code):**
-  - Định dạng (13 ký tự): **`KG`** (Cố định 2 ký tự) + **`WH`** (Mã kho - 2 ký tự) + **`xxxxxxx`** (Số thứ tự 7 chữ số, tăng từ **0000001** đến 9999999) + **`Hậu tố`** (**SA** cho đơn Sales, **RS** cho đơn CSKH).
-  - Ví dụ đơn tại kho HN: `KGHN0000001SA`.
+  - Định dạng (13 ký tự): **`ZN`** (Cố định 2 ký tự - Zeno) + **`WH`** (Mã kho - 2 ký tự) + **`xxxxxxx`** (Số thứ tự 7 chữ số, tăng từ **0000001** đến 9999999) + **`Hậu tố`** (**SA** cho đơn Sales, **RS** cho đơn CSKH).
+  - Ví dụ đơn tại kho HN: `ZNHN0000001SA`.
 - **Định dạng Tiền tệ (Currency Input):**
   - Dấu phân cách hàng nghìn: Sử dụng dấu chấm (**`.`**).
   - Xử lý nhập liệu: Tự động loại bỏ số 0 ở đầu khi nhập và định dạng dấu chấm trực tiếp khi gõ.
@@ -37,7 +37,7 @@ Toàn bộ hệ thống áp dụng bộ quy chuẩn hiển thị thống nhất 
 
 ## 2. Quy tắc chia số (Lead Distribution Rules)
 
-Hệ thống HCRM áp dụng cơ chế chia số (routing) thông minh, đảm bảo công bằng và bám sát tỉ lệ cấu hình tại **Vận hành (Organization Structure)**.
+Hệ thống CRM áp dụng cơ chế chia số (routing) thông minh, đảm bảo công bằng và bám sát tỉ lệ cấu hình tại **Vận hành (Organization Structure)**.
 
 ### 2.1. Chia cho Đơn vị Lá (Leaf Units):
 - **Công bằng tuyệt đối:** Lead khi được gán về một đơn vị lá (Tổ/Nhóm/Đội) sẽ được chia đều lập tức cho tất cả thành viên (Sales/CSKH) đang hoạt động trong đơn vị đó.
@@ -63,15 +63,19 @@ Hệ thống HCRM áp dụng cơ chế chia số (routing) thông minh, đảm b
 
 - **Trước** khi làm bất kỳ yêu cầu thay đổi nghiệp vụ, luật hệ thống, luồng dùng hoặc cấu hình: **đọc README** (ít nhất các mục liên quan) để khớp với mô tả hiện tại và tránh mâu thuẫn tài liệu.
 - **Sau** khi hoàn tất thay đổi đó: **cập nhật README** (thêm / sửa / xóa đoạn tương ứng) để tài liệu gốc luôn phản ánh hành vi thật của hệ thống. Không để code đã đổi mà README còn mô tả cũ.
-- **Database — thao tác có rủi ro mất / ghi đè dữ liệu** (migration, script xóa hoặc sửa hàng loạt, import upsert trùng mã, v.v.): **bắt buộc backup trước** (trong `backend/`: `npm run backup:db` → file `backend/backups/hcrm_full_<timestamp>.dump`). **Restore** (`pg_restore` từ file đó) **chỉ khi cần hoàn tác hoặc khôi phục** — không restore sau mỗi lần chạy thành công nếu muốn giữ dữ liệu vừa ghi. Chi tiết cách nghĩ về hoàn tác: mục **Khôi phục cấu trúc tổ chức KAGRI** (bước `pg_restore`, cẩn trọng `--clean`).
+- **Database — thao tác có rủi ro mất / ghi đè dữ liệu** (migration, script xóa hoặc sửa hàng loạt, import upsert trùng mã, v.v.): **bắt buộc backup trước** (trong `backend/`: `npm run backup:db` → file `backend/backups/ZENO_full_<timestamp>.dump`). **Restore** (`pg_restore` từ file đó) **chỉ khi cần hoàn tác hoặc khôi phục** — không restore sau mỗi lần chạy thành công nếu muốn giữ dữ liệu vừa ghi. Chi tiết cách nghĩ về hoàn tác: mục **Khôi phục cấu trúc tổ chức ZENO** (bước `pg_restore`, cẩn trọng `--clean`).
 - **Deploy production (Dokploy):** môi trường server hiện dùng **Dokploy**; trên dashboard, **application** tên **`app`** (dùng để mở đúng service, shell container, biến môi trường). Chi tiết Dockerfile, `DATABASE_URL`, lệnh trong container (`WORKDIR` `/app/backend`): mục **5.5.1**.
 - **Khi có thay đổi schema / migration:** sau khi cập nhật code, trên môi trường deploy cần chạy các lệnh **Prisma an toàn** (ưu tiên **`npx prisma migrate deploy`** trong thư mục `backend/`, **sau backup** khi thao tác có rủi ro) — xem **5.5.1** và bảng mã nguồn (Prisma). Trợ lý phát triển (AI) theo quy ước dự án sẽ **nhắc** thực hiện các bước này khi thay đổi liên quan DB.
 
 ## 2. Tổng quan kiến trúc
 
-HCRM gồm 2 phần:
+**Zeno ERP** được xây dựng theo kiến trúc **Modular Monolith** nhằm đảm bảo tính bảo trì và khả năng mở rộng trong khi vẫn giữ được sự đơn giản trong vận hành.
+
+Hệ thống gồm 2 phần chính:
 
 1. Backend: `backend/`
+   - **Cấu trúc Module:** Toàn bộ logic nghiệp vụ mới được tổ chức trong `backend/src/modules/`. Mỗi module bao gồm `routes`, `controller`, và `service`.
+   - **Zeno AI Module:** Được tách thành module riêng (`/src/modules/ai`). Tích hợp giao thức **MCP (Model Context Protocol)** để AI truy cập toàn hệ thống (khách hàng, đơn hàng, nhân sự) trong tương lai. Hiện tại trả về phản hồi mặc định: *"Cám ơn bạn đã sử dụng Zeno AI. Tuy nhiên, hạ tầng hiện tại chưa đáp ứng yêu cầu của Zeno AI. Vui lòng quay lại sau khi chủ tịch duyệt nâng cấp tính năng này!"*
    - Node.js + Express
    - Prisma (PostgreSQL)
    - Socket.IO realtime (nhận sự kiện lead/notification/order)
@@ -86,6 +90,7 @@ Các điểm vào chính:
 
 - Backend server: `backend/src/server.ts`
 - Backend app/route mount: `backend/src/app.ts` + `backend/src/routes/api.ts`
+- Modular Router: `backend/src/modules/<module-name>/<module-name>.routes.ts`
 - Socket.IO: `backend/src/socket.ts`
 - Cron: `backend/src/cron/leadDistribution.ts` (và một số cron khác)
 - Viettel Post webhook: `backend/src/routes/webhookRoutes.ts` + `backend/src/controllers/viettelPostWebhookController.ts`
@@ -133,7 +138,7 @@ Các bảng **nhật ký hệ thống** (`system_logs`), **khách hàng** (`cust
 
 **Nút thanh công cụ FE:** style định nghĩa trong `frontend/src/index.css` (`btn-toolbar-primary` / `btn-toolbar-secondary`; `.btn-primary` alias của primary). **Nên dùng component** `ToolbarButton` và `ToolbarFileLabel` tại `frontend/src/components/ui/ToolbarButton.tsx` — gom `variant`, `type="button"` mặc định và class CSS; `ToolbarFileLabel` dùng cho `<label>` bọc input file (Nhập Excel). Chỉ gắn class trực tiếp khi không render được bằng hai component này.
 
-**Đa tổ chức & cây Vận hành (DB `organizations` + `departments.organization_id`):** Mỗi bản ghi `Organization` là một tổ chức độc lập (mặc định seed **KAGRI**). Dưới mỗi tổ chức có đúng một nút gốc `type: COMPANY`, kế đến các **khối** `DIVISION` (có thể nhiều cấp anh em hoặc **khối con** dưới khối cha). Đơn vị `DEPARTMENT`/`TEAM` gắn vào khối hoặc đơn vị cha; cây không giới hạn độ sâu. Mã đơn vị (`departments.code`) là **duy nhất trong phạm vi một tổ chức** (`@@unique([organizationId, code])`). Khi khởi động DB, `ensureOrgRootCompany` / `ensureKagriOrganizationAndTree` (trong `hrController`, gọi từ `connectDB`) đảm bảo tổ chức KAGRI, gốc COMPANY và **7 khối** mặc định (mã `DIV_*` trong `backend/src/constants/kagriSeedDivisions.ts`): **KAGRI BIO, NAM DƯƠNG, PE, KVC, THÍCH, TRUST, CSKH TỔNG** — tạo nếu thiếu; **cập nhật tên / parent / displayOrder** nếu bản ghi đã có đúng mã. **Quản lý** (`managerId`) tùy chọn. Chỉ **đơn vị lá** (không có con) được gán `function` (enum `OrgFunc`): `MARKETING`, `SALES`, `CSKH`, `REV_DATA_BEFORE_20250701` (ghi nhận doanh thu từ data có trước 01/07/2025), `REV_DATA_RANGE_20250701_20260131` (ghi nhận doanh thu từ data trong khoảng 01/07/2025–31/01/2026). Với ba chức năng đầu, gán nhân viên yêu cầu **khớp loại NV** (`marketing` / `sales` / `customer_service`); với hai chức năng doanh thu theo data, chỉ cần đơn vị lá có `function` và nhân viên có **bất kỳ** loại NV (mã nguồn: `backend/src/constants/orgUnitFunctions.ts`, `frontend/src/constants/orgUnitFunctions.ts`). API: `GET/POST /api/hr/organizations`, `PUT/DELETE /api/hr/organizations/:id` (xóa chỉ khi không còn nhân viên trong cây đơn vị; không xóa KAGRI). `GET /api/hr/divisions` và `GET /api/hr/departments` nhận query **`organizationId`** (bắt buộc phía nghiệp vụ; nếu thiếu thì dùng tổ chức đầu tiên theo `sortOrder`). `GET /api/hr/organizations` trả thêm `rootDepartmentId` (id nút COMPANY). Quyền: `CONFIG_ORG_STRUCTURE` hoặc `MANAGE_HR` cho cây & tổ chức; `CONFIG_DATA_FLOW` hoặc `MANAGE_HR` cho `targetSalesUnitId` / `targetCsUnitId`. Nối luồng chỉ cho phép đích **cùng tổ chức**.
+**Đa tổ chức & cây Vận hành (DB `organizations` + `departments.organization_id`):** Mỗi bản ghi `Organization` là một tổ chức độc lập (mặc định seed **ZENO**). Dưới mỗi tổ chức có đúng một nút gốc `type: COMPANY`, kế đến các **khối** `DIVISION` (có thể nhiều cấp anh em hoặc **khối con** dưới khối cha). Đơn vị `DEPARTMENT`/`TEAM` gắn vào khối hoặc đơn vị cha; cây không giới hạn độ sâu. Mã đơn vị (`departments.code`) là **duy nhất trong phạm vi một tổ chức** (`@@unique([organizationId, code])`). Khi khởi động DB, `ensureOrgRootCompany` / `ensureKagriOrganizationAndTree` (trong `hr.service`, gọi từ `connectDB`) đảm bảo tổ chức ZENO, gốc COMPANY và **7 khối** mặc định (mã `DIV_*` trong `backend/src/constants/kagriSeedDivisions.ts`): **KAGRI BIO, NAM DƯƠNG, PE, KVC, THÍCH, TRUST, CSKH TỔNG** — tạo nếu thiếu; **cập nhật tên / parent / displayOrder** nếu bản ghi đã có đúng mã. **Quản lý** (`managerId`) tùy chọn. Chỉ **đơn vị lá** (không có con) được gán `function` (enum `OrgFunc`): `MARKETING`, `SALES`, `CSKH`, `REV_DATA_BEFORE_20250701` (ghi nhận doanh thu từ data có trước 01/07/2025), `REV_DATA_RANGE_20250701_20260131` (ghi nhận doanh thu từ data trong khoảng 01/07/2025–31/01/2026). Với ba chức năng đầu, gán nhân viên yêu cầu **khớp loại NV** (`marketing` / `sales` / `customer_service`); với hai chức năng doanh thu theo data, chỉ cần đơn vị lá có `function` và nhân viên có **bất kỳ** loại NV (mã nguồn: `backend/src/constants/orgUnitFunctions.ts`, `frontend/src/constants/orgUnitFunctions.ts`). API: `GET/POST /api/hr/organizations`, `PUT/DELETE /api/hr/organizations/:id` (xóa chỉ khi không còn nhân viên trong cây đơn vị; không xóa ZENO). `GET /api/hr/divisions` và `GET /api/hr/departments` nhận query **`organizationId`** (bắt buộc phía nghiệp vụ; nếu thiếu thì dùng tổ chức đầu tiên theo `sortOrder`). `GET /api/hr/organizations` trả thêm `rootDepartmentId` (id nút COMPANY). Quyền: `CONFIG_ORG_STRUCTURE` hoặc `MANAGE_HR` cho cây & tổ chức; `CONFIG_DATA_FLOW` hoặc `MANAGE_HR` for `targetSalesUnitId` / `targetCsUnitId`. Nối luồng chỉ cho phép đích **cùng tổ chức**.
 
 **Luồng phân data / lead:** Cấu hình `targetSalesUnitId` / `targetCsUnitId` trên đơn vị lá (Marketing → Sales → CSKH) thực hiện qua **API HR** (`PUT` đơn vị) hoặc công cụ DB; trên FE module **Vận hành** chỉ còn tab **Cấu trúc tổ chức** (và các tab tham số / phân hạng / mục tiêu KD) — không còn tab riêng luồng phân data. Luồng nghiệp vụ tổng thể vẫn bám cron và cấu hình mục 3.5 / 3.6.
 
@@ -171,16 +176,16 @@ JSON gồm: `marketingToSalesPct` (MKT → từng đơn vị lá Sales **trực 
 
 **Migration `20260327200000_hr_department_unit_sort_backfill`:** nếu **mọi** bản ghi `hr_department_units` đều `sort_order = 0`, gán thứ tự `1,2,3…` theo **tên** (tránh ghi đè khi đã có bản ghi `sort_order` khác 0). Chạy `npx prisma migrate deploy` trong `backend/` **sau khi backup**.
 
-**Khôi phục cấu trúc tổ chức KAGRI (khối / đơn vị seed):** Khi mất **7 khối mặc định** (`DIV_KAGARI_BIO` … `DIV_CSKH_TONG`) hoặc org/gốc COMPANY, dùng script sau — **trước khi ghi DB phải có backup** (quy tắc dự án).
+**Khôi phục cấu trúc tổ chức ZENO (khối / đơn vị seed):** Khi mất **7 khối mặc định** (`DIV_KAGARI_BIO` … `DIV_CSKH_TONG`) hoặc org/gốc COMPANY, dùng script sau — **trước khi ghi DB phải có backup** (quy tắc dự án).
 
 1. **Backup (khuyến nghị thủ công thêm một bản):**  
    `pg_dump "<DATABASE_URL>" -Fc -f backup-truoc-khoi-phuc.dump`  
    (PowerShell: đặt chuỗi kết nối trong biến hoặc dùng `pg_dump` với tham số `-h -U -d` tương đương.)  
-   **Backup đầy đủ vào `backend/backups/` (tên `hcrm_full_<timestamp>.dump`):** trong thư mục `backend/` chạy `npm run backup:db` (Linux/Docker: chỉ `pg_dump` trong PATH; Windows: thêm `pg_dump.exe` và thư mục PostgreSQL nếu có).
+   **Backup đầy đủ vào `backend/backups/` (tên `ZENO_full_<timestamp>.dump`):** trong thư mục `backend/` chạy `npm run backup:db` (Linux/Docker: chỉ `pg_dump` trong PATH; Windows: thêm `pg_dump.exe` và thư mục PostgreSQL nếu có).
 2. **Chạy script** trong thư mục `backend/`:  
-   - `npm run restore:kagri-org` — mặc định **tự gọi `pg_dump`** (định dạng custom) vào `backend/backups/pre-restore-kagri-org-<timestamp>.dump`, sau đó gọi `ensureKagriOrganizationAndTree` (cùng logic `connectDB` / `ensureOrgRootCompany`) để tạo lại org **KAGRI**, nút **COMPANY**, và các khối seed còn thiếu.  
-   - `npm run restore:kagri-org -- --skip-backup` — nếu đã `pg_dump` tay, bỏ bước backup trong script.  
-   - `npm run restore:kagri-org -- --minimal-units` — sau bước trên, với mỗi khối seed **chưa có** đơn vị con `DEPARTMENT`/`TEAM`, tạo **3 đơn vị lá mẫu** (Marketing / Sales / CSKH), mã dạng `DIV_…_AUTO_MKT` / `_AUTO_SAL` / `_AUTO_CSKH`, tên có hậu tố «(khôi phục mẫu)»; có thể đổi tên hoặc xóa trên giao diện **Cấu trúc tổ chức**.  
+   - `npm run restore:zeno-org` — mặc định **tự gọi `pg_dump`** (định dạng custom) vào `backend/backups/pre-restore-zeno-org-<timestamp>.dump`, sau đó gọi `ensureZenoOrganizationAndTree` (cùng logic `connectDB` / `ensureOrgRootCompany`) để tạo lại org **ZENO**, nút **COMPANY**, và các khối seed còn thiếu.  
+   - `npm run restore:zeno-org -- --skip-backup` — nếu đã `pg_dump` tay, bỏ bước backup trong script.  
+   - `npm run restore:zeno-org -- --minimal-units` — sau bước trên, với mỗi khối seed **chưa có** đơn vị con `DEPARTMENT`/`TEAM`, tạo **3 đơn vị lá mẫu** (Marketing / Sales / CSKH), mã dạng `DIV_…_AUTO_MKT` / `_AUTO_SAL` / `_AUTO_CSKH`, tên có hậu tố «(khôi phục mẫu)»; có thể đổi tên hoặc xóa trên giao diện **Cấu trúc tổ chức**.  
 3. **Hoàn tác / lấy lại DB như trước khi chạy script:** dùng **pg_restore** (hoặc công cụ restore của PostgreSQL) từ file `.dump` vừa tạo ở bước 1 hoặc 2 — tùy môi trường (thường tạo DB trống hoặc `--clean` lên DB đích; **cẩn trọng** vì ghi đè dữ liệu).  
 4. **Hạn chế:** Script **không** tái tạo khối/đơn vị **tùy chỉnh** (mã không thuộc bộ seed) đã xóa; chỉ có **backup cũ** mới khôi phục được đúng như trước.
 
@@ -787,7 +792,7 @@ Các nghiệp vụ:
   - `POST /api/chat/messages/call` — lưu lịch sử cuộc gọi (type `CALL`, content chứa JSON `{ duration, result, callType }`)
   - FE: hiển thị nội dung qua `renderChatMessageHtml` (`frontend/src/utils/chatMessageHtml.ts`): cho phép định dạng HTML cơ bản và thẻ `<a>`; liên kết `http(s)` mở **tab mới** (`target="_blank"`); URL dạng văn bản (không HTML) được tự bọc thành liên kết.
   - FE trang `/chat` — ô nhập tin (layout **không** gồm gửi danh thiếp):
-    - **Hàng trên:** Emoji (tab Sticker cute) · Gửi ảnh · Đính kèm file · Bật/tắt định dạng (Ctrl+Shift+X) · **Tin nhắn nhanh** (danh sách lưu `localStorage` key `hcrm_chat_quick_messages_v1`, mặc định trong `chatQuickMessagesStorage.ts`; thêm/sửa/xóa trong modal, chèn nhanh từ dropdown).
+    - **Hàng trên:** Emoji (tab Sticker cute) · Gửi ảnh · Đính kèm file · Bật/tắt định dạng (Ctrl+Shift+X) · **Tin nhắn nhanh** (danh sách lưu `localStorage` key `CRM_chat_quick_messages_v1`, mặc định trong `chatQuickMessagesStorage.ts`; thêm/sửa/xóa trong modal, chèn nhanh từ dropdown).
     - **Ô nhập:** placeholder gợi ý Ctrl+Shift+X; nền trắng, viền.
     - **Thanh định dạng dưới** (khi bật): B/I/U/gạch ngang, cỡ chữ, **màu chữ** (popover `ChatTextColorPopover` mở **lên trên** ô công cụ: `react-colorful` + HEX + swatch), cỡ chữ (dropdown cũng mở lên trên); xóa định dạng, list/number, thụt/lề, hoàn tác/làm lại, mở rộng/thu ô nhập; `execCommand` + `onMouseDown` `preventDefault` trên nút để giữ selection.
 
@@ -1238,14 +1243,14 @@ Nghiệp vụ:
 - **Prisma P1001** (Can't reach database server): app container không kết nối được tới Postgres — kiểm tra service DB đã **running**, `HOST:PORT` trong `DATABASE_URL` là **tên DNS nội bộ** đúng với stack (cùng Docker network với app), không dùng hostname chỉ resolve được trên máy khác.
 - **Mật khẩu Postgres có ký tự `@` (Dokploy / dashboard):** Không copy nguyên chuỗi nếu UI hiển thị dạng `...matkhau@@hostname...` (hai `@` liên tiếp) — đó **không phải** URL hợp lệ. Trong mật khẩu, ký tự `@` phải ghi **`%40`**, và chỉ **một** dấu `@` ngăn cách `user:password` với `host`. Ví dụ mật khẩu là `MatKhau@123`: `postgresql://postgres:MatKhau%40123@crmn-crmn-rscxzk:5432/CRMN`. Backend log cảnh báo nếu `DATABASE_URL` chứa `@@`.
 - **Backup / restore lên server PostgreSQL (Dokploy):**
-  1. Trên máy dev, trong `backend/`: `npm run backup:db` → file `backend/backups/hcrm_full_<timestamp>.dump` (thư mục `backups/` bị `.gitignore`; **không** push file dump lên Git).
+  1. Trên máy dev, trong `backend/`: `npm run backup:db` → file `backend/backups/CRM_full_<timestamp>.dump` (thư mục `backups/` bị `.gitignore`; **không** push file dump lên Git).
   2. Upload file `.dump` lên server (SCP/SFTP/volume Dokploy) rồi trên DB production: chạy `npx prisma migrate deploy` (hoặc migration tương đương) **trước** khi restore dữ liệu nếu schema mới hơn DB trống.
   3. Restore: `pg_restore -d "$DATABASE_URL" --no-owner --no-privileges` (hoặc tạo DB trống rồi restore; tùy chính sách hosting — **cẩn trọng** với `--clean` vì có thể xóa object cũ).
 - **Frontend build:** nếu build image riêng, set `VITE_API_URL` / `VITE_GOOGLE_MAPS_API_KEY` tại bước build (xem `frontend/.env.example`). Khi backend serve `frontend/dist` cùng origin, có thể dùng `VITE_API_URL=/api`.
 
 #### 5.5.1. Docker / Dokploy (build type: Dockerfile)
 
-- **Dokploy — application `app`:** trên server hiện tại, service ứng dụng HCRM được cấu hình trong Dokploy với **tên application `app`** (điều hướng tới đúng build/deploy, terminal một lần, biến môi trường).
+- **Dokploy — application `app`:** trên server hiện tại, service ứng dụng CRM được cấu hình trong Dokploy với **tên application `app`** (điều hướng tới đúng build/deploy, terminal một lần, biến môi trường).
 - Ở **gốc repo** có `Dockerfile` + `.dockerignore`. Trên Dokploy: **Build Type = Dockerfile**, đường dẫn file `Dockerfile`, **context build = thư mục gốc** (cùng cấp `backend/`, `frontend/`).
 - Image gồm: build **frontend** (Vite) + **backend** (`tsc`, `prisma generate`). **`CMD`:** `backend/scripts/docker-entrypoint.sh` — đợi Postgres bằng **`pg_isready`** (parse host/port từ **`DATABASE_URL`**, tối đa ~120s), rồi **`prisma migrate deploy`**, rồi **`node dist/src/server.js`**. Nếu sau thời gian đợi vẫn không kết nối được DB (host sai, DB không chạy, khác network Docker), container thoát — xem log `[entrypoint] FATAL`. Biến **`SKIP_DB_WAIT=1`** bỏ qua bước đợi (chỉ dùng khi debug). Cổng HTTP theo `PORT` (nên **`PORT=3000`** hoặc đúng proxy Dokploy).
 - **`backend/tsconfig.json`:** `tsc` trong image chỉ biên dịch `src/**/*`; thư mục `backend/scripts/` bị loại khỏi build (script bảo trì có thể lệch schema — chạy riêng bằng `ts-node` khi cần).
