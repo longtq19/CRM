@@ -62,7 +62,7 @@ export const login = async (req: Request, res: Response) => {
   // Sync chat groups silently on login
   syncCompanyChatGroupMembers().catch(() => {});
 
-  res.json({ success: true, employee: result.employee });
+  res.json({ success: true, user: result.employee });
 };
 
 export const logout = async (req: Request, res: Response) => {
@@ -89,12 +89,17 @@ export const getMe = async (req: Request, res: Response) => {
   if (!employee) return res.status(404).json({ message: 'Employee not found' });
 
   res.json({
-    id: employee.id,
-    fullName: employee.fullName,
-    code: employee.code,
-    phone: employee.phone,
-    avatarUrl: employee.avatarUrl,
-    roleGroup: employee.roleGroup
+    success: true,
+    user: {
+      id: employee.id,
+      fullName: employee.fullName,
+      code: employee.code,
+      phone: employee.phone,
+      avatarUrl: employee.avatarUrl,
+      roleGroup: employee.roleGroup,
+      menus: employee.roleGroup?.menus || [],
+      permissions: (employee.roleGroup?.permissions || []).map((p: any) => (typeof p === 'string' ? p : p.code))
+    }
   });
 };
 
@@ -105,7 +110,7 @@ export const consumeStaffCheckToken = async (req: Request, res: Response) => {
 
   if (result.token) setTokenCookie(res, result.token);
 
-  res.json({ success: true, employee: result.employee });
+  res.json({ success: true, user: result.employee });
 };
 
 export const changePassword = async (req: Request, res: Response) => {

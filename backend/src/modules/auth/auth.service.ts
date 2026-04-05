@@ -85,7 +85,9 @@ export class AuthService {
         code: employee.code,
         phone: employee.phone,
         avatarUrl: employee.avatarUrl,
-        roleGroup: employee.roleGroup
+        roleGroup: employee.roleGroup,
+        menus: employee.roleGroup?.menus || [],
+        permissions: (employee.roleGroup?.permissions || []).map((p: any) => (typeof p === 'string' ? p : p.code))
       }
     };
   }
@@ -127,7 +129,9 @@ export class AuthService {
         code: employee.code,
         phone: employee.phone,
         avatarUrl: employee.avatarUrl,
-        roleGroup: employee.roleGroup
+        roleGroup: employee.roleGroup,
+        menus: employee.roleGroup?.menus || [],
+        permissions: (employee.roleGroup?.permissions || []).map((p: any) => (typeof p === 'string' ? p : p.code))
       }
     };
   }
