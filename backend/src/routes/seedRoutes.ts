@@ -3,7 +3,7 @@ import { prisma } from '../config/database';
 import { authenticate } from '../middleware/authMiddleware';
 import { ensureKagriOrganizationAndTree } from '../controllers/hrController';
 import { getCompanyRootForOrg, getDefaultOrganizationId } from '../utils/organizationHelper';
-import { KAGRI_SEED_DIVISIONS } from '../constants/kagriSeedDivisions';
+import { ZENO_SEED_DIVISIONS } from '../constants/zenoSeedDivisions';
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.post('/to-chuc', authenticate, async (_req, res) => {
         })
       ).map((d) => [d.code, true])
     );
-    const missing = KAGRI_SEED_DIVISIONS.filter((s) => !byCode.has(s.code));
+    const missing = ZENO_SEED_DIVISIONS.filter((s) => !byCode.has(s.code));
     if (missing.length) {
       return res.status(500).json({
         message: 'Sau khi đồng bộ vẫn thiếu khối seed',
@@ -28,7 +28,7 @@ router.post('/to-chuc', authenticate, async (_req, res) => {
     }
 
     return res.json({
-      message: `Đã đảm bảo ${KAGRI_SEED_DIVISIONS.length} khối mặc định dưới gốc KAGRI`,
+      message: `Đã đảm bảo ${ZENO_SEED_DIVISIONS.length} khối mặc định dưới gốc ZENO`,
       organizationId: org.id,
       seeded: true,
     });

@@ -29,7 +29,7 @@ import {
   isAllowedOrgUnitFunction,
   ORG_FUNC_RELAXED_EMPLOYEE_TYPE_MATCH,
 } from '../constants/orgUnitFunctions';
-import { KAGRI_SEED_DIVISIONS } from '../constants/kagriSeedDivisions';
+import { ZENO_SEED_DIVISIONS } from '../constants/zenoSeedDivisions';
 
 export { getCompanyRootForOrg, getDefaultOrganizationId };
 
@@ -387,8 +387,8 @@ export async function ensureKagriOrganizationAndTree(): Promise<{
     data: { parentId: company.id },
   });
 
-  for (let i = 0; i < KAGRI_SEED_DIVISIONS.length; i++) {
-    const spec = KAGRI_SEED_DIVISIONS[i]!;
+  for (let i = 0; i < ZENO_SEED_DIVISIONS.length; i++) {
+    const spec = ZENO_SEED_DIVISIONS[i]!;
     const row = await prisma.department.findFirst({
       where: { organizationId: org.id, code: spec.code },
     });
