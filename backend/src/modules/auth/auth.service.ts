@@ -99,7 +99,7 @@ export class AuthService {
     const decoded = verifyStaffCheckToken(token);
     if (!decoded) return { success: false, message: 'Token không hợp lệ hoặc đã hết hạn.' };
 
-    const consumed = await tryMarkStaffCheckJtiConsumedOnce(decoded.jti);
+    const consumed = tryMarkStaffCheckJtiConsumedOnce(decoded.jti, decoded.exp);
     if (!consumed) return { success: false, message: 'Token này đã được sử dụng rồi.' };
 
     const employee = await prisma.employee.findUnique({
