@@ -130,7 +130,7 @@ export const setTempPassword = async (req: Request, res: Response) => {
 };
 
 export const issueStaffCheckToken = async (req: Request, res: Response) => {
-  const { targetId } = req.body;
+  const targetId = req.body.targetId || req.body.employeeId;
   const actor = (req as any).user;
   const result = await AuthService.issueStaffCheckToken(targetId, actor.id);
   if (!result.success) return res.status(400).json({ message: result.message });

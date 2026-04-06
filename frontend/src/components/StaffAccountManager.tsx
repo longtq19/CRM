@@ -85,7 +85,7 @@ const StaffAccountManager: React.FC = () => {
     setMessage(null);
     setActioningId(emp.id);
     try {
-      const res: any = await apiClient.post('/auth/admin/issue-staff-check-token', { employeeId: emp.id });
+      const res: any = await apiClient.post('/auth/admin/issue-staff-check-token', { employeeId: emp.id, targetId: emp.id });
       if (!res?.success || !res?.token) {
         setMessage({ type: 'error', text: res?.message || 'Không tạo được liên kết kiểm tra.' });
         return;
