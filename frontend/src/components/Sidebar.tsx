@@ -87,21 +87,16 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
         {/* Logo Section */}
         <div className={clsx(
           "flex flex-col items-center justify-center border-b border-white/10 transition-all duration-300",
-          isCollapsed ? "p-3" : "p-5"
+          isCollapsed ? "p-3" : "px-5 py-4"
         )}>
           <img 
-            src="/sideBarLogo.png?v=2" 
+            src="/sideBarLogo.png?v=3" 
             alt="ZENO" 
             className={clsx(
               "object-contain transition-all duration-300",
-              isCollapsed ? "w-12 h-12" : "w-44 h-auto"
+              isCollapsed ? "w-10 h-10" : "w-40 h-auto"
             )} 
           />
-          {!isCollapsed && (
-            <p className="text-xs font-bold text-white text-center whitespace-nowrap mt-2">
-              Nền tảng doanh nghiệp số
-            </p>
-          )}
         </div>
 
         {/* Navigation */}
