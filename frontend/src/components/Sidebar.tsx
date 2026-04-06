@@ -87,10 +87,10 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
         {/* Logo Section */}
         <div className={clsx(
           "flex flex-col items-center justify-center border-b border-white/10 transition-all duration-300",
-          isCollapsed ? "p-3" : "px-5 py-4"
+          isCollapsed ? "p-2" : "px-4 py-3"
         )}>
           <img 
-            src="/sideBarLogo.png?v=4" 
+            src="/sideBarLogo.png?v=5" 
             alt="ZENO" 
             className={clsx(
               "object-contain transition-all duration-300",
@@ -116,7 +116,7 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
                 title={isCollapsed ? translate(item.label) : undefined}
                 className={({ isActive }) => clsx(
                   "flex items-center rounded-xl transition-colors font-medium",
-                  isCollapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-3",
+                  isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
                   isActive 
                     ? "bg-primary text-white shadow-sm" 
                     : "text-white/70 hover:bg-white/10 hover:text-white"
