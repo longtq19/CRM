@@ -1,0 +1,169 @@
+﻿=== Organizations (as API returns) ===
+[
+  {
+    "id": "12ca6aa3-95c5-4b29-8ef9-7b1db825f264",
+    "code": "KAGRI",
+    "name": "KAGRI",
+    "sortOrder": 0,
+    "createdAt": "2026-03-23T03:30:32.283Z",
+    "updatedAt": "2026-03-23T03:30:32.283Z",
+    "rootDepartmentId": "28917c21-21ae-4094-8f3d-5200c749d4d2"
+  }
+]
+
+=== Divisions count: 21 ===
+[
+  {
+    id: '580ad438-31a7-4fec-8026-86e6d1675db2',
+    name: 'PH├ÆNG CSKH HU├è',
+    code: 'K11',
+    parentId: '150f6a21-123a-43e6-89d3-23c1f82f3bbf'
+  },
+  {
+    id: '3febb5bd-f85f-44ff-9b05-cbeecccc52fc',
+    name: 'PH├ÆNG MARKETING',
+    code: 'K13',
+    parentId: '79200b9b-f5c4-452f-80ff-67c7541d7f0b'
+  },
+  {
+    id: 'bfe8c899-728f-4ee3-8495-babe4fd635e3',
+    name: 'DEMO',
+    code: 'K14',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: 'e77c4aa9-4c00-4787-87a2-2450e98639a3',
+    name: 'KAGRI',
+    code: 'K01',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: '54023a16-c562-4d28-839a-16a55d437796',
+    name: 'PH├ÆNG CSKH 2',
+    code: 'K12',
+    parentId: '150f6a21-123a-43e6-89d3-23c1f82f3bbf'
+  },
+  {
+    id: '49b1d7d7-1a06-4bae-8ee5-354adb6be494',
+    name: 'PH├ÆNG MARKETING',
+    code: 'K09',
+    parentId: '0b33fff1-7cef-4b79-9cf8-a503c83f19f0'
+  },
+  {
+    id: '820a3b31-9efc-46c9-8aad-8d8949a4cd9e',
+    name: 'KAGRI BIO',
+    code: 'K02',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: '0b33fff1-7cef-4b79-9cf8-a503c83f19f0',
+    name: 'ZENO BIO',
+    code: 'DIV_KAGARI_BIO',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: '088b1595-3179-401b-874f-43c3f67ceaec',
+    name: 'NAM D╞»╞áNG',
+    code: 'K03',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: '79200b9b-f5c4-452f-80ff-67c7541d7f0b',
+    name: 'NAM D╞»╞áNG',
+    code: 'DIV_NAM_DUONG',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: 'e9fca99e-1c0f-41cf-9a07-c8985e879dd1',
+    name: 'PH├ÆNG SALES',
+    code: 'K10',
+    parentId: '0b33fff1-7cef-4b79-9cf8-a503c83f19f0'
+  },
+  {
+    id: '6bed51c3-967f-4934-9cec-b6d8a04efd52',
+    name: 'PE',
+    code: 'DIV_PE',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: 'eb930cec-a30f-48cb-8575-e24eb7bc755d',
+    name: 'PE',
+    code: 'K04',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: 'e2d9b009-f835-4416-92cb-cce4903c6101',
+    name: 'KVC',
+    code: 'DIV_KVC',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: 'a423f560-5b02-477c-9d98-403dc3a74efb',
+    name: 'KVC',
+    code: 'K05',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: '096d86f8-0c57-405c-859b-56dcc3dbe3af',
+    name: 'TH├ìCH',
+    code: 'K06',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: 'f053cb23-c36b-41a8-b1bd-36432b7dbfa9',
+    name: 'TH├ìCH',
+    code: 'DIV_THICH',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: '2073ac68-ebb7-4253-b405-caed45236466',
+    name: 'TRUST',
+    code: 'DIV_TRUST_NATION',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  },
+  {
+    id: 'f3269fe8-0ab6-403f-b70b-0a6751ea990d',
+    name: 'TRUST NATION',
+    code: 'K08',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: '044c1f27-edbe-4417-bff4-aa9a97f1415f',
+    name: 'CSKH KAGRI',
+    code: 'K07',
+    parentId: 'e77c4aa9-4c00-4787-87a2-2450e98639a3'
+  },
+  {
+    id: '150f6a21-123a-43e6-89d3-23c1f82f3bbf',
+    name: 'CSKH Tß╗öNG',
+    code: 'DIV_CSKH_TONG',
+    parentId: '28917c21-21ae-4094-8f3d-5200c749d4d2'
+  }
+]
+
+=== Frontend filter params ===
+rootDepartmentId: 28917c21-21ae-4094-8f3d-5200c749d4d2
+orgCodeNorm: "KAGRI"
+orgNameNorm: "kagri"
+
+Step 1 (parentId filter): 9 divisions
+  - DEMO (code: K14, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - KAGRI (code: K01, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - ZENO BIO (code: DIV_KAGARI_BIO, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - NAM D╞»╞áNG (code: DIV_NAM_DUONG, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - PE (code: DIV_PE, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - KVC (code: DIV_KVC, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - TH├ìCH (code: DIV_THICH, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - TRUST (code: DIV_TRUST_NATION, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  - CSKH Tß╗öNG (code: DIV_CSKH_TONG, parentId: 28917c21-21ae-4094-8f3d-5200c749d4d2)
+  FILTERED OUT by name match: KAGRI (name: kagri === kagri)
+
+Step 2 (final topLevelDivisions): 8 divisions
+  - DEMO (code: K14)
+  - ZENO BIO (code: DIV_KAGARI_BIO)
+  - NAM D╞»╞áNG (code: DIV_NAM_DUONG)
+  - PE (code: DIV_PE)
+  - KVC (code: DIV_KVC)
+  - TH├ìCH (code: DIV_THICH)
+  - TRUST (code: DIV_TRUST_NATION)
+  - CSKH Tß╗öNG (code: DIV_CSKH_TONG)

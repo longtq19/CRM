@@ -1087,11 +1087,31 @@ const DepartmentManager: React.FC<DepartmentManagerProps> = ({
 
     const selectedOrg = organizations.find((o) => o.id === selectedOrganizationId);
     
-    // Tìm rootDepartmentId (COMPANY) từ org (API /hr/organizations) 
-    // HOẶC tìm trực tiếp từ danh sách departments (API /hr/departments) nếu server chưa đồng bộ kịp.
+    // Tìm rootDepartmentId (COMPANY) theo thứ tự ưu tiên:
+    // 1. Từ API /hr/organizations (trường enriched rootDepartmentId)
+    // 2. Từ danh sách departments (tìm type COMPANY)
+    // 3. Suy ra từ danh sách divisions: parentId phổ biến nhất mà KHÔNG phải ID của division nào
+    //    (tức là parentId trỏ lên nút COMPANY bên ngoài danh sách divisions)
     const rootFromOrg = selectedOrg?.rootDepartmentId;
-    const rootFromDepts = departments.find((d) => d.type === 'COMPANY' && d.organizationId === selectedOrganizationId)?.id;
-    const finalRootId = rootFromOrg || rootFromDepts || null;
+    const rootFromDepts = departments.find((d) => d.type === 'COMPANY' && (d as any).organizationId === selectedOrganizationId)?.id;
+    const inferredRoot = (() => {
+        if (rootFromOrg || rootFromDepts) return null; // không cần suy
+        // Đếm parentId phổ biến nhất trong divisions, loại trừ parentId là ID của division khác
+        const divIds = new Set(divisions.map((d) => d.id));
+        const parentCounts = new Map<string, number>();
+        for (const d of divisions) {
+            if (d.parentId && !divIds.has(d.parentId)) {
+                parentCounts.set(d.parentId, (parentCounts.get(d.parentId) || 0) + 1);
+            }
+        }
+        let best: string | null = null;
+        let bestCount = 0;
+        for (const [pid, cnt] of parentCounts) {
+            if (cnt > bestCount) { best = pid; bestCount = cnt; }
+        }
+        return best;
+    })();
+    const finalRootId = rootFromOrg || rootFromDepts || inferredRoot || null;
 
     const orgCodeNorm = (selectedOrg?.code || '').trim().toUpperCase();
     const orgNameNorm = (selectedOrg?.name || '').trim().toLowerCase();
