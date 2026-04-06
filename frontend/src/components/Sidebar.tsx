@@ -90,7 +90,7 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
           isCollapsed ? "p-3" : "px-5 py-4"
         )}>
           <img 
-            src="/sideBarLogo.png?v=3" 
+            src="/sideBarLogo.png?v=4" 
             alt="ZENO" 
             className={clsx(
               "object-contain transition-all duration-300",
