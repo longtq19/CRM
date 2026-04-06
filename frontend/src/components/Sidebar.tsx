@@ -99,7 +99,7 @@ const Sidebar = ({ isOpen, isCollapsed, onClose, onToggleCollapse }: SidebarProp
           />
           {!isCollapsed && (
             <p className="text-xs font-bold text-white text-center whitespace-nowrap mt-2">
-              Chuẩn mới cho nông nghiệp hiện đại
+              Nền tảng doanh nghiệp số
             </p>
           )}
         </div>
