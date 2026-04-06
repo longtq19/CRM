@@ -66,7 +66,13 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
-  res.clearCookie('token');
+  // If using Bearer token (impersonation), don't clear the global jwt cookie
+  // to avoid logging the admin out from their main tab.
+  const isImpersonation = req.headers.authorization?.startsWith('Bearer');
+  if (!isImpersonation) {
+    res.clearCookie('jwt');
+  }
+  res.clearCookie('token'); // Cleanup legacy cookie if any
   res.json({ success: true, message: 'Logged out successfully' });
 };
 
@@ -108,9 +114,9 @@ export const consumeStaffCheckToken = async (req: Request, res: Response) => {
   const result = await AuthService.consumeStaffCheckToken(token);
   if (!result.success) return res.status(401).json({ message: result.message });
 
-  if (result.token) setTokenCookie(res, result.token);
-
-  res.json({ success: true, user: result.employee });
+  // Do NOT set a global `jwt` cookie. It would overwrite the admin's session in other tabs.
+  // The frontend handles this via sessionStorage and Bearer token.
+  res.json({ success: true, user: result.employee, token: result.token });
 };
 
 export const changePassword = async (req: Request, res: Response) => {
