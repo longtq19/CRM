@@ -1086,17 +1086,25 @@ const DepartmentManager: React.FC<DepartmentManagerProps> = ({
     };
 
     const selectedOrg = organizations.find((o) => o.id === selectedOrganizationId);
-    const rootDepartmentId = selectedOrg?.rootDepartmentId ?? null;
+    
+    // Tìm rootDepartmentId (COMPANY) từ org (API /hr/organizations) 
+    // HOẶC tìm trực tiếp từ danh sách departments (API /hr/departments) nếu server chưa đồng bộ kịp.
+    const rootFromOrg = selectedOrg?.rootDepartmentId;
+    const rootFromDepts = departments.find((d) => d.type === 'COMPANY' && d.organizationId === selectedOrganizationId)?.id;
+    const finalRootId = rootFromOrg || rootFromDepts || null;
+
     const orgCodeNorm = (selectedOrg?.code || '').trim().toUpperCase();
     const orgNameNorm = (selectedOrg?.name || '').trim().toLowerCase();
+
     const topLevelDivisions = (
-        rootDepartmentId
-            ? divisions.filter((d) => d.parentId === rootDepartmentId)
+        finalRootId
+            ? divisions.filter((d) => d.parentId === finalRootId)
             : divisions.filter((d) => !d.parentId)
     )
         .filter((d) => {
             const codeU = (d.code || '').trim().toUpperCase();
             const nameN = (d.name || '').trim().toLowerCase();
+            // Không hiển thị nếu mã khối hoặc tên khối trùng chính xác với tổ chức (trường hợp khối ảo / nút gốc bị nhầm)
             if (orgCodeNorm && codeU === orgCodeNorm) return false;
             if (orgNameNorm && nameN === orgNameNorm) return false;
             return true;
