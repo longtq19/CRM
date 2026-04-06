@@ -769,7 +769,6 @@ const SortableDivisionSection = ({
     const rootDeptsRaw = divisionDepts.filter((d: Department) => d.parentId === division.id);
     const rootDepts = sortRootDepartmentsByOrgFunction(rootDeptsRaw);
     const rootGroups = groupRootDeptsByFunction(rootDepts);
-    const unitCount = countDepartmentUnitsInDivision(division.id, departments);
     const leavesInDiv = getLeafDepartmentsInDivisionSubtree(division.id, departments, allDivisions);
     const hasMktLeaf = leavesInDiv.some((d: Department) => d.function === 'MARKETING');
     const hasSalesLeaf = leavesInDiv.some((d: Department) => d.function === 'SALES');
@@ -823,7 +822,7 @@ const SortableDivisionSection = ({
                             {translate(division.name)}
                         </h4>
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-xs text-secondary/70">
-                            <span>{unitCount} đơn vị</span>
+                            <span>{childDivisions.length} khối con, {rootDeptsRaw.length} đơn vị</span>
                             <span className="text-secondary/40">·</span>
                             <span className="flex items-center gap-1 min-w-0">
                                 <Users size={12} className="text-black shrink-0" aria-hidden />
@@ -833,20 +832,6 @@ const SortableDivisionSection = ({
                                     {division.manager ? division.manager.fullName : '—'}
                                 </span>
                             </span>
-                        </div>
-                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500 max-w-full">
-                            {childDivisions.length > 0 && (
-                                <span className="truncate break-all" title="Các khối con trực thuộc">
-                                    <span className="font-medium mr-1 text-division">Khối con:</span>
-                                    {childDivisions.map((d: any) => translate(d.name)).join(', ')}
-                                </span>
-                            )}
-                            {rootDeptsRaw.length > 0 && (
-                                <span className="truncate break-all" title="Các đơn vị con trực thuộc">
-                                    <span className="font-medium mr-1 text-secondary/80">Đơn vị:</span>
-                                    {rootDeptsRaw.map((d: any) => translate(d.name)).join(', ')}
-                                </span>
-                            )}
                         </div>
                         </div>
                     </div>
