@@ -834,6 +834,20 @@ const SortableDivisionSection = ({
                                 </span>
                             </span>
                         </div>
+                        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-500 max-w-full">
+                            {childDivisions.length > 0 && (
+                                <span className="truncate break-all" title="Các khối con trực thuộc">
+                                    <span className="font-medium mr-1 text-division">Khối con:</span>
+                                    {childDivisions.map((d: any) => translate(d.name)).join(', ')}
+                                </span>
+                            )}
+                            {rootDeptsRaw.length > 0 && (
+                                <span className="truncate break-all" title="Các đơn vị con trực thuộc">
+                                    <span className="font-medium mr-1 text-secondary/80">Đơn vị:</span>
+                                    {rootDeptsRaw.map((d: any) => translate(d.name)).join(', ')}
+                                </span>
+                            )}
+                        </div>
                         </div>
                     </div>
                 </div>
